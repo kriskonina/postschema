@@ -1,0 +1,3571 @@
+{
+	"info": {
+		"_postman_id": "8d56ceae-eb1d-40c1-aee8-db1f6e507b40",
+		"name": "Postschema",
+		"description": "# Introduction\nWhat does your API do?\n\n# Overview\nThings that the developers should know about\n\n# Authentication\nWhat is the preferred way of using the API?\n\n# Error Codes\nWhat errors and status codes can a user expect?\n\n# Rate limit\nIs there a limit to the number of requests an user can send?",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Inherited resource \\wo relations",
+			"item": [
+				{
+					"name": "create with empty payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "705e8ec4-3801-463f-b7c6-1c8436d0a9db",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Number of keys in the validation error payload is 5', () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(Object.keys(jsonData).length).to.eql(5)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create with an empty array",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "705e8ec4-3801-463f-b7c6-1c8436d0a9db",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Ensure the schema error is returned', () => {",
+									"    let jsonData = pm.response.json()._schema;",
+									"    pm.expect(jsonData[0]).to.eql(\"Invalid input type.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[]"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create with no payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "705e8ec4-3801-463f-b7c6-1c8436d0a9db",
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create with invalid payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "705e8ec4-3801-463f-b7c6-1c8436d0a9db",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Email is of wrong format\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.email[0]).to.eql(\"Not a valid email address.\");",
+									"});",
+									"pm.test(\"Empty list\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.badges[0]).to.eql(\"Data not provided\");",
+									"});",
+									"pm.test(\"Wrong type\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.phone[0]).to.eql(\"Not a valid string.\");",
+									"});",
+									"pm.test(\"Unknown field present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.unknown_key[0]).to.eql(\"Unknown field.\");",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"unknown_key\": [],\n\t\"phone\": 0000,\n\t\"badges\": [],\n\t\"email\": \"dfg\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create with missing required fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "705e8ec4-3801-463f-b7c6-1c8436d0a9db",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test('Validaton error message is as expected', () => {",
+									"    let jsonData = pm.response.json().city[0]",
+									"    pm.expect(jsonData).to.eql(\"Missing data for required field.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"mr.sartys@sartys.com\",\n    \"token\": \"afb34cf9304a4e24f39b2cc0299301\",\n    \"name\": \"Mr. Sartys\",\n    \"phone\": \"+4839034953345\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1 create",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "705e8ec4-3801-463f-b7c6-1c8436d0a9db",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"mr.sartys@sartys.com\",\n    \"token\": \"afb34cf9304a4e24f39b2cc0299301\",\n    \"name\": \"Mr. Sartys\",\n        \"phone\": \"+4839034953345\",\n        \"city\": \"Warszawa\",\n        \"badges\": [\"gold\",\"silver\",\"potato\"]\n\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2 create",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "139f5153-db27-4b52-8a64-c262dbad799e",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"buty.detal@sartys.com\",\n    \"token\": \"0980980398u098398434\",\n    \"name\": \"Mr. Dntal\",\n   \n        \"phone\": \"+4848034953345\",\n        \"city\": \"Wrocław\",\n        \"badges\": [\"gold\",\"shit\",\"piss\"]\n   \n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/?page=1",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3 create",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "134f7bcd-c5fa-4c0d-b811-fab6ef76a24f",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"marty.technician@sartys.com\",\n    \"token\": \"afb34cf9304a4e24f39b2cc0299301\",\n    \"name\": \"Mr. Tech\",\n        \"phone\": \"+4889034953345\",\n        \"city\": \"Warszawa\",\n        \"badges\": [\"water\",\"silver\",\"piss\"]\n   \n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3 same payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "0c5dbb0d-b052-4e24-ab6b-4c7ab7c92b46",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Unique violation\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.email[0]).to.eql(\"Already exists.\")",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"marty.technician@sartys.com\",\n    \"token\": \"afb34cf9304a4e24f39b2cc0299301\",\n    \"name\": \"Mr. Tech\",\n        \"phone\": \"+4809034953345\",\n        \"city\": \"Warszawa\",\n        \"badges\": [\"water\",\"silver\",\"piss\"]\n   \n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list with unknown field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "9ac23e28-f17f-4660-af10-8ddd288056a0",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Unknown field present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.unknown[0]).to.eql(\"Unknown field.\");",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"unknown\": []\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list with invalid field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "9ac23e28-f17f-4660-af10-8ddd288056a0",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Invalid type\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.city[0]).to.eql(\"Not a valid string.\");",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"city\": []\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list all",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total count key is present and is 3\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.total_count).to.eql(3);",
+									"});",
+									"pm.test(\"Indicies are ascending\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    jsonData.data.reduce((a,b) => {",
+									"        pm.expect(a.id).to.lt(b.id)",
+									"        return b",
+									"    })",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "acf3090c-4f92-47ba-a891-01cf4ac99503",
+								"exec": [
+									"pm.sendRequest(\"https://postman-echo.com/get\", function (err, response) {",
+									"    console.log(response.json());",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list all; restrict to selected fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total count key is present and is 3\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.total_count).to.eql(3);",
+									"});",
+									"pm.test(\"Each item contains exactly 3 keys\", () => {",
+									"    let jsonData = pm.response.json().data;",
+									"    jsonData.forEach(item => {",
+									"        let count = Object.keys(item).length",
+									"        pm.expect(count).to.eql(3)",
+									"    })",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?select=name,token,id",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "name,token,id"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list all; restrict to selected invalid fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Query key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.query).to.is.ok;",
+									"});",
+									"pm.test(\"Validation array contains two items\", function () {",
+									"    let jsonData = Object.keys(pm.response.json().query.select);",
+									"    pm.expect(jsonData.length).to.eql(2);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?select=car,bug",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "car,bug"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list all with simple criterion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "9ac23e28-f17f-4660-af10-8ddd288056a0",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total count key is present and is 2\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.total_count).to.eql(2);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"city\": \"Warszawa\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list all with two criteria",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "9ac23e28-f17f-4660-af10-8ddd288056a0",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total count key is present and is 2\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.total_count).to.eql(2);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"city\": \"Warszawa\",\n\t\"badges\": [\"silver\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list all with two criteria 2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "9ac23e28-f17f-4660-af10-8ddd288056a0",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total count key is present and is 1\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.total_count).to.eql(1);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"city\": \"Warszawa\",\n\t\"badges\": [\"water\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list none with valid criteria",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "9ac23e28-f17f-4660-af10-8ddd288056a0",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.is.ok;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"city\": \"Opole\",\n\t\"badges\": [\"silver\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list sort descending",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total count key is present and is 3\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.total_count).to.eql(3);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?order_dir=desc",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "order_dir",
+									"value": "desc"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list limit to 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total count key is present and is 3\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.total_count).to.eql(3);",
+									"});",
+									"pm.test(\"Total item count in the response is 1\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.length).to.eql(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?limit=1",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list first page, descending",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total item count in the response is 1\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.length).to.eql(1);",
+									"});",
+									"pm.test(\"First item is the last one added\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data[0].name).to.eql(\"Mr. Tech\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?order_dir=desc&limit=1&page=1",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "order_dir",
+									"value": "desc"
+								},
+								{
+									"key": "limit",
+									"value": "1"
+								},
+								{
+									"key": "page",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list last page, descending",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total item count in the response is 1\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.length).to.eql(1);",
+									"});",
+									"pm.test(\"First item is the first one added\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data[0].name).to.eql(\"Mr. Sartys\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?order_dir=desc&limit=1&page=3",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "order_dir",
+									"value": "desc"
+								},
+								{
+									"key": "limit",
+									"value": "1"
+								},
+								{
+									"key": "page",
+									"value": "3"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list by email, implicit ascending order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"const assert = require('assert')",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total item count in the response is 3\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.length).to.eql(3);",
+									"});",
+									"pm.test(\"Email addresses are ascending\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    jsonData.data.reduce((a,b) => {",
+									"        // pm.expect(a.email).to.gt(b.email)",
+									"        assert(a.email < b.email, \"Email addresses are not ascending\")",
+									"        return b",
+									"    })",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?order_by=email",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "order_by",
+									"value": "email"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list by email, explicit descending order",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"const assert = require('assert')",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total item count in the response is 3\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.length).to.eql(3);",
+									"});",
+									"pm.test(\"Email addresses are ascending\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    jsonData.data.reduce((a,b) => {",
+									"        assert(a.email > b.email, \"Email addresses are not descending\")",
+									"        return b",
+									"    })",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?order_by=email&order_dir=desc",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "order_by",
+									"value": "email"
+								},
+								{
+									"key": "order_dir",
+									"value": "desc"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list by nested key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f7b96bc-a667-4fcc-ac9f-1d18d62d8e72",
+								"exec": [
+									"const assert = require('assert')",
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Data key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data).to.is.ok;",
+									"});",
+									"pm.test(\"Total item count in the response is 3\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.data.length).to.eql(3);",
+									"});",
+									"pm.test(\"Items are in the right order\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    jsonData.data.reduce((a,b) => {",
+									"        let no_a = +a.phone.slice(1)",
+									"        let no_b = +b.phone.slice(1)",
+									"        assert(no_a < no_b, \"Items are not in the right order\")",
+									"        return b",
+									"    })",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?order_by=phone",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "order_by",
+									"value": "phone"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list with invalid pagination query params",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Query key is present\", function () {",
+									"    let jsonData = pm.response.json();",
+									"    pm.expect(jsonData.query).to.is.ok;",
+									"});",
+									"pm.test(\"Total item count in the response is 5\", function () {",
+									"    let jsonData = pm.response.json().query;",
+									"    let keys_count = Object.keys(jsonData).length;",
+									"    pm.expect(keys_count).to.eql(5);",
+									"});",
+									"pm.test(\"Server returned expected error msgs\", function () {",
+									"    let jsonData = pm.response.json().query;",
+									"    pm.expect(jsonData.page[0]).to.eql(\"Must be greater than or equal to 1.\")",
+									"    pm.expect(jsonData.order_dir[0]).to.eql(\"Must be one of: desc, asc.\")",
+									"    pm.expect(jsonData.order_by[0][0]).to.eql( \"Must be one of: name, email, id, city, phone.\")",
+									"    pm.expect(jsonData.limit[0]).to.eql(\"Not a valid integer.\")",
+									"    pm.expect(jsonData.fake[0]).to.eql(\"Unknown field.\")",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/?fake=22&order_by=fake&order_dir=22&page=-2&limit=fake",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "fake",
+									"value": "22"
+								},
+								{
+									"key": "order_by",
+									"value": "fake"
+								},
+								{
+									"key": "order_dir",
+									"value": "22"
+								},
+								{
+									"key": "page",
+									"value": "-2"
+								},
+								{
+									"key": "limit",
+									"value": "fake"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get with no payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get with empty array",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Ensure the schema error is returned', () => {",
+									"    let jsonData = pm.response.json()._schema;",
+									"    pm.expect(jsonData[0]).to.eql(\"Invalid input type.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[]"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get with empty payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test('A single object is returned', () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(jsonData).to.is.ok",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get with unknown fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Unknown field present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.invalid[0]).to.eql(\"Unknown field.\");",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"invalid\": true\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get with invalid fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Invalid type\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.city[0]).to.eql(\"Not a valid string.\");",
+									"    pm.expect(jsonData.phone[0]).to.eql(\"Not a valid string.\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"city\": true,\n\t\"phone\": 3434\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get by simple criterion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test('A single object is returned', () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(jsonData).to.is.ok",
+									"    pm.expect(jsonData.city).to.eql('Wrocław')",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"city\": \"Wrocław\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get by name; restrict to selected invalid fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"pm.test(\"Query key is present\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.query).to.is.ok;",
+									"});",
+									"pm.test(\"Validation array contains one item\", function () {",
+									"    let jsonData = Object.keys(pm.response.json().query.select);",
+									"    pm.expect(jsonData.length).to.eql(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Mr. Tech\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/?select=fake",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "fake"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get by name; restrict to selected fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"pm.test(\"Response contains 3 keys\", function () {",
+									"    var jsonData = Object.keys(pm.response.json())",
+									"    pm.expect(jsonData.length).to.eql(3)",
+									"});",
+									"pm.test(\"Response contains the requested keys\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.name).to.is.ok",
+									"    pm.expect(jsonData.id).to.is.ok",
+									"    pm.expect(jsonData.city).to.is.ok",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Mr. Sartys\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/?select=name,id,city",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "name,id,city"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with no payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with no payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with empty array",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Ensure the schema error is returned', () => {",
+									"    let jsonData = pm.response.json()._schema;",
+									"    pm.expect(jsonData[0]).to.eql(\"Invalid input type.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[]"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with empty array",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Ensure the schema error is returned', () => {",
+									"    let jsonData = pm.response.json()._schema;",
+									"    pm.expect(jsonData[0]).to.eql(\"Invalid input type.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "[]"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with empty payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Number of keys in the validation error payload is 2', () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(Object.keys(jsonData).length).to.eql(2)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with empty payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Number of keys in the validation error payload is 2', () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(Object.keys(jsonData).length).to.eql(2)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with empty composite keys",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Number of keys in the validation error payload is 2', () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(Object.keys(jsonData).length).to.eql(2)",
+									"})",
+									"pm.test('Validation error msg informs about fields being empty', () => {",
+									"    let jsonData = pm.response.json()",
+									"    let select = jsonData.select[0]",
+									"    let payload = jsonData.payload[0]",
+									"    pm.expect(select).to.eql(\"This field cannot be empty\")",
+									"    pm.expect(payload).to.eql(\"This field cannot be empty\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": false,\n\t\"payload\": false\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with empty composite keys",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Number of keys in the validation error payload is 2', () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(Object.keys(jsonData).length).to.eql(2)",
+									"})",
+									"pm.test('Validation error msg informs about fields being empty', () => {",
+									"    let jsonData = pm.response.json()",
+									"    let select = jsonData.select[0]",
+									"    let payload = jsonData.payload[0]",
+									"    pm.expect(select).to.eql(\"This field cannot be empty\")",
+									"    pm.expect(payload).to.eql(\"This field cannot be empty\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": false,\n\t\"payload\": false\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with invalid select key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Schema keys contains invalid input type', () => {",
+									"    let jsonData = pm.response.json().select._schema[0]",
+									"    pm.expect(jsonData).to.eql(\"Invalid input type.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": 324,\n\t\"payload\": \"nonempty\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with invalid select key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Schema keys contains invalid input type', () => {",
+									"    let jsonData = pm.response.json().select._schema[0]",
+									"    pm.expect(jsonData).to.eql(\"Invalid input type.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": 324,\n\t\"payload\": \"nonempty\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with invalid select key's subkeys",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Validaton error message contains three keys', () => {",
+									"    let jsonData = Object.keys(pm.response.json().select)",
+									"    pm.expect(jsonData.length).to.eql(3)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"sdf\": 32, \"name\": 423, \"badges\": \"dfg\"},\n\t\"payload\": \"nonempty\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with invalid select key's subkeys",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Validaton error message contains three keys', () => {",
+									"    let jsonData = Object.keys(pm.response.json().select)",
+									"    pm.expect(jsonData.length).to.eql(3)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"sdf\": 32, \"name\": 423, \"badges\": \"dfg\"},\n\t\"payload\": \"nonempty\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with invalid payload key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Schema keys contains invalid input type', () => {",
+									"    let jsonData = pm.response.json().payload._schema[0]",
+									"    pm.expect(jsonData).to.eql(\"Invalid input type.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Sartys\"},\n\t\"payload\": \"dfg\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with invalid payload key",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Schema keys contains invalid input type', () => {",
+									"    let jsonData = pm.response.json().payload._schema[0]",
+									"    pm.expect(jsonData).to.eql(\"Invalid input type.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Sartys\"},\n\t\"payload\": \"dfg\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with invalid paylod key's subkeys",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Validaton error message contains five keys', () => {",
+									"    let jsonData = Object.keys(pm.response.json().payload)",
+									"    pm.expect(jsonData.length).to.eql(5)",
+									"})",
+									"pm.test('Validaton error messages are as expected', () => {",
+									"    let jsonData = pm.response.json().payload",
+									"    pm.expect(jsonData.city[0]).to.eql(\"Field may not be null.\")",
+									"    pm.expect(jsonData.phone[0]).to.eql(\"Not a valid string.\")",
+									"    pm.expect(jsonData.name[0]).to.eql(\"Not a valid string.\")",
+									"    pm.expect(jsonData.phony[0]).to.eql(\"Unknown field.\")",
+									"    pm.expect(jsonData.id[0]).to.eql(\"Unknown field.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Sartys\"},\n\t\"payload\": {\n\t\t\"name\": 39984,\n\t\t\"city\": null,\n\t\t\"phone\": {},\n\t\t\"phony\": 34,\n\t\t\"id\": 234\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with invalid paylod key's subkeys",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Validaton error message contains five keys', () => {",
+									"    let jsonData = Object.keys(pm.response.json().payload)",
+									"    pm.expect(jsonData.length).to.eql(5)",
+									"})",
+									"pm.test('Validaton error messages are as expected', () => {",
+									"    let jsonData = pm.response.json().payload",
+									"    pm.expect(jsonData.city[0]).to.eql(\"Field may not be null.\")",
+									"    pm.expect(jsonData.phone[0]).to.eql(\"Not a valid string.\")",
+									"    pm.expect(jsonData.name[0]).to.eql(\"Not a valid string.\")",
+									"    pm.expect(jsonData.phony[0]).to.eql(\"Unknown field.\")",
+									"    pm.expect(jsonData.id[0]).to.eql(\"Unknown field.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Sartys\"},\n\t\"payload\": {\n\t\t\"name\": 39984,\n\t\t\"city\": null,\n\t\t\"phone\": {},\n\t\t\"phony\": 34,\n\t\t\"id\": 234\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with unyielding select criteria",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Validaton error message is as expected', () => {",
+									"    let jsonData = pm.response.json().error",
+									"    pm.expect(jsonData).to.eql(\"Resource update not complete\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Dntal\", \"id\": 32},\n\t\"payload\": {\n\t\t\"city\": \"Warszawa\",\n\t\t\"phone\": \"+223453934\",\n\t\t\"badges\": [\"abc\"]\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with unyielding select criteria",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 422',  () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test('Validaton error message is as expected', () => {",
+									"    let jsonData = pm.response.json().error",
+									"    pm.expect(jsonData).to.eql(\"Resource update not complete\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Dntal\", \"id\": 24},\n\t\"payload\": {\n\t\t\"badges\": [\"def\"]\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with valid payload, with one select fliter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"The number of updated resources == 1\", () => {",
+									"    let res = pm.response.json().updated",
+									"    pm.expect(res).to.eql(1)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Dntal\"},\n\t\"payload\": {\n\t\t\"name\": \"Mr. Dntal\",\n\t\t\"city\": \"Warszawa\",\n\t\t\"phone\": \"+223453934\",\n\t\t\"badges\": [\"black\"]\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update single record with valid payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"The number of updated resources == 1\", () => {",
+									"    let res = pm.response.json().updated",
+									"    pm.expect(res).to.eql(1)",
+									"})",
+									"pm.test(\"The resource has been updated\", () => {",
+									"    let payload = {",
+									"        name: \"Mr. Dntal\"",
+									"    }",
+									"    let req = {",
+									"        url: \"http://0.0.0.0:9999/operator/get/?return=name,city,phone,badges\",",
+									"        method: \"post\",",
+									"        header: {",
+									"            \"content-type\": \"application/json\",",
+									"        },",
+									"        body: {",
+									"            mode: 'raw',",
+									"            raw: JSON.stringify(payload)",
+									"         }",
+									"    }",
+									"    pm.sendRequest(req, (err, response) => {",
+									"        let resp = response.json()",
+									"        pm.expect(resp).to.eql({",
+									"            \"name\": \"Mr. Dntal\",",
+									"    \t\t\"city\": \"Warszawa\",",
+									"    \t\t\"phone\": \"+223453934\",",
+									"    \t\t\"badges\": [\"black\", \"red\", \"blue\", \"orange\"]",
+									"        })",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Dntal\"},\n\t\"payload\": {\n\t\t\"name\": \"Mr. Dntal\",\n\t\t\"city\": \"Warszawa\",\n\t\t\"phone\": \"+223453934\",\n\t\t\"badges\": [\"red\", \"blue\", \"orange\"]\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update multiple records \\w valid payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"The number of updated resources == 3\", () => {",
+									"    let res = pm.response.json().updated",
+									"    pm.expect(res).to.eql(3)",
+									"})",
+									"pm.test(\"The resource has been updated\", () => {",
+									"    let payload = {",
+									"        name: \"Mr. Dntal\"",
+									"    }",
+									"    let req = {",
+									"        url: \"http://0.0.0.0:9999/operator/get/?return=name,city,phone,badges\",",
+									"        method: \"post\",",
+									"        header: {",
+									"            \"content-type\": \"application/json\",",
+									"        },",
+									"        body: {",
+									"            mode: 'raw',",
+									"            raw: JSON.stringify(payload)",
+									"         }",
+									"    }",
+									"    pm.sendRequest(req, (err, response) => {",
+									"        let resp = response.json()",
+									"        pm.expect(resp).to.eql({",
+									"            \"name\": \"Mr. Dntal\",",
+									"    \t\t\"city\": \"Warszawa\",",
+									"    \t\t\"phone\": \"+223453934\",",
+									"    \t\t\"badges\": [\"black\", \"red\", \"blue\", \"orange\", \"cyan\"]",
+									"        })",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"city\": \"Warszawa\"},\n\t\"payload\": {\n\t\t\"badges\": [\"cyan\"]\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update multiple records \\w valid payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"The number of updated resources == 3\", () => {",
+									"    let res = pm.response.json().updated",
+									"    pm.expect(res).to.eql(3)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"city\": \"Warszawa\"},\n\t\"payload\": {\n\t\t\"city\": \"Warszawa\"\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete a resource included in excluded_ops",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 405',  () => {",
+									"    pm.response.to.have.status(405)",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Standalone resource \\w relations",
+			"item": [
+				{
+					"name": "clinic new",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Dental Med\",\n\t\"city\": \"Warszawa\",\n\t\"street\": \"Dąbrowskiego\",\n\t\"street_no\": \"324/34\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/clinic/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"clinic",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "clinic update",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\n\t\t\"id\": 1\n\t},\n\t\"payload\": {\n\t\t\"street\": \"dfg\",\n\t\t\"name\": \"Czelabinsk\"\n\t}\n}\n"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/clinic/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"clinic",
+								""
+							]
+						},
+						"description": "create clinic resource"
+					},
+					"response": []
+				},
+				{
+					"name": "unit create",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Dentistry\",\n\t\"clinic_id\": 1,\n\t\"operators\": [1,2]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/unit/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"unit",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "unit",
+			"item": [
+				{
+					"name": "unit create",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\n\t\t\"id\": 1\n\t},\n\t\"payload\": {\n\t\t\"name\": \"dfg\",\n\t\t\"clinic_id\": 34,\n\t\t\"operators\": [1]\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/unit/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"unit",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "2a885d26-72d9-474e-a5b5-0ea09883a40a",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "25f7c469-af3f-4f0d-8a09-9e61e8b6c82b",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
