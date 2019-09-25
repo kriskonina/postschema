@@ -1,5 +1,4 @@
 language: generic
-python:
-- "3.7"
 before_install:
+  - sudo apt-get install -y python3.7
   - python3.7
