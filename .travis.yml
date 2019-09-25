@@ -1,3 +1,5 @@
 language: generic
 python:
 - "3.7"
+before_install:
+  - python3
