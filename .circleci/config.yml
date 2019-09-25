@@ -6,6 +6,17 @@ jobs:
       - image: circleci/python:3.7.4
       - image: anoikis/postgres
       - image: circleci/redis
+    
+    environment:
+      POSTSCHEMA_PORT: 9999
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: postschemadb
+      POSTGRES_USER: postschema
+      POSTGRES_HOST: 0.0.0.0
+      POSTGRES_PORT: 5432
+      REDIS_HOST: 0.0.0.0
+      REDIS_PORT: 6379
+      REDIS_DB: 3
 
     # working_directory: ~/postschema
 
