@@ -15,11 +15,11 @@ env:
 before_install:
   - sudo apt-get update
   - sudo apt-get install -y python3.7 python3.7-dev python3-setuptools python3-pip
-  - npm install newman
+  - sudo npm install -g newman
 install:
   - python3.7 -m pip install -r requirements.txt
 before_script:
   - docker-compose -f tests/docker-compose.yml up --build -d
   - PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/provision_db.py
 script:
-  - newman run test/postman.json
+  - newman run https://www.getpostman.com/collections/eda3699f4df5e5db69d4
