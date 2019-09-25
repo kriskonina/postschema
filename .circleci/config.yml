@@ -30,7 +30,7 @@ jobs:
           name: install dependencies
           command: |
             . venv/bin/activate
-            pip install -r requirements_no_links.txt
+            pip install -r tests/requirements_no_links.txt
 
       - save_cache:
           paths:
