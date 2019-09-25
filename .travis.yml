@@ -21,5 +21,6 @@ install:
 before_script:
   - docker-compose -f tests/docker-compose.yml up --build -d
   - PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/provision_db.py
+  - PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/main.py &
 script:
   - newman run https://www.getpostman.com/collections/eda3699f4df5e5db69d4
