@@ -1,5 +1,6 @@
 language: generic
 dist: bionic
+cache: pip
 env:
   global:
     export POSTSCHEMA_PORT=9999
@@ -20,3 +21,5 @@ install:
 before_script:
   - docker-compose -f tests/docker-compose.yml up --build -d
   - PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/provision_db.py
+script:
+  - newman run test/postman.json
