@@ -16,7 +16,7 @@ before_install:
   - sudo apt-get install -y python3.7
   - npm install newman
 install:
-  - pip3 install -r requirements.txt
+  - python3.7 -m pip install -r requirements.txt
 before_script:
   - docker-compose -f tests/docker-compose.yml up --build
   - PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/provision_db.py
