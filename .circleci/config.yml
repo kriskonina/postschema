@@ -22,7 +22,7 @@ jobs:
       - run:
           name: q
           command: |
-            ls -la
+            pip install -e git+git@github.com:kriskavalieri/aiohttp-devtools.git#egg=aiohttp-devtools
 
       - run:
           name: install dependencies
