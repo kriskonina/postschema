@@ -42,7 +42,7 @@ jobs:
           name: db bootstrap
           command: |
             . venv/bin/activate
-            python3 tests/mock/provision_db.py
+            PYTHONPATH=$PYTHONPATH:$PWD python3 tests/mock/provision_db.py
 
       # # run tests
       # - run:
