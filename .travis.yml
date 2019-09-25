@@ -1,6 +1,22 @@
 language: generic
 dist: bionic
+env:
+  global:
+    export POSTSCHEMA_PORT=9999
+    export POSTGRES_PASSWORD=1234
+    export POSTGRES_DB=postschemadb
+    export POSTGRES_USER=postschema
+    export POSTGRES_HOST=0.0.0.0
+    export POSTGRES_PORT=5432
+    export REDIS_HOST=0.0.0.0
+    export REDIS_PORT=6379
+    export REDIS_DB=3
 before_install:
   - sudo apt-get update
   - sudo apt-get install -y python3.7
-  - docker-compose
+  - npm install newman
+install:
+  - pip3 install -r requirements.txt
+before_script:
+  - docker-compose -f tests/docker-compose.yml up --build
+  - PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/provision_db.py
