@@ -20,9 +20,14 @@ jobs:
             - v1-dependencies-
 
       - run:
-          name: where am I
+          name: updgrade pip
           command: |
-            pwd
+            pip install --upgrade pip
+
+      - run:
+          name: q
+          command: |
+            ls -la
 
       - run:
           name: install dependencies
