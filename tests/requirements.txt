@@ -16,4 +16,4 @@ ciso8601
 marshmallow>==3.0
 async-property
 ujson
-aiohttp-devtools @ git+ssh://git@github.com:kriskavalieri/aiohttp-devtools.git
+-e git+git@github.com:kriskavalieri/aiohttp-devtools.git#egg=aiohttp-devtools

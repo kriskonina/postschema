@@ -20,11 +20,6 @@ jobs:
             - v1-dependencies-
 
       - run:
-          name: updgrade pip
-          command: |
-            pip install --upgrade pip
-
-      - run:
           name: q
           command: |
             ls -la
