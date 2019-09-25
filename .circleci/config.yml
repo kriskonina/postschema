@@ -55,6 +55,24 @@ jobs:
             . venv/bin/activate
             PYTHONPATH=$PYTHONPATH:$PWD:$PWD/tests/ python3 tests/mock/provision_db.py
 
+      # spin up the API server
+      - run:
+          name: run API server
+          command: |
+            . venv/bin/activate
+            PYTHONPATH=$PYTHONPATH:$PWD:$PWD/tests/ python3 tests/mock/main.py
+
+      - run:
+          name: tes
+          command: npm
+
+      # # run tests
+      # - run:
+      #     name: run newman
+      #     command: |
+      #       . venv/bin/activate
+      #       PYTHONPATH=$PYTHONPATH:$PWD:$PWD/tests/ python3 tests/mock/main.py
+
       # # run tests
       # - run:
       #     name: run tests
