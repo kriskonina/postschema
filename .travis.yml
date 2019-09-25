@@ -15,7 +15,7 @@ env:
 before_install:
   - sudo apt-get update
   - sudo apt-get install -y python3.7 python3.7-dev python3-setuptools python3-pip
-  - sudo npm install -g newman
+  - npm install -g newman
 install:
   - python3.7 -m pip install -r requirements.txt
 before_script:
