@@ -28,16 +28,16 @@ class Group(PostSchema):
 class Actor(PostSchema):
     __tablename__ = 'actor'
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('actor_id_seq'),
-                        primary_key=True)
+                        read_only=True, primary_key=True)
     status = fields.Integer(sqlfield=sql.Integer, default='0', missing=0)
     name = fields.String(sqlfield=sql.String(16), required=True, index=True)
     email = fields.Email(sqlfield=sql.String(30), required=True, unique=True)
     token = fields.String(sqlfield=sql.String(30), required=True, index=True)
     groups = fields.List(fields.Integer(), sqlfield=JSONB, required=True, default='[]',
-                         dump_only=True)
+                   dump_only=True)
     details = fields.Dict(sqlfield=JSONB, missing='{}')
 
-    def before_post(self, data):
+    async def before_post(self, request, data):
         data['status'] = 0
         data['groups'] = '[]'
         return data

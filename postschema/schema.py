@@ -1,9 +1,7 @@
 import asyncio
 
-from marshmallow.schema import BaseSchema as MarshmallowBaseSchema, SchemaMeta
+from marshmallow.schema import ValidationError, BaseSchema as MarshmallowBaseSchema, SchemaMeta
 from sqlalchemy.ext.declarative import declarative_base
-
-from postschema.exceptions import ValidationError
 
 Base = declarative_base()
 
@@ -15,6 +13,11 @@ class _schemascls:
         for k, v in self.__dict__.copy().items():
             if not k.startswith('_'):
                 yield k, v
+
+    def __matmul__(self, other):
+        for k, v in self:
+            if other == v.__tablename__:
+                return v
 
     def __repr__(self):
         attrs = list(self)
@@ -38,20 +41,31 @@ class PostSchemaMeta(SchemaMeta):
 class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
 
     Base = Base
-    _post_validation_write_cleaners = []
 
-    def __init__(self, *a, **k):
-        super().__init__(*a, **k)
+    def __init__(self, use=None, joins=None, *a, **kwargs):
+        super().__init__(*a, **kwargs)
+        only = set(kwargs.get('only', []) or [])
+        self._use = use
+        self._joins = joins
+        self._joinable_fields = joinable = set(joins or [])
+        self._default_joinable_tables = only & joinable
+
+        # self._tables_to_join_from_selects = []
+
         self._deferred_async_validators = []
         self.parent = self.__class__.__base__
 
+    @property
+    def is_read_schema(self):
+        return self._use == 'read'
+
     def _call_and_store(self, getter_func, data, *, field_name, error_store, index=None):
-        data = MarshmallowBaseSchema._call_and_store(
-            getter_func=getter_func,
-            data=data,
-            field_name=field_name,
-            error_store=error_store,
-            index=index)
+        # data = MarshmallowBaseSchema._call_and_store(
+        #     getter_func=getter_func,
+        #     data=data,
+        #     field_name=field_name,
+        #     error_store=error_store,
+        #     index=index)
         if asyncio.iscoroutinefunction(getter_func):
             getter_func.__func__.__postschema_hooks__ = {
                 'fieldname': field_name,
@@ -59,7 +73,15 @@ class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
                 'index': index
             }
             self._deferred_async_validators.append(getter_func)
-        return data
+            return data
+        # else:
+        return MarshmallowBaseSchema._call_and_store(
+            getter_func=getter_func,
+            data=data,
+            field_name=field_name,
+            error_store=error_store,
+            index=index)
+        # return data
 
     #     '''Monkey-patched `marshmallow.schema.Schema.__call_and_store`'''
 
@@ -96,6 +118,8 @@ class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
             try:
                 await async_validator(data[fieldname])
                 return {}
+            except KeyError:
+                pass
             except ValidationError as inner_merr:
                 inner_emsgs = inner_merr.messages
                 index = hooks['index']

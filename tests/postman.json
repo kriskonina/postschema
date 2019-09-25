@@ -7,7 +7,976 @@
 	},
 	"item": [
 		{
-			"name": "Inherited resource \\wo relations",
+			"name": "Plain resource",
+			"item": [
+				{
+					"name": "create with empty payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Missing field information returned\", () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(jsonData.required_field[0]).to.eql(\"Missing data for required field.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create with invalid payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Server returns expect error messages\", () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(jsonData).to.eql({",
+									"    \"required_field\": [",
+									"        \"Field may not be null.\"",
+									"    ],",
+									"    \"list\": {",
+									"        \"0\": [",
+									"            \"Not a valid string.\"",
+									"        ]",
+									"    },",
+									"    \"email\": [",
+									"        \"Not a valid email address.\"",
+									"    ],",
+									"    \"intrange\": [",
+									"        \"Must be greater than or equal to 5 and less than or equal to 10.\"",
+									"    ],",
+									"    \"integer\": [",
+									"        \"Not a valid integer.\"",
+									"    ],",
+									"    \"choice\": [",
+									"        \"Must be one of: a, b.\",",
+									"        \"Longer than maximum length 1.\"",
+									"    ],",
+									"    \"date\": [",
+									"        \"Not a valid date.\"",
+									"    ],",
+									"    \"unique_field\": [",
+									"        \"Not a valid string.\"",
+									"    ],",
+									"    \"strlen\": [",
+									"        \"Shorter than minimum length 5.\"",
+									"    ],",
+									"    \"name\": [",
+									"        \"Longer than maximum length 30.\"",
+									"    ],",
+									"    \"id\": [",
+									"        \"Unknown field.\"",
+									"    ]",
+									"})",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"id\": \"mock\",\n\t\"name\": \"namenamenamenamanamenamenamenamenamanamenamenamenamenamaname\",\n\t\"unique_field\": 23,\n\t\"required_field\": null,\n\t\"integer\": \"\",\n\t\"email\": \"notanemail\",\n\t\"strlen\": \"a\",\n\t\"intrange\": 15,\n\t\"choice\": \"cd\",\n\t\"date\": \"2019-oe-32hndoufgnouogu23049ujeourhgldfjgoeirjgoi\",\n\t\"list\": [2]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create with valid payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Return value is OK\", () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(jsonData.id).to.be.ok",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"First\",\n\t\"unique_field\": \"star\",\n\t\"required_field\": \"present\",\n\t\"email\": \"first@example.com\",\n\t\"strlen\": \"sfgdfg\",\n\t\"intrange\": 8,\n\t\"choice\": \"a\",\n\t\"date\": \"2019-04-01\",\n\t\"list\": [\"li\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create with simple unique violation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Unique violation message is returned\", () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(jsonData).to.eql({",
+									"    \"unique_field\": [",
+									"        \"Key (star) already exists.\"",
+									"    ]",
+									"})",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"First\",\n\t\"unique_field\": \"star\",\n\t\"required_field\": \"present\",\n\t\"strlen\": \"sfgdfg\",\n\t\"intrange\": 8,\n\t\"choice\": \"a\",\n\t\"date\": \"2019-04-01\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create with composite unique violation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Unique violation message is returned\", () => {",
+									"    let jsonData = pm.response.json()",
+									"    pm.expect(jsonData).to.eql({",
+									"    \"name\": [",
+									"        \"Key (First) already exists.\"",
+									"    ],",
+									"    \"email\": [",
+									"        \"Key (first@example.com) already exists.\"",
+									"    ]",
+									"})",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"First\",\n\t\"email\": \"first@example.com\",\n\t\"unique_field\": \"else\",\n\t\"required_field\": \"present\",\n\t\"strlen\": \"sfgdfg\",\n\t\"intrange\": 8,\n\t\"choice\": \"a\",\n\t\"date\": \"2019-04-01\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "use excluded method",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 405\", () => {",
+									"    pm.response.to.have.status(405)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get by default fields, no payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Ensure server's response contains two keys\", () => {",
+									"    let jsonData = Object.keys(pm.response.json())",
+									"    pm.expect(jsonData).to.eql([\"id\", \"name\"])",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get by default fields, with payload outside allowed scope",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Ensure server's response contains two keys\", () => {",
+									"    let jsonData =pm.response.json()",
+									"    pm.expect(jsonData).to.eql({",
+									"        \"intrange\": [",
+									"            \"Unknown field.\"",
+									"        ],",
+									"        \"email\": [",
+									"            \"Unknown field.\"",
+									"        ]",
+									"    })",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"email\": \"first@example.com\",\n\t\"intrange\": 8\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get by default fields, with valid payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Ensure server's response contains two keys\", () => {",
+									"    let jsonData = Object.keys(pm.response.json())",
+									"    pm.expect(jsonData).to.eql([\"id\", \"name\"])",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"First\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list by default fields, no payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Ensure server's response contains two keys\", () => {",
+									"    let data = pm.response.json()",
+									"    let jsonData = Object.keys(data.data[0])",
+									"    pm.expect(jsonData).to.eql([\"name\", \"email\"])",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list by default fields, with payload outside allowed scope Copy",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Ensure server's response contains two keys\", () => {",
+									"    let jsonData =pm.response.json()",
+									"    pm.expect(jsonData).to.eql({",
+									"        \"intrange\": [",
+									"            \"Unknown field.\"",
+									"        ],",
+									"        \"required_field\": [",
+									"            \"Unknown field.\"",
+									"        ]",
+									"    })",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"required_field\": \"present\",\n\t\"intrange\": 8\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list by default fields, with valid payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Ensure server's response contains two keys\", () => {",
+									"    let jsonData = Object.keys(pm.response.json().data[0])",
+									"    pm.expect(jsonData).to.eql([\"name\", \"email\"])",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"email\": \"first@example.com\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update with update-excluded fields",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Ensure server's error response contains two keys\", () => {",
+									"    let jsonData = Object.keys(pm.response.json().payload).sort()",
+									"    pm.expect(jsonData).to.eql([\"integer\", \"unique_field\"])",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"select\": {\n\t\t\"name\": \"First\"\n\t},\n    \"payload\": {\n\t\t\"date\": \"1999-03-01\",\n\t\t\"integer\": \"dfg\",\n\t\t\"unique_field\": \"dfg\"\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update the array field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Ensure server's response contains one key\", () => {",
+									"    let jsonData = pm.response.json().updated",
+									"    pm.expect(jsonData).to.eql(1)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"select\": {\n\t\t\"name\": \"First\"\n\t},\n    \"payload\": {\n\t\t\"list\": [\"x\", \"z\"],\n\t\t\"choice\": \"b\"\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete resource without target",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Ensure server's error response contains one key\", () => {",
+									"    let jsonData = pm.response.json()._schema[0]",
+									"    pm.expect(jsonData).to.eql(\"Payload cannot be empty\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete resource with not included target",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Ensure server's response contains one key\", () => {",
+									"    let jsonData = pm.response.json().email[0]",
+									"    pm.expect(jsonData).to.eql(\"Unknown field.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"email\": \"first@example.com\",\n\t\"name\": \"First\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete resource with valid target",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "52b9fb67-ba86-4f57-b0fa-547fd1e5419f",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Ensure server's response contains one key\", () => {",
+									"    let jsonData = pm.response.json().deleted_resource_records",
+									"    pm.expect(jsonData).to.eql(1)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"name\": \"First\"}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/plainresource/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"plainresource",
+								""
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Inherited resource",
 			"item": [
 				{
 					"name": "create with empty payload",
@@ -445,7 +1414,7 @@
 									"});",
 									"pm.test(\"Unique violation\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.email[0]).to.eql(\"Already exists.\")",
+									"    pm.expect(jsonData.email[0]).to.eql(\"Key (marty.technician@sartys.com) already exists.\")",
 									"});"
 								],
 								"type": "text/javascript"
@@ -635,9 +1604,7 @@
 							"script": {
 								"id": "acf3090c-4f92-47ba-a891-01cf4ac99503",
 								"exec": [
-									"pm.sendRequest(\"https://postman-echo.com/get\", function (err, response) {",
-									"    console.log(response.json());",
-									"});"
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -3161,7 +4128,7 @@
 									"        name: \"Mr. Dntal\"",
 									"    }",
 									"    let req = {",
-									"        url: \"http://0.0.0.0:9999/operator/get/?return=name,city,phone,badges\",",
+									"        url: \"http://0.0.0.0:9999/operator/get/?select=name,city,phone,badges\",",
 									"        method: \"post\",",
 									"        header: {",
 									"            \"content-type\": \"application/json\",",
@@ -3238,7 +4205,7 @@
 									"        name: \"Mr. Dntal\"",
 									"    }",
 									"    let req = {",
-									"        url: \"http://0.0.0.0:9999/operator/get/?return=name,city,phone,badges\",",
+									"        url: \"http://0.0.0.0:9999/operator/get/?select=name,city,phone,badges\",",
 									"        method: \"post\",",
 									"        header: {",
 									"            \"content-type\": \"application/json\",",
@@ -3296,6 +4263,217 @@
 					"response": []
 				},
 				{
+					"name": "top field self-update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"// pm.test(\"The number of updated resources == 1\", () => {",
+									"//     let res = pm.response.json().updated",
+									"//     pm.expect(res).to.eql(1)",
+									"// })"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"name\": \"Mr. Dntal\"},\n\t\"payload\": {\n\t\t\"name\": \"Mr. Else\"\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verify the self-update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"Mr. Else\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "nested field self-update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"// pm.test(\"The number of updated resources == 1\", () => {",
+									"//     let res = pm.response.json().updated",
+									"//     pm.expect(res).to.eql(1)",
+									"// })"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\"phone\": \"+223453934\"},\n\t\"payload\": {\n\t\t\"city\": \"Poznań\"\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verify the self-update on nested field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "5d9d9417-7cde-4735-a143-5b20a507a35a",
+								"exec": [
+									"pm.test('Status code is 200',  () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test('Total count is 1', () => {",
+									"    let json = pm.response.json()",
+									"    pm.expect(json.total_count).to.eql(1)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"city\": \"Poznań\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/operator/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"operator",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "update multiple records \\w valid payload",
 					"event": [
 						{
@@ -3306,9 +4484,9 @@
 									"pm.test('Status code is 200',  () => {",
 									"    pm.response.to.have.status(200)",
 									"})",
-									"pm.test(\"The number of updated resources == 3\", () => {",
+									"pm.test(\"The number of updated resources == 2\", () => {",
 									"    let res = pm.response.json().updated",
-									"    pm.expect(res).to.eql(3)",
+									"    pm.expect(res).to.eql(2)",
 									"})"
 								],
 								"type": "text/javascript"
@@ -3327,7 +4505,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"select\": {\"city\": \"Warszawa\"},\n\t\"payload\": {\n\t\t\"city\": \"Warszawa\"\n\t}\n}"
+							"raw": "{\n\t\"select\": {\"city\": \"Warszawa\"},\n\t\"payload\": {\n\t\t\"city\": \"Poznań\"\n\t}\n}"
 						},
 						"url": {
 							"raw": "http://0.0.0.0:9999/operator/",
@@ -3399,26 +4577,79 @@
 			]
 		},
 		{
-			"name": "Standalone resource \\w relations",
+			"name": "Relations",
 			"item": [
 				{
-					"name": "clinic new",
+					"name": "Create a distributor 1",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									"// let payload = {",
+									"//     \"name\": \"Second\",",
+									"//     \"unique_field\": \"star\",",
+									"//     \"required_field\": \"present\",",
+									"//     \"email\": \"first@example.com\",",
+									"//     \"strlen\": \"sfgdfg\",",
+									"//     \"intrange\": 8,",
+									"//     \"choice\": \"a\",",
+									"//     \"date\": \"2019-04-01\",",
+									"//     \"list\": [\"li\"]",
+									"// }",
+									"",
+									"// let req = {",
+									"//     url: \"http://0.0.0.0:9999/plainresource/\",",
+									"//     method: \"post\",",
+									"//     header: {",
+									"//         \"content-type\": \"application/json\",",
+									"//     },",
+									"//     body: {",
+									"//         mode: 'raw',",
+									"//         raw: JSON.stringify(payload)",
+									"//     }",
+									"// }",
+									"// pm.sendRequest(req, (err, response) => {",
+									"//     let resp = response.json()",
+									"//     pm.expect(response.code).to.eql(200)",
+									"//     pm.globals.set(\"plainresource_id\", resp.id);",
+									"// })"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"dist_id\", data.id);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
 								"name": "Content-Type",
-								"value": "application/json",
+								"value": "application/javascript",
 								"type": "text"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\": \"Dental Med\",\n\t\"city\": \"Warszawa\",\n\t\"street\": \"Dąbrowskiego\",\n\t\"street_no\": \"324/34\"\n}"
+							"raw": "{\n\t\"name\": \"eurobash\",\n\t\"meta\": \"a\"\n}"
 						},
 						"url": {
-							"raw": "http://0.0.0.0:9999/clinic/",
+							"raw": "http://0.0.0.0:9999/dist/",
 							"protocol": "http",
 							"host": [
 								"0",
@@ -3428,7 +4659,7 @@
 							],
 							"port": "9999",
 							"path": [
-								"clinic",
+								"dist",
 								""
 							]
 						}
@@ -3436,23 +4667,2278 @@
 					"response": []
 				},
 				{
-					"name": "clinic update",
+					"name": "Create a distributor 2",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									"// let payload = {",
+									"//     \"name\": \"Second\",",
+									"//     \"unique_field\": \"star\",",
+									"//     \"required_field\": \"present\",",
+									"//     \"email\": \"first@example.com\",",
+									"//     \"strlen\": \"sfgdfg\",",
+									"//     \"intrange\": 8,",
+									"//     \"choice\": \"a\",",
+									"//     \"date\": \"2019-04-01\",",
+									"//     \"list\": [\"li\"]",
+									"// }",
+									"",
+									"// let req = {",
+									"//     url: \"http://0.0.0.0:9999/plainresource/\",",
+									"//     method: \"post\",",
+									"//     header: {",
+									"//         \"content-type\": \"application/json\",",
+									"//     },",
+									"//     body: {",
+									"//         mode: 'raw',",
+									"//         raw: JSON.stringify(payload)",
+									"//     }",
+									"// }",
+									"// pm.sendRequest(req, (err, response) => {",
+									"//     let resp = response.json()",
+									"//     pm.expect(response.code).to.eql(200)",
+									"//     pm.globals.set(\"plainresource_id\", resp.id);",
+									"// })"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"dist2_id\", data.id);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"asiacash\",\n\t\"meta\": \"a\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/dist/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"dist",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create a distributor 3",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									"// let payload = {",
+									"//     \"name\": \"Second\",",
+									"//     \"unique_field\": \"star\",",
+									"//     \"required_field\": \"present\",",
+									"//     \"email\": \"first@example.com\",",
+									"//     \"strlen\": \"sfgdfg\",",
+									"//     \"intrange\": 8,",
+									"//     \"choice\": \"a\",",
+									"//     \"date\": \"2019-04-01\",",
+									"//     \"list\": [\"li\"]",
+									"// }",
+									"",
+									"// let req = {",
+									"//     url: \"http://0.0.0.0:9999/plainresource/\",",
+									"//     method: \"post\",",
+									"//     header: {",
+									"//         \"content-type\": \"application/json\",",
+									"//     },",
+									"//     body: {",
+									"//         mode: 'raw',",
+									"//         raw: JSON.stringify(payload)",
+									"//     }",
+									"// }",
+									"// pm.sendRequest(req, (err, response) => {",
+									"//     let resp = response.json()",
+									"//     pm.expect(response.code).to.eql(200)",
+									"//     pm.globals.set(\"plainresource_id\", resp.id);",
+									"// })"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"dist3_id\", data.id);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"americanair\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/dist/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"dist",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create a producer",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "3379dede-85dc-4f8c-8d1e-cf571f9ac124",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"producer_id\", data.id);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"danone\",\n\t\"distributors\": [\"{{dist_id}}\", \"{{dist3_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/producer/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"producer",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create a producer 2",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "3379dede-85dc-4f8c-8d1e-cf571f9ac124",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"producer2_id\", data.id);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"mondalez\",\n\t\"distributors\": [\"{{dist3_id}}\", \"{{dist2_id}}\", \"{{dist2_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/producer/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"producer",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create description 1",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"desc_id\", data.id);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"text\": \"a unique product's description\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/desc/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"desc",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create description 2",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"desc2_id\", data.id);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"text\": \"a unique product's description\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/desc/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"desc",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create description 3",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"desc3_id\", data.id);",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"text\": \"a unique product's description\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/desc/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"desc",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create product with invalid FK",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns the right error message\", () => {",
+									"    let data = pm.response.json().descr[0]",
+									"    pm.expect(data).to.eql(\"Key (900) is not present in table \\\"desc\\\".\")",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"product\",\n\t\"descr\": 900,\n\t\"producer\": 900\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create product with invalid FK 2",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns the right error message\", () => {",
+									"    let data = pm.response.json().producer[0]",
+									"    pm.expect(data).to.eql(\"Key (900) is not present in table \\\"producer\\\".\")",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"product\",\n\t\"descr\": {{desc_id}},\n\t\"producer\": 900\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create product 1",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns a created product\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.id).to.be.ok",
+									"    pm.globals.set(\"product_id\", data.id)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"milk\",\n\t\"descr\": {{desc_id}},\n\t\"producer\": {{producer_id}}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create product 2 with dup description",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns the right error message\", () => {",
+									"    let data = pm.response.json().descr[0]",
+									"    let descid = pm.globals.get(\"desc_id\");",
+									"    pm.expect(data).to.eql(`Key (${descid}) already exists.`)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"snack bar\",\n\t\"descr\": {{desc_id}},\n\t\"producer\": {{producer2_id}}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create product 2",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns a created product\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.id).to.be.ok",
+									"    pm.globals.set(\"product2_id\", data.id)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"snack bar\",\n\t\"descr\": {{desc2_id}},\n\t\"producer\": {{producer_id}}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create product 3",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns a created product\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.id).to.be.ok",
+									"    pm.globals.set(\"product3_id\", data.id)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"bread\",\n\t\"descr\": {{desc3_id}},\n\t\"producer\": {{producer2_id}}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create store 1 with invalid FK field type",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns the right error message\", () => {",
+									"    let data = pm.response.json().distributors[0]",
+									"    pm.expect(data).to.eql(\"Not a valid list.\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"delikatesy\",\n\t\"distributors\": \"\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create store 1 with invalid FK field values",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns the right error message\", () => {",
+									"    let data = pm.response.json().distributors[0]",
+									"    pm.expect(data).to.include(\"200\").and.to.include(\"300\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"dfg\",\n\t\"distributors\": [\"200\", \"200\", \"300\", \"300\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create store 1",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns a created store\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.id).to.be.ok",
+									"    pm.globals.set(\"store_id\", data.id)",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"tesco\",\n\t\"distributors\": [\"{{dist_id}}\", \"{{dist3_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create store 2",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns a created store\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.id).to.be.ok",
+									"    pm.globals.set(\"store2_id\", data.id)",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"kaufland\",\n\t\"distributors\": [\"{{dist2_id}}\", \"{{dist_id}}\", \"{{dist3_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create store 3",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns a created store\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.id).to.be.ok",
+									"    pm.globals.set(\"store3_id\", data.id)",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"ikea\",\n\t\"distributors\": [\"{{dist2_id}}\", \"{{dist2_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get store with no payload",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"",
+									"// pm.test(\"Ensure server returns a created store\", () => {",
+									"//     let data = pm.response.json()",
+									"//     pm.expect(data.id).to.be.ok",
+									"//     pm.globals.set(\"store_id\", data.id)",
+									"// })",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get store with invalid payload",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"",
+									"pm.test(\"Ensure server returns an expected error message\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data).to.eql({",
+									"    \"name\": [",
+									"        \"Not a valid string.\"",
+									"    ],",
+									"    \"distributors\": [",
+									"        \"Data not provided\"",
+									"    ],",
+									"    \"dfg\": [",
+									"        \"Unknown field.\"",
+									"    ]",
+									"})",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"dfg\": \"dfg\",\n\t\"name\": 30,\n\t\"distributors\": []\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get store with non existing M2M keys",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"tesco\",\n\t\"distributors\": [\"0\", \"9000\", \"9000\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get store with existing M2M keys",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the store object\", () => {",
+									"    let data = pm.response.json().name",
+									"    pm.expect(data).to.eql(\"kaufland\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"distributors\": [\"{{dist2_id}}\", \"{{dist_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product, empty payload",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product object\", () => {",
+									"    let data = pm.response.json().name",
+									"    pm.expect(data).to.eql(\"milk\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product by name",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product object\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.name).to.eql(\"bread\")",
+									"    pm.expect(Object.keys(data).length).to.eql(4)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"bread\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product; select by linked tables",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product object with producer and descr key\", () => {",
+									"    let producer = pm.response.json().producer",
+									"    let descr = pm.response.json().descr",
+									"    pm.expect(producer.name).to.eql(\"mondalez\")",
+									"    pm.expect(producer.id).to.eql(pm.globals.get(\"producer2_id\"))",
+									"    pm.expect(descr.id).to.eql(pm.globals.get(\"desc3_id\"))",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"name\": \"bread\"\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/?select=producer,descr",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "producer,descr"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product by id, no selectors",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product object\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.name).to.eql(\"milk\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"id\": {{product_id}}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product by producer name",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product object\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.name).to.eql(\"bread\")",
+									"    pm.expect(data.descr.id).to.eql(",
+									"        pm.globals.get(\"desc3_id\")",
+									"    )",
+									"    pm.expect(data.producer.id).to.eql(",
+									"        pm.globals.get(\"producer2_id\")",
+									"    )",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"producer\": {\n\t\t\"name\": \"mondalez\"\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get product by producer name, select descr",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product object\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.descr.id).to.eql(",
+									"        pm.globals.get(\"desc3_id\")",
+									"    )",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"producer\": {\n\t\t\"name\": \"mondalez\"\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/?select=descr",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "descr"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List product, empty payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "3f8f26e0-e93e-4059-a2d4-213fbab0f533",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product objects\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.total_count).to.eql(3)",
+									"    pm.expect(Object.keys(data.data[0]).length).to.eql(4)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd20f655-5dc3-44d6-930b-fcdbae540178",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List product, empty payload; select toplevel and producer",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product objects\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.total_count).to.eql(3)",
+									"})",
+									"pm.test(\"Server response contains two keys in each array item\", () => {",
+									"    let data = pm.response.json().data",
+									"    data.forEach(item => {",
+									"        pm.expect(item.name).is.ok",
+									"        pm.expect(item.producer.id).is.ok",
+									"    })",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/list/?select=producer,name",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "producer,name"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List products by producer",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the product objects\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.total_count).to.eql(2)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"producer\": {\n\t\t\"name\": \"danone\"\n\t}\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List stores by ambiguous M2M member",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the stores objects\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.total_count).to.eql(2)",
+									"    pm.expect(data.data[0].name).to.eql('kaufland')",
+									"    pm.expect(data.data[1].name).to.eql('ikea')",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"distributors\": [\"{{dist2_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/list/?select=name",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "name"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List stores by unambiguous M2M members",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server response returns the stores objects\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.total_count).to.eql(1)",
+									"    pm.expect(data.data[0].name).to.eql('kaufland')",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"distributors\": [\"{{dist2_id}}\", \"{{dist3_id}}\"]\n}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/list/?select=name",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "name"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update product with invalid description FK",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Server response returns expected error msg\", () => {",
+									"    let data = pm.response.json().payload",
+									"    pm.expect(data.descr[0]).to.eql(\"Key (100) is not present in table \\\"desc\\\".\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "PUT",
 						"header": [
 							{
 								"key": "Content-Type",
 								"name": "Content-Type",
-								"value": "application/json",
-								"type": "text"
+								"type": "text",
+								"value": "application/javascript"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"select\": {\n\t\t\"id\": 1\n\t},\n\t\"payload\": {\n\t\t\"street\": \"dfg\",\n\t\t\"name\": \"Czelabinsk\"\n\t}\n}\n"
+							"raw": "{\n\t\"select\": {\n\t\t\"name\": \"milk\"\n\t},\n\t\"payload\": {\n\t\t\"descr\": \"100\"\n\t}\n}"
 						},
 						"url": {
-							"raw": "http://0.0.0.0:9999/clinic/",
+							"raw": "http://0.0.0.0:9999/product/",
 							"protocol": "http",
 							"host": [
 								"0",
@@ -3462,32 +6948,55 @@
 							],
 							"port": "9999",
 							"path": [
-								"clinic",
+								"product",
 								""
 							]
-						},
-						"description": "create clinic resource"
+						}
 					},
 					"response": []
 				},
 				{
-					"name": "unit create",
+					"name": "Delete product, no payload",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 400\", () => {",
+									"    pm.response.to.have.status(400)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
-						"method": "POST",
+						"method": "DELETE",
 						"header": [
 							{
 								"key": "Content-Type",
 								"name": "Content-Type",
-								"value": "application/json",
-								"type": "text"
+								"type": "text",
+								"value": "application/javascript"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"name\": \"Dentistry\",\n\t\"clinic_id\": 1,\n\t\"operators\": [1,2]\n}"
+							"raw": ""
 						},
 						"url": {
-							"raw": "http://0.0.0.0:9999/unit/",
+							"raw": "http://0.0.0.0:9999/product/",
 							"protocol": "http",
 							"host": [
 								"0",
@@ -3497,36 +7006,475 @@
 							],
 							"port": "9999",
 							"path": [
-								"unit",
+								"product",
 								""
 							]
 						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete product, empty payload",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/product/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"product",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete distributor, unyielding payload",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Server returns NON DELETED response\", () => {",
+									"    let data = pm.response.json().error",
+									"    pm.expect(data).to.eql(\"Resource deletion not complete\")",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"meta\": \"b\"}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/dist/?deep=true",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"dist",
+								""
+							],
+							"query": [
+								{
+									"key": "deep",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete distributor with yielding payload",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server returns deleted response\", () => {",
+									"    let data = pm.response.json()",
+									"    console.log(data)",
+									"    pm.expect(data.deleted_m2m_refs.producer).to.eql(2)",
+									"    pm.expect(data.deleted_m2m_refs.store).to.eql(3)",
+									"    pm.expect(data.deleted_resource_records).to.eql(2)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"meta\": \"a\"}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/dist/?deep=true",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"dist",
+								""
+							],
+							"query": [
+								{
+									"key": "deep",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Yields two records exactly. Their respective ids will be subtracted from the list of foreign relations in their m2m peers."
+					},
+					"response": []
+				},
+				{
+					"name": "List deleted distributors",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Server returns empty response\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data).to.eql({})",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"meta\": \"a\"}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/dist/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"dist",
+								"list",
+								""
+							]
+						},
+						"description": "Yields two records exactly. Their respective ids will be subtracted from the list of foreign relations in their m2m peers."
+					},
+					"response": []
+				},
+				{
+					"name": "List deleted distributors' store refs",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"let dist3 = `${pm.globals.get(\"dist3_id\")}`",
+									"pm.test(\"Server returns empty response\", () => {",
+									"    let data = pm.response.json().data",
+									"    pm.expect(data[0].distributors[0]).to.eql(dist3)",
+									"    pm.expect(data[1].distributors[0]).to.eql(dist3)",
+									"    pm.expect(data[2].distributors).to.eql([])",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/store/list/?select=distributors",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"store",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "distributors"
+								}
+							]
+						},
+						"description": "Yields two records exactly. Their respective ids will be subtracted from the list of foreign relations in their m2m peers."
+					},
+					"response": []
+				},
+				{
+					"name": "List deleted distributors' producer refs",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "fd94af94-a418-42c0-80d4-abf3cd142230",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"id": "9bd8c5d1-bb5e-4df7-98df-38e31ba5a6d7",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"let dist3 = `${pm.globals.get(\"dist3_id\")}`",
+									"console.log(dist3, typeof dist3)",
+									"pm.test(\"Server returns empty response\", () => {",
+									"    let data = pm.response.json().data",
+									"    pm.expect(data[0].distributors[0]).to.eql(dist3)",
+									"    pm.expect(data[1].distributors[0]).to.eql(dist3)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/producer/list/?select=distributors",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"producer",
+								"list",
+								""
+							],
+							"query": [
+								{
+									"key": "select",
+									"value": "distributors"
+								}
+							]
+						},
+						"description": "Yields two records exactly. Their respective ids will be subtracted from the list of foreign relations in their m2m peers."
 					},
 					"response": []
 				}
 			]
 		},
 		{
-			"name": "unit",
+			"name": "Hooks",
 			"item": [
 				{
-					"name": "unit create",
+					"name": "Create simple resource with before-post hook",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "4ac9dedc-e4e9-499d-aa6c-798532a89590",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"    let data = pm.response.json()",
+									"    pm.globals.set(\"customop_id\", data.id);",
+									"})",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
-						"method": "PUT",
+						"method": "POST",
 						"header": [
 							{
 								"key": "Content-Type",
 								"name": "Content-Type",
-								"value": "application/json",
+								"value": "application/javascript",
 								"type": "text"
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n\t\"select\": {\n\t\t\"id\": 1\n\t},\n\t\"payload\": {\n\t\t\"name\": \"dfg\",\n\t\t\"clinic_id\": 34,\n\t\t\"operators\": [1]\n\t}\n}"
+							"raw": "{\n\t\"address\": \"Washington Ave 324\"\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
 						},
 						"url": {
-							"raw": "http://0.0.0.0:9999/unit/",
+							"raw": "http://0.0.0.0:9999/customop/",
 							"protocol": "http",
 							"host": [
 								"0",
@@ -3536,14 +7484,2312 @@
 							],
 							"port": "9999",
 							"path": [
-								"unit",
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create simple resource 2",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "4ac9dedc-e4e9-499d-aa6c-798532a89590",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/javascript",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"address\": \"3434 Mullhany Rd., Seattle\"\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create simple resource 3",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "4ac9dedc-e4e9-499d-aa6c-798532a89590",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/javascript",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"address\": \"22403 Knoll Dr. Charlston\"\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify the after_post hooks worked",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Your test name\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.read_only_field).to.eql(\"sth_else_modified\")",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/javascript",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Utilize the before_get hook for access control",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 403\", () => {",
+									"    pm.response.to.have.status(403)",
+									"})",
+									"pm.test(\"Server denies access with a right message\", () => {",
+									"    let data = pm.response.text()",
+									"    pm.expect(data).to.eql('403: No access')",
+									"});",
+									"",
+									"",
+									"",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/javascript",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"read_only_field\": \"secret_requested\"\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Utilize the before_list hook for access control",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 403\", () => {",
+									"    pm.response.to.have.status(403)",
+									"})",
+									"pm.test(\"Server denies access with a right message\", () => {",
+									"    let data = pm.response.text()",
+									"    pm.expect(data).to.eql('403: No access')",
+									"});",
+									"",
+									"",
+									"",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"read_only_field\": \"secret_requested\"\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/list/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								"list",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Can't update read-only field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Can't update the read-only `read_only_field`\", () => {",
+									"    let data = pm.response.json().payload.read_only_field[0]",
+									"    pm.expect(data).to.eql(\"Unknown field.\")",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\n\t\t\"address\": \"Washington Ave 324\"\n\t},\n\t\"payload\": {\n\t\t\"read_only_field\": \"secret_requested\"\n\t}\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Can't update read-only field",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 422\", () => {",
+									"    pm.response.to.have.status(422)",
+									"})",
+									"pm.test(\"Can't update the read-only `read_only_field`\", () => {",
+									"    let data = pm.response.json().payload.read_only_field[0]",
+									"    pm.expect(data).to.eql(\"Unknown field.\")",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\n\t\t\"address\": \"Washington Ave 324\"\n\t},\n\t\"payload\": {\n\t\t\"read_only_field\": \"secret_requested\"\n\t}\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update address",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"// pm.test(\"Can't update the read-only `read_only_field`\", () => {",
+									"//     let data = pm.response.json().payload.read_only_field[0]",
+									"//     pm.expect(data).to.eql(\"Unknown field.\")",
+									"// });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\n\t\t\"address\": \"Washington Ave 324\"\n\t},\n\t\"payload\": {\n\t\t\"address\": \"Seattle Main Rd. 43\"\n\t}\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify address update triggered after_update hook",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Verify the right state was assigned to the updated record\", () => {",
+									"    let data = pm.response.json().state",
+									"    pm.expect(data).to.eql(\"Oregon\")",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"address\": \"Seattle Main Rd. 43\"\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Revert address update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"// pm.test(\"Can't update the read-only `read_only_field`\", () => {",
+									"//     let data = pm.response.json().payload.read_only_field[0]",
+									"//     pm.expect(data).to.eql(\"Unknown field.\")",
+									"// });"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"select\": {\n\t\t\"address\": \"Seattle Main Rd. 43\"\n\t},\n\t\"payload\": {\n\t\t\"address\": \"Washington Ave 324\"\n\t}\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Verify address update reversion + after update hooks",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+								"exec": [
+									"pm.test(\"Status code is 200\", () => {",
+									"    pm.response.to.have.status(200)",
+									"})",
+									"pm.test(\"Verify the right state was assigned to the updated record\", () => {",
+									"    let data = pm.response.json()",
+									"    pm.expect(data.state).to.eql(\"DC\")",
+									"    pm.expect(data.custom_getter).to.eql(\"default_value_put_patch\")",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/javascript"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n\t\"address\": \"Washington Ave 324\"\n}",
+							"options": {
+								"raw": {
+									"language": "javascript"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://0.0.0.0:9999/customop/",
+							"protocol": "http",
+							"host": [
+								"0",
+								"0",
+								"0",
+								"0"
+							],
+							"port": "9999",
+							"path": [
+								"customop",
 								""
 							]
 						}
 					},
 					"response": []
 				}
-			]
+			],
+			"protocolProfileBehavior": {}
+		},
+		{
+			"name": "Auxiliary views",
+			"item": [
+				{
+					"name": "Simple route",
+					"item": [
+						{
+							"name": "Aux route is active",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 200\", () => {",
+											"    pm.response.to.have.status(200)",
+											"})",
+											"pm.test(\"Server returns ok status message\", () => {",
+											"    let data = pm.response.text()",
+											"    pm.expect(data).to.eql('\"ok\"')",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/simpleaux_path/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"simpleaux_path",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Test unsupported method",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 405\", () => {",
+											"    pm.response.to.have.status(405)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"minint\": \"Washington Ave 324\"\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/simpleaux_path/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"simpleaux_path",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Test unsupported method 2",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 405\", () => {",
+											"    pm.response.to.have.status(405)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"minint\": \"Washington Ave 324\"\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/simpleaux_path/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"simpleaux_path",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Test unsupported method 3",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 405\", () => {",
+											"    pm.response.to.have.status(405)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"minint\": \"Washington Ave 324\"\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/simpleaux_path/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"simpleaux_path",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Test unsupported method 4",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 405\", () => {",
+											"    pm.response.to.have.status(405)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"minint\": \"Washington Ave 324\"\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/simpleaux_path/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"simpleaux_path",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Test unsupported method 5",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 405\", () => {",
+											"    pm.response.to.have.status(405)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "COPY",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"minint\": \"Washington Ave 324\"\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/simpleaux_path/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"simpleaux_path",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Test unsupported method 6",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 405\", () => {",
+											"    pm.response.to.have.status(405)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "HEAD",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"minint\": \"Washington Ave 324\"\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/simpleaux_path/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"simpleaux_path",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Test unsupported method 7",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 405\", () => {",
+											"    pm.response.to.have.status(405)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "OPTIONS",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"minint\": \"Washington Ave 324\"\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/simpleaux_path/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"simpleaux_path",
+										""
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"protocolProfileBehavior": {},
+					"_postman_isSubFolder": true
+				},
+				{
+					"name": "Complex route",
+					"item": [
+						{
+							"name": "Invoke with no payload",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 400\", () => {",
+											"    pm.response.to.have.status(400)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/32/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"32",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Invoke with empty payload",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 200\", () => {",
+											"    pm.response.to.have.status(200)",
+											"})",
+											"pm.test(\"Server returns expected message\", () => {",
+											"    let data = pm.response.text()",
+											"    pm.expect(data).to.eql('\"empty\"')",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/32/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"32",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Wrong type of path value",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 422\", () => {",
+											"    pm.response.to.have.status(422)",
+											"})",
+											"pm.test(\"Path's id component is not a valid integer\", () => {",
+											"    let data = pm.response.json().path.id",
+											"    pm.expect(data[0]).to.eql(\"Not a valid integer.\")",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/034a/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"034a",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Invalid path value",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 422\", () => {",
+											"    pm.response.to.have.status(422)",
+											"})",
+											"pm.test(\"Path's id component is not a valid integer\", () => {",
+											"    let data = pm.response.json().path.id",
+											"    pm.expect(data[0]).to.eql(\"Id value too large\")",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/1000/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"1000",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Invalid payload value",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 422\", () => {",
+											"    pm.response.to.have.status(422)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": \"fg\"\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Payload value too great 1",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 422\", () => {",
+											"    pm.response.to.have.status(422)",
+											"})",
+											"pm.test(\"Payload's maxint is lesser than 10\", () => {",
+											"    let data = pm.response.json().maxint",
+											"    pm.expect(data[0]).to.eql(\"Lesser than 10\")",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 9\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Payload value too great 2",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 422\", () => {",
+											"    pm.response.to.have.status(422)",
+											"})",
+											"pm.test(\"Payload's maxint is greater than 50\", () => {",
+											"    let data = pm.response.json().maxint",
+											"    pm.expect(data[0]).to.eql(\"Greater than 50\")",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 51\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Payload OK",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 200\", () => {",
+											"    pm.response.to.have.status(200)",
+											"})"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 14\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Invalid GET params",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 422\", () => {",
+											"    pm.response.to.have.status(422)",
+											"})",
+											"pm.test(\"Server returns validation error msgs\", () => {",
+											"    let data = pm.response.json().query",
+											"    pm.expect(data.query_param2[\"0\"][0]).to.eql(\"Not a valid integer.\")",
+											"    pm.expect(data.query_param1[0]).to.eql(\"Not a valid integer.\")",
+											"    pm.expect(data.a[0]).to.eql(\"Unknown field.\")",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 14\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/?query_param2=[]&query_param1=fg&a=32",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									],
+									"query": [
+										{
+											"key": "query_param2",
+											"value": "[]"
+										},
+										{
+											"key": "query_param1",
+											"value": "fg"
+										},
+										{
+											"key": "a",
+											"value": "32"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET list represention 1",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 200\", () => {",
+											"    pm.response.to.have.status(200)",
+											"})",
+											"pm.test(\"Server returns an array of passed query params\", () => {",
+											"    let data = pm.response.json()",
+											"    pm.expect(data).to.eql([1,2,3])",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 14\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/?query_param2=1,2,3",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									],
+									"query": [
+										{
+											"key": "query_param2",
+											"value": "1,2,3"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET list represention 2",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 200\", () => {",
+											"    pm.response.to.have.status(200)",
+											"})",
+											"pm.test(\"Server returns an array of passed query params\", () => {",
+											"    let data = pm.response.json()",
+											"    pm.expect(data).to.eql([10,9,8])",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 14\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/?query_param2=10&query_param2=9&query_param2=8",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									],
+									"query": [
+										{
+											"key": "query_param2",
+											"value": "10"
+										},
+										{
+											"key": "query_param2",
+											"value": "9"
+										},
+										{
+											"key": "query_param2",
+											"value": "8"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Invalid header params",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 422\", () => {",
+											"    pm.response.to.have.status(422)",
+											"})",
+											"pm.test(\"Server returns validation error msgs\", () => {",
+											"    let data = pm.response.json().header",
+											"    pm.expect(data.header_param1[0]).to.eql(\"Not a valid integer.\")",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									},
+									{
+										"key": "header_param1",
+										"value": "ouh",
+										"type": "text"
+									},
+									{
+										"key": "header_param2",
+										"value": "9",
+										"type": "text"
+									},
+									{
+										"key": "header_param2",
+										"value": "3",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 14\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Header list represention 1",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 200\", () => {",
+											"    pm.response.to.have.status(200)",
+											"})",
+											"pm.test(\"Server returns an array of passed query params\", () => {",
+											"    let data = pm.response.json()",
+											"    pm.expect(data).to.eql([1,2,3])",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									},
+									{
+										"key": "header_param2",
+										"value": "1,2,3",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 14\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Header list represention 2",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"id": "a64138e8-ae8a-4a03-b22d-82f2b67d7eec",
+										"exec": [
+											"pm.test(\"Status code is 200\", () => {",
+											"    pm.response.to.have.status(200)",
+											"})",
+											"pm.test(\"Server returns an array of passed query params\", () => {",
+											"    let data = pm.response.json()",
+											"    pm.expect(data).to.eql([10,9,8])",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"id": "2bad3033-8420-43f3-a5ad-93ee2da1b6b6",
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "Content-Type",
+										"name": "Content-Type",
+										"type": "text",
+										"value": "application/javascript"
+									},
+									{
+										"key": "header_param2",
+										"value": "10",
+										"type": "text"
+									},
+									{
+										"key": "header_param2",
+										"value": "9",
+										"type": "text"
+									},
+									{
+										"key": "header_param2",
+										"value": "8",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n\t\"maxint\": 14\n}",
+									"options": {
+										"raw": {
+											"language": "javascript"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://0.0.0.0:9999/customop/4/insert_random_number/",
+									"protocol": "http",
+									"host": [
+										"0",
+										"0",
+										"0",
+										"0"
+									],
+									"port": "9999",
+									"path": [
+										"customop",
+										"4",
+										"insert_random_number",
+										""
+									]
+								}
+							},
+							"response": []
+						}
+					],
+					"protocolProfileBehavior": {},
+					"_postman_isSubFolder": true
+				}
+			],
+			"protocolProfileBehavior": {}
 		}
 	],
 	"event": [

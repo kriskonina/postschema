@@ -29,18 +29,4 @@ export PYTHONPATH=$PYTHONPATH:$PWD/../
 # provision the db
 python3 $PWD/mock/provision_db.py
 
-# PYTHONPATH=$PYTHONPATH:$PWD/mock #adev runserver --host 0.0.0.0 --port 9999
-
-# put the server in the background
-python3 $PWD/mock/main.py &
-PROC_ID=$!
-
-# run the tests
-while ! nc -z 0.0.0.0 9999 >/dev/null 2>&1; do
-    sleep 0.5
-done
-newman run postman.json
-
-# while kill -9 "$PROC_ID" >/dev/null 2>&1; do
-#     sleep .1
-# done
+PYTHONPATH=$PYTHONPATH:$PWD/mock adev runserver --host 0.0.0.0 --port 9999

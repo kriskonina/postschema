@@ -35,9 +35,12 @@ class DeleteFailed(web.HTTPError):
     status_code = 422
 
     def __init__(self, *args, **kwargs):
+        body = kwargs.pop('body', None)
+        payload = ujson.dumps({
+            'error': body
+        }) if body else failed_del_json
         super().__init__(
-            body=failed_del_json,
+            body=payload,
             reason='Delete failed',
             content_type='application/json',
             *args, **kwargs)
-

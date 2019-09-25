@@ -16,13 +16,13 @@ def adjust_children_field(fieldname):
         return data
 
     async def validator_template(self, value):
-        if not value or not value[0]:
+        if self.is_read_schema or not value or not value[0]:
             return
         target_table = self.declared_fields[fieldname].target_table
         table_name = target_table['name']
         pk = target_table['pk']
-        ids = ','.join(map(str, value))
-        query = f"SELECT COALESCE(json_agg(id), '[]') FROM {table_name} WHERE {pk}=ANY('{{{ids}}}')"
+        ids = ','.join(value)
+        query = f"SELECT COALESCE(json_agg(id::text), '[]'::json) FROM {table_name} WHERE {pk}=ANY('{{{ids}}}')"
         async with self.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 try:

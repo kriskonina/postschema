@@ -70,6 +70,7 @@ def provision_db(engine):
 
 if __name__ == "__main__":
     print("** Provisioning DB...")
+    import mock.schema
     engine = None
     app = web.Application()
     app.print = print

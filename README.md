@@ -29,10 +29,12 @@ Example usage:
         list_by = ["city"]
         fields = ("id", "email", "date_created")
         exclude = ("password", "secret_attribute")
+        route_base = "myview"
 
 Refer to [marshmallow documentation](https://marshmallow.readthedocs.io/en/3.0/api_reference.html#marshmallow.Schema.Meta) for more on _Meta_'s available options.
 
 Postschema allows for the following attributes to be defined on top of it:
+- `route_base`: URL base for the resource
 - `create_views`: Boolean to indicate whether to create views from the schema definition.
 - `order_by`: List of fields by which to order the results, unless otherwise specified (i.e. by pagination query object)
 - `get_by`: List of fields to allow the HTTP requests to query, while `GET`-ting the schema resource. If found empty, the schema's primary key will be used as the only allowed query field.
@@ -50,6 +52,6 @@ Postschema allows for the following attributes to be defined on top of it:
     * page (must be of `fields.Integer` type)
     * limit (must be of `fields.Integer` type)
     * order_dir (must be of `fields.String` type, values either `ASC` or `DESC`)
-    * order_by (must be of `fields.List` type)
+    * order_by (must be of `Array` type)
 
 - `__table_args__`: Passed to SQLAlchemy model's Meta class
