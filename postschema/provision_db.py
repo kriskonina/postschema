@@ -34,6 +34,7 @@ def make_alembic_dir():
     if not os.path.exists(alembic_destination):
         src = THIS_DIR / 'alembic'
         shutil.copytree(src, alembic_destination)
+        os.mkdir(alembic_destination / 'versions')
     if not os.path.exists(alembic_ini_destination):
         src = THIS_DIR / 'alembic.ini'
         shutil.copy2(src, alembic_ini_destination)
