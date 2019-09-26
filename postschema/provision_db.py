@@ -29,12 +29,13 @@ def get_url():
 def make_alembic_dir():
     postschema_instance_path = os.environ.get('POSTCHEMA_INSTANCE_PATH')
     alembic_destination = os.path.join(postschema_instance_path, 'alembic')
+    versions_dest = os.path.join(alembic_destination, 'versions')
     alembic_ini_destination = os.path.join(postschema_instance_path, 'alembic.ini')
 
     if not os.path.exists(alembic_destination):
         src = THIS_DIR / 'alembic'
         shutil.copytree(src, alembic_destination)
-        os.mkdir(alembic_destination / 'versions')
+        os.mkdir(versions_dest)
     if not os.path.exists(alembic_ini_destination):
         src = THIS_DIR / 'alembic.ini'
         shutil.copy2(src, alembic_ini_destination)
