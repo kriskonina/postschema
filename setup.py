@@ -4,10 +4,10 @@ setup(
     name='postschema',
     version='0.5.0',
     description='Async python ORM for postgres',
-    url='git@github.com:kriskavalieri/postschema.git',
+    url='https://github.com/kriskavalieri/postschema',
     author='Kris Kavalieri',
-    author_email='admin@bookven.com',
-    license='unlicense',
+    author_email='kris.kavalieri@gmail.com',
+    license='MIT',
     packages=['postschema'],
     zip_safe=False,
     python_requires='>=3.7'
