@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='postschema',
-    version='0.5.2',
+    version='0.5.3',
     description='Async python ORM for postgres',
     url='https://github.com/kriskavalieri/postschema',
     author='Kris Kavalieri',
@@ -11,6 +11,7 @@ setup(
     packages=['postschema'],
     zip_safe=False,
     python_requires='>=3.7',
+    include_package_data=True,
     install_requires=[
         'aiohttp==3.6.1',
         'aiojobs==0.2.2',
