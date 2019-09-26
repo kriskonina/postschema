@@ -9,5 +9,6 @@ setup(
     author_email='admin@bookven.com',
     license='unlicense',
     packages=['postschema'],
-    zip_safe=False
+    zip_safe=False,
+    python_requires='>=3.7'
 )

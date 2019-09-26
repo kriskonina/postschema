@@ -76,9 +76,10 @@ def setup_db(Base):
     conn.execute("COMMIT")
 
     Base.metadata.create_all(engine)
-    alembic_cfg = Config(alembic_ini_destination)
-    alembic_cfg.set_main_option("sqlalchemy.url", get_url())
-    command.stamp(alembic_cfg, "head")
+    if not os.environ.get('TRAVIS', False):
+        alembic_cfg = Config(alembic_ini_destination)
+        alembic_cfg.set_main_option("sqlalchemy.url", get_url())
+        command.stamp(alembic_cfg, "head")
 
     conn.close()
     return engine

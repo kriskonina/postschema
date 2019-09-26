@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/kriskavalieri/postschema.svg?branch=master)](https://travis-ci.org/kriskavalieri/postschema)
+
 # API
 _class_ postschema.**PostSchema**(*, marshmallow.Schema...)
 --
