@@ -32,10 +32,10 @@ def make_alembic_dir():
     alembic_ini_destination = os.path.join(postschema_instance_path, 'alembic.ini')
 
     if not os.path.exists(alembic_destination):
-        src = THIS_DIR / '..' / 'alembic'
+        src = THIS_DIR / 'alembic'
         shutil.copytree(src, alembic_destination)
     if not os.path.exists(alembic_ini_destination):
-        src = THIS_DIR / '..' / 'alembic.ini'
+        src = THIS_DIR / 'alembic.ini'
         shutil.copy2(src, alembic_ini_destination)
 
     return alembic_ini_destination
