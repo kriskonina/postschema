@@ -9,11 +9,11 @@ if [ ! -f /env/bin/activate ]; then
     python3 -m venv env
 fi
 
-export AIO_APP_PATH="mock/"
+# export AIO_APP_PATH="tests/mock/"
 . env/bin/activate
 trap cleanup EXIT
 echo "* Running local stack..."
-pip3 install -r requirements.txt
+pip3 install -r ../requirements.txt
 
 docker-compose -f docker-compose.yml up --build -d
 export POSTSCHEMA_PORT=9999
@@ -25,8 +25,10 @@ export POSTGRES_PORT=5432
 export REDIS_HOST=0.0.0.0
 export REDIS_PORT=6379
 export REDIS_DB=3
-export PYTHONPATH=$PYTHONPATH:$PWD/../
-# provision the db
-python3 $PWD/mock/provision_db.py
 
-PYTHONPATH=$PYTHONPATH:$PWD/mock adev runserver --host 0.0.0.0 --port 9999
+cd mock
+export PYTHONPATH=$PYTHONPATH:$PWD/../..
+echo $PWD/../..
+# provision the db
+# python3 provision_db.py
+adev runserver --host 0.0.0.0 --port 9999

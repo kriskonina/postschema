@@ -1,18 +1,20 @@
 import os
+import shutil
 from glob import glob
 from pathlib import Path
 from time import sleep
 
-from aiohttp import web
+# from aiohttp import web
+from alembic.config import Config
+from alembic import command
 from sqlalchemy import create_engine
 
-from postschema import setup_postschema
+# from postschema import setup_postschema
 
 APP_MODE = os.environ.get("APP_MODE", 'dev')
 THIS_DIR = Path(__file__).parent
-BASE_DIR = THIS_DIR / ".." / ".." / "postschema"
+BASE_DIR = THIS_DIR  # / "postschema"
 FNS_PATTERN = BASE_DIR / "sql" / "functions" / "*.sql"
-
 POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
 POSTGRES_DB = os.environ.get('POSTGRES_DB')
 POSTGRES_USER = os.environ.get('POSTGRES_USER')
@@ -20,7 +22,27 @@ POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
 
 
+def get_url():
+    return "postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}".format(**os.environ) 
+
+
+def make_alembic_dir():
+    postschema_instance_path = os.environ.get('POSTCHEMA_INSTANCE_PATH')
+    alembic_destination = os.path.join(postschema_instance_path, 'alembic')
+    alembic_ini_destination = os.path.join(postschema_instance_path, 'alembic.ini')
+
+    if not os.path.exists(alembic_destination):
+        src = THIS_DIR / '..' / 'alembic'
+        shutil.copytree(src, alembic_destination)
+    if not os.path.exists(alembic_ini_destination):
+        src = THIS_DIR / '..' / 'alembic.ini'
+        shutil.copy2(src, alembic_ini_destination)
+
+    return alembic_ini_destination
+
+
 def setup_db(Base):
+    alembic_ini_destination = make_alembic_dir()
     uri = f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/'
     engine = create_engine(uri + "postgres")
     time_wait = 1
@@ -52,7 +74,12 @@ def setup_db(Base):
     engine = create_engine(uri, pool_recycle=3600)
     conn = engine.connect()
     conn.execute("COMMIT")
+
     Base.metadata.create_all(engine)
+    alembic_cfg = Config(alembic_ini_destination)
+    alembic_cfg.set_main_option("sqlalchemy.url", get_url())
+    command.stamp(alembic_cfg, "head")
+
     conn.close()
     return engine
 
@@ -68,20 +95,20 @@ def provision_db(engine):
         conn.close()
 
 
-if __name__ == "__main__":
-    print("** Provisioning DB...")
-    import mock.schema
-    engine = None
-    app = web.Application()
-    app.print = print
-    setup_postschema(app)
-    from postschema.core import Base
-    try:
-        engine = setup_db(Base)
-        provision_db(engine)
-        print("** Provisioning done")
-    except Exception as exc:
-        print("!! Provisioning failed")
-        raise exc
-    finally:
-        del app
+# if __name__ == "__main__":
+#     print("** Provisioning DB...")
+#     import mock.schema
+#     engine = None
+#     app = web.Application()
+#     app.print = print
+#     setup_postschema(app)
+#     from postschema.core import Base
+#     try:
+#         engine = setup_db(Base)
+#         provision_db(engine)
+#         print("** Provisioning done")
+#     except Exception as exc:
+#         print("!! Provisioning failed")
+#         raise exc
+#     finally:
+#         del app

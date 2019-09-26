@@ -3,7 +3,7 @@ from marshmallow import fields, Schema
 from marshmallow.validate import Range, OneOf
 from sqlalchemy.dialects.postgresql import JSONB
 
-from postschema.schema import PostSchema
+from .schema import PostSchema
 
 
 class Pagination(Schema):

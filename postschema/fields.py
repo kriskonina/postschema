@@ -2,8 +2,9 @@ import sqlalchemy as sql
 
 # from postschema.bases.schemas import _schemas
 from marshmallow import fields
-from postschema import validators
 from sqlalchemy.dialects.postgresql import JSONB
+
+from . import validators
 
 
 class Set(fields.List):

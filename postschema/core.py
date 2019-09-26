@@ -11,14 +11,14 @@ from marshmallow import (
 )
 from sqlalchemy.ext.declarative import declarative_base
 
-from postschema import (
+from . import (
     hooks,
     fields as postschema_fields,
     validators as postschema_validators
 )
-from postschema.schema import PostSchema
-from postschema.utils import retype_schema
-from postschema.view import AuxViewBase, ViewsBase, ViewsTemplate
+from .schema import PostSchema
+from .utils import retype_schema
+from .view import AuxViewBase, ViewsBase, ViewsTemplate
 
 Base = declarative_base()
 
@@ -100,6 +100,7 @@ def create_model(schema_cls): # noqa
 
     modelname = name + 'Model'
     new_model = type(modelname, (Base,), model_methods)
+    print(f"\t   - created model `{modelname}`")
     return new_model
 
 

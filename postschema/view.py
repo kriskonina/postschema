@@ -15,12 +15,12 @@ from marshmallow import Schema, ValidationError, fields, validate, post_load
 from psycopg2 import errors as postgres_errors
 from sqlalchemy.sql.schema import Sequence
 
-from postschema import exceptions as post_exceptions
-from postschema.contrib import Pagination
-from postschema.fields import Set, Relationship
-from postschema.hooks import translate_naive_nested, translate_naive_nested_to_dict
-from postschema.utils import json_response, retype_schema
-from postschema.validators import must_not_be_empty, adjust_children_field
+from . import exceptions as post_exceptions
+from .contrib import Pagination
+from .fields import Set, Relationship
+from .hooks import translate_naive_nested, translate_naive_nested_to_dict
+from .utils import json_response, retype_schema
+from .validators import must_not_be_empty, adjust_children_field
 
 __all__ = ['ViewsBase']
 
