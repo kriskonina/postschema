@@ -1,1 +1,2 @@
-recursive-include . *.ini *.mako
+graft postschema/sql
+recursive-include postschema *.ini *.mako
