@@ -12,6 +12,13 @@ def get_url():
     return "postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}".format(**os.environ) 
 
 
+def process_revision_directives(context, revision, directives):
+    if config.cmd_opts.autogenerate:
+        script = directives[0]
+        if script.upgrade_ops.is_empty():
+            directives[:] = []
+
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -65,15 +72,10 @@ def run_migrations_online():
 
     """
     connectable = create_engine(get_url())
-    # connectable = engine_from_config(
-    #     config.get_section(config.config_ini_section),
-    #     prefix="sqlalchemy.",
-    #     poolclass=pool.NullPool,
-    # )
-
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, 
+            connection=connection,
+            process_revision_directives=process_revision_directives,
             target_metadata=target_metadata
         )
 

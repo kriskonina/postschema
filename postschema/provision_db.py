@@ -40,11 +40,11 @@ def make_alembic_dir():
         src = THIS_DIR / 'alembic.ini'
         shutil.copy2(src, alembic_ini_destination)
 
-    return alembic_ini_destination
+    return alembic_ini_destination, postschema_instance_path
 
 
 def setup_db(Base):
-    alembic_ini_destination = make_alembic_dir()
+    alembic_ini_destination, postschema_instance_path = make_alembic_dir()
     uri = f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/'
     engine = create_engine(uri + "postgres")
     time_wait = 1
@@ -79,8 +79,10 @@ def setup_db(Base):
 
     Base.metadata.create_all(engine)
     if not os.environ.get('TRAVIS', False):
+        alembic_dist = os.path.join(postschema_instance_path, 'alembic')
         alembic_cfg = Config(alembic_ini_destination)
         alembic_cfg.set_main_option("sqlalchemy.url", get_url())
+        alembic_cfg.set_main_option("script_location", alembic_dist)
         command.stamp(alembic_cfg, "head")
 
     conn.close()
@@ -96,22 +98,3 @@ def provision_db(engine):
             conn.execute(open(fn_sql).read())
     finally:
         conn.close()
-
-
-# if __name__ == "__main__":
-#     print("** Provisioning DB...")
-#     import mock.schema
-#     engine = None
-#     app = web.Application()
-#     app.print = print
-#     setup_postschema(app)
-#     from postschema.core import Base
-#     try:
-#         engine = setup_db(Base)
-#         provision_db(engine)
-#         print("** Provisioning done")
-#     except Exception as exc:
-#         print("!! Provisioning failed")
-#         raise exc
-#     finally:
-#         del app
