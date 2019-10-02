@@ -147,7 +147,7 @@ class CommonViewMixin:
             raise post_exceptions.ValidationError(err_msg if not envelope_key else {envelope_key: err_msg})
 
         try:
-            err_msg = await ref_schema.run_async_validators(self.request, payload_used) or err_msg
+            err_msg = await ref_schema.run_async_validators(payload_used) or err_msg
         except AttributeError:
             # ignore validating \w Schemas not inheriting from PostSchema
             pass

@@ -220,7 +220,6 @@ class ViewMaker:
                     # in the deletes departments, we need to faciliate the following scenario:
                     # - one of our parent's ForeignResources' fks gets deleted
                     # - its FK reference in our parent needs to be cleared too
-                    # print(self.schema_cls, fieldname, linked_schema)
                     linked_schema._m2m_cherrypicks.append((this_table, fieldname, this_pk))
 
                     # The holder of this field will store references to its 'relatives'
