@@ -6,6 +6,14 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 
+class DefaultMetaBase:
+    excluded_ops = []
+    get_by = []
+    list_by = []
+    exclude_from_updates = []
+    create_views = True
+
+
 class _schemascls:
     _name = 'registered schemas'
 
@@ -32,9 +40,22 @@ _schemas = _schemascls()
 class PostSchemaMeta(SchemaMeta):
     def __new__(cls, name, bases, methods):
         kls = super(PostSchemaMeta, cls).__new__(cls, name, bases, methods)
-        if kls.mro()[1] is not MarshmallowBaseSchema:
+        second_base = kls.mro()[1]
+        second_base_name = second_base.__name__
+        if second_base is not MarshmallowBaseSchema and name != "RootSchema" and second_base_name != 'RootSchema':
             setattr(_schemas, name, kls)
-            kls.is_kid = not bases[0] is PostSchema
+            for base in kls.mro():
+                if base.__name__ == 'RootSchema':
+                    return cls._conflate_schemas(kls)
+        return kls
+
+    def _conflate_schemas(kls):
+        defined_metacls = getattr(kls, 'Meta', None)
+        if defined_metacls is None:
+            # means 'Meta' isn't defined on neither this schema nor its parent
+            attrs = dict(kls.__dict__)
+            attrs['Meta'] = defined_metacls
+            return type(kls.__name__, kls.__bases__, attrs)
         return kls
 
 
@@ -49,9 +70,6 @@ class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
         self._joins = joins
         self._joinable_fields = joinable = set(joins or [])
         self._default_joinable_tables = only & joinable
-
-        # self._tables_to_join_from_selects = []
-
         self._deferred_async_validators = []
         self.parent = self.__class__.__base__
 
@@ -60,12 +78,6 @@ class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
         return self._use == 'read'
 
     def _call_and_store(self, getter_func, data, *, field_name, error_store, index=None):
-        # data = MarshmallowBaseSchema._call_and_store(
-        #     getter_func=getter_func,
-        #     data=data,
-        #     field_name=field_name,
-        #     error_store=error_store,
-        #     index=index)
         if asyncio.iscoroutinefunction(getter_func):
             getter_func.__func__.__postschema_hooks__ = {
                 'fieldname': field_name,
@@ -74,42 +86,12 @@ class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
             }
             self._deferred_async_validators.append(getter_func)
             return data
-        # else:
         return MarshmallowBaseSchema._call_and_store(
             getter_func=getter_func,
             data=data,
             field_name=field_name,
             error_store=error_store,
             index=index)
-        # return data
-
-    #     '''Monkey-patched `marshmallow.schema.Schema.__call_and_store`'''
-
-    #     try:
-    #         value = getter_func(data)
-    #     except ValidationError as err:
-    #         error_store.store_error(err.messages, field_name, index=index)
-    #         # When a Nested field fails validation, the marshalled data is stored
-    #         # on the ValidationError's valid_data attribute
-    #         return err.valid_data or missing
-    #     return value
-
-        # try:
-        #     if asyncio.iscoroutinefunction(getter_func):
-        #         # schedule for deferred execution
-        #         getter_func.__func__.__postschema_hooks__ = {
-        #             'fieldname': field_name,
-        #             'error_store': error_store,
-        #             'index': index
-        #         }
-        #         self._deferred_async_validators.append(getter_func)
-        #         value = data
-        #     else:
-        #         value = getter_func(data) or data
-        # except ValidationError as err:
-        #     error_store.store_error(err.messages, field_name, index=index)
-        #     return err.valid_data or missing
-        # return value
 
     async def run_async_validators(self, data):
         for async_validator in self._deferred_async_validators:
@@ -126,3 +108,7 @@ class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
                 error_store = hooks['error_store']
                 error_store.store_error(inner_emsgs, fieldname, index=index)
                 return error_store.errors
+
+
+class RootSchema(PostSchema):
+    pass

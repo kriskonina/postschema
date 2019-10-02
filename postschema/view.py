@@ -107,20 +107,14 @@ def adjust_pagination_schema(pagination_schema, schema_cls, list_by_fields, pk):
 
 def make_select_fields_schema(schema_cls):
     def _get_all_selectable_fields():
-        is_kid = schema_cls.is_kid
         declared_fields = dict(schema_cls._declared_fields)
-
-        if is_kid:
-            extends_on = schema_cls.Meta.extends_on
-            declared_fields.pop(extends_on, None)
-
         for fieldname, fieldval in declared_fields.items():
             if fieldval.dump_only:
                 continue
             yield fieldname
 
     allowed_fields = set(_get_all_selectable_fields())
-    nested_map = schema_cls._nested_select_stmts if schema_cls.is_kid else {}
+    nested_map = {}
 
     return type(f'{schema_cls.__name__}Selects', (Schema, ), {
         'select': fields.List(
@@ -306,7 +300,6 @@ class ViewsClassBase(web.View):
     @classmethod
     def relationize_schema(cls, joins):
         schema = cls.schema_cls
-
         new_methods = {
             fieldname: fields.Nested(
                 linked_schema, validate=must_not_be_empty)
@@ -330,10 +323,10 @@ class ViewsClassBase(web.View):
                                if isinstance(fieldval, ITERABLE_FIELDS)
                                and not isinstance(fieldval, Relationship)]
 
-        extends_on = getattr(cls.schema_cls.Meta, 'extends_on', None)
+        # extends_on = getattr(cls.schema_cls.Meta, 'extends_on', None)
         mergeable_fields = cls.iterable_fields[:]
-        if extends_on:
-            mergeable_fields.append(extends_on)
+        # if extends_on:
+        #     mergeable_fields.append(extends_on)
         cls.mergeable_fields = mergeable_fields
 
         cls.pk_col = table.primary_key.columns_autoinc_first[0]
@@ -341,9 +334,7 @@ class ViewsClassBase(web.View):
         cls.pk_autoicr = isinstance(cls.pk_col.default, Sequence)
 
         schema_metacls = getattr(cls.schema_cls, 'Meta', object)
-
-        if cls.schema_cls.is_kid:
-            cls._naive_fields_to_composite_stmts()
+        cls._naive_fields_to_composite_stmts()
         cls.schema_cls._join_to_schema_where_stmt = joins
 
         try:
@@ -397,7 +388,6 @@ class ViewsClassBase(web.View):
             )
             SELECT json_agg(rows.{cls.pk_column_name}) FROM rows;
         """)
-        # cls.deep_delete_assoc_stmt = cls._render_associated_delete_stmts()
         cls.cherrypick_m2m_stmts = cls._render_cherrypick_m2m_stmts()
 
         get_joins, list_joins = cls._prepare_join_statements(joins, get_by, list_by)
@@ -413,28 +403,22 @@ class ViewsClassBase(web.View):
     @classmethod
     def _naive_fields_to_composite_stmts(cls):
         schema = cls.schema_cls
-        parent = schema.__base__
-        # tablename = parent.__tablename__
-        extends_on = getattr(schema.Meta, 'extends_on', None)
-
+        tablename = schema.__tablename__
         nested_fields_to_json_query = {}
         nested_fields_to_select = {}
-        nested_inst = parent._declared_fields[extends_on].nested
 
-        for aname, aval in nested_inst._declared_fields.items():
-            if aname not in schema.child_fieldnames:
-                continue
+        for aname, aval in schema._declared_fields.items():
             attr_name = aval.attribute or aname
-            if isinstance(aval, fields.Number):
-                frmt = f'=%({attr_name})s::jsonb'
-            elif isinstance(aval, fields.List):
+            if isinstance(aval, fields.List):
                 frmt = f' @> to_jsonb(%({attr_name})s)'
-            else:
-                frmt = f' ? %({attr_name})s'
-            nested_fields_to_json_query[aname] = f"{extends_on}->'{aname}'{frmt}"
-            nested_fields_to_select[aname] = f"{extends_on}->'{aname}'"
+            # elif isinstance(aval, fields.Dict):
+            #     frmt = f' ? %({attr_name})s' 
+                nested_fields_to_json_query[aname] = f'"{tablename}".{aname}{frmt}'
+
+            # nested_fields_to_json_query[aname] = f"{extends_on}->'{aname}'{frmt}"
+            # nested_fields_to_select[aname] = f"{extends_on}->'{aname}'"
         schema._nested_where_stmts = nested_fields_to_json_query
-        schema._nested_select_stmts = nested_fields_to_select
+        # schema._nested_select_stmts = nested_fields_to_select
 
     @classmethod
     def _prepare_join_statements(cls, joins, get_by, list_by):
@@ -772,23 +756,22 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
 
     def _whereize_query(self, cleaned_payload, query): # noqa
         try:
-            json_where_stmts = self.schema._nested_where_stmts
-            child_fieldnames = self.schema.child_fieldnames
+            nested_where_stmts = self.schema._nested_where_stmts
         except AttributeError:
             # only inherited resources will have it
-            json_where_stmts = []
-            child_fieldnames = []
+            nested_where_stmts = []
 
         tablename = self.schema.__tablename__
         joins = []
         wheres = deque()
         values = {}
 
-        for nested_field in child_fieldnames:
+        for nested_field, nested_trans in nested_where_stmts.items():
             nested_in_payload = cleaned_payload.pop(nested_field, None)
             if nested_in_payload:
                 values.update({nested_field: nested_in_payload})
-                wheres.append(json_where_stmts[nested_field])
+                wheres.append(nested_trans)
+
         for m2m_field, m2m_field_translated in self.schema._m2m_where_stmts.items():
             relation_in_payload = cleaned_payload.pop(m2m_field, None)
             if relation_in_payload:
@@ -850,9 +833,8 @@ class ViewsTemplate:
 
     async def list(self):
         # validate the query payload
-        raise_orig = self.schema.is_kid
         try:
-            cleaned_payload = await self._validate_singular_payload(raise_orig=raise_orig)
+            cleaned_payload = await self._validate_singular_payload()
         except ValidationError as vexc:
             # Take out only those keys from the error bag that belong to the nested schema
             # (aka the kid) and rerun the validation only on them using that nested schema
@@ -863,9 +845,9 @@ class ViewsTemplate:
                     payload[fieldname] = vexc.data[fieldname]
             if not payload:
                 raise post_exceptions.ValidationError(vexc.messages)
-            parent_nested_schema = self.schema.parent._declared_fields[self.schema.extends_on].nested
-            cleaned_payload = await self._validate_singular_payload(
-                payload=payload, schema=parent_nested_schema)
+            # parent_nested_schema = self.schema.parent._declared_fields[self.schema.extends_on].nested
+            # cleaned_payload = await self._validate_singular_payload(
+            #     payload=payload, schema=parent_nested_schema)
 
         self.cleaned_payload_keys = list(cleaned_payload) or []
 
@@ -892,7 +874,6 @@ class ViewsTemplate:
 
         if hasattr(self.schema, 'before_list'):
             cleaned_payload = await self.schema.before_list(self.request, cleaned_payload) or cleaned_payload
-            print(cleaned_payload)
 
         query = base_stmt.format(
             limit=limit,
@@ -904,8 +885,9 @@ class ViewsTemplate:
 
     async def post(self):
         # validate the payload
-        payload = await self._validate_singular_payload()
-        cleaned_payload = self._clean_write_payload(payload)
+        cleaned_payload = await self._validate_singular_payload()
+        cleaned_payload = self._clean_write_payload(cleaned_payload)
+        print(cleaned_payload)
 
         if hasattr(self.schema, 'before_post'):
             cleaned_payload = await self.schema.before_post(self.request, cleaned_payload) or cleaned_payload
@@ -931,8 +913,8 @@ class ViewsTemplate:
         return json_response({self.pk_column_name: res[0]})
 
     async def put(self):
-        cleaned_select, payload = await self._clean_update_payload()
-        cleaned_payload = self._clean_write_payload(payload)
+        cleaned_select, cleaned_payload = await self._clean_update_payload()
+        cleaned_payload = self._clean_write_payload(cleaned_payload)
 
         if hasattr(self.schema, 'before_update'):
             cleaned_payload = await self.schema.before_update(self.request, cleaned_payload) \
@@ -952,7 +934,6 @@ class ViewsTemplate:
             async with conn.cursor() as cur:
                 try:
                     await cur.execute(query, query_values)
-                    print(cur.query.decode())
                 except postgres_errors.IntegrityError as ierr:
                     raise post_exceptions.ValidationError({"payload": parse_postgres_err(ierr)})
                 except Exception as exc:
@@ -971,8 +952,8 @@ class ViewsTemplate:
         return json_response({'updated': res[0]})
 
     async def patch(self): # noqa
-        cleaned_select, payload = await self._clean_update_payload()
-        cleaned_payload = self._clean_write_payload(payload)
+        cleaned_select, cleaned_payload = await self._clean_update_payload()
+        cleaned_payload = self._clean_write_payload(cleaned_payload)
 
         if hasattr(self.schema, 'patch'):
             return await self.schema.patch(self.request, cleaned_select, cleaned_payload)
@@ -1055,7 +1036,6 @@ class ViewsTemplate:
                 async with cur.begin():
                     try:
                         await cur.execute(query, query_values)
-                        print(cur.query.decode())
                     except Exception as exc:
                         print(f'!! Failed to delete from the {self.tablename} resource', flush=1)
                         print(cur.query.decode())
@@ -1076,7 +1056,6 @@ class ViewsTemplate:
                     # post-delete hooks, only for the m2m relations
                     if self.schema._m2m_cherrypicks:
                         m2m_query = self.cherrypick_m2m_stmts.format(deleted_pks=f'array{deleted_ids}')
-                        print(m2m_query)
                         try:
                             await cur.execute(m2m_query)
                         except Exception as exc:
@@ -1090,7 +1069,6 @@ class ViewsTemplate:
                             print("FAIL!")
                             raise post_exceptions.DeleteFailed(body="Failed to delete the M2M dependencies")
                         deleted_m2m_refs = res[0]
-                    # await cur.execute('rollback;')
 
         if hasattr(self.schema, 'after_delete'):
             await spawn(self.request, self.schema.after_delete(self.request, res))

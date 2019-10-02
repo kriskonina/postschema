@@ -16,7 +16,7 @@ from . import (
     fields as postschema_fields,
     validators as postschema_validators
 )
-from .schema import PostSchema
+from .schema import DefaultMetaBase
 from .utils import retype_schema
 from .view import AuxViewBase, ViewsBase, ViewsTemplate
 
@@ -27,15 +27,6 @@ ITERABLE_FIELDS = (
     fields.List,
     postschema_fields.Set
 )
-
-
-class DefaultMetaBase:
-    excluded_ops = []
-    get_by = []
-    list_by = []
-    exclude_from_updates = []
-    create_views = True
-    extends_on = None
 
 
 def popattr(cls, attr):
@@ -50,8 +41,6 @@ def getattrs(cls):
 
 
 def create_model(schema_cls): # noqa
-    if schema_cls.is_kid:
-        return
     name = schema_cls.__name__
     methods = dict(schema_cls.__dict__)
     try:
@@ -207,18 +196,9 @@ class ViewMaker:
     def process_relationships(self, registered_schemas):
         joins = {}
 
-        # REWRITE schema_cls so that it includes after_{post/put/patch},
-        # shifting the kids keys from root # to `extends_on` key.
-        # Then, Json-ning the `extends_on` nest. That should do the trick with the nested relationship.
-
         new_schema_methods = {}
-        if self.schema_cls.is_kid:
-            self.schema_cls._post_validation_write_cleaners.append(
-                hooks.clean_before_nested_write(self.schema_cls)
-            )
 
         self.schema_cls._m2m_where_stmts = relation_where_stmts = {}
-        # this_table = str(self.schema_cls._model.__table__)
         this_table, this_pk = str(
             self.schema_cls._model.__table__.primary_key.columns_autoinc_first[0]).split('.')
 
@@ -272,109 +252,6 @@ class ViewMaker:
         return joins
 
 
-class InheritedViewMaker(ViewMaker):
-    def __init__(self, *args):
-        super().__init__(*args)
-
-    def rebase_metacls(self):
-        """On top what its parental version does,
-        also perform a deep merge with this schema's parent Meta
-        """
-        kids_meta = super().rebase_metacls()
-        extends_on = getattr(kids_meta, 'extends_on', None)
-        assert extends_on, AttributeError(
-            f"`{self.schema_cls}`'s Meta class should define `extends_on` field name")
-        self.extends_on = extends_on
-
-        # FIELD_LISTING_COLS = ['get_by', 'exclude_from_updates', 'list_by']
-        kids_meta_methods = dict(kids_meta.__dict__)
-        parent = self.schema_cls.__base__
-        parent_meta_attrs = getattrs(parent.Meta)
-        for meta_name, meta_val in kids_meta_methods.items():
-            if isinstance(meta_val, list):
-                base_cols = parent_meta_attrs.get(meta_name, [])
-                # if meta_name in FIELD_LISTING_COLS:
-                #     new_cols = [f'{extends_on}.{attr}' for attr in kids_meta_methods[meta_name]]
-                # else:
-                new_cols = meta_val
-                base_cols.extend(new_cols)
-                kids_meta_methods[meta_name] = base_cols
-        for parent_metaname, parent_val in parent_meta_attrs.items():
-            if parent_metaname not in kids_meta_methods:
-                kids_meta_methods[parent_metaname] = parent_val
-        kids_meta_methods['create_views'] = True
-
-        return type('Meta', (kids_meta,), kids_meta_methods)
-
-    def rewrite_inherited(self):
-        """Copy appropriate fields from the parent and create the new schema,
-        replacing the defining on.
-        """
-        parent = self.schema_cls.__base__
-
-        extends_on = self.extends_on
-        methods = dict(self.schema_cls.__dict__)
-
-        parent_fieldnames = set(parent._declared_fields.keys())
-        # for child_fieldname in child_fieldnames:
-        #     del self.schema_cls._declared_fields[child_fieldname]
-        # child_fields = {k: v for k, v in self if k in child_fieldnames}
-        # nested_methods = dict(self.schema_cls.__dict__)
-        # nested_methods['_declared_fields'] = child_fields
-        # nested_schema = type(f'{name.title()}{extends_on.title()}', self.schema_cls.__bases__,
-        #                       nested_methods)
-        # nested_field_opts = {
-        #     'validate': [validators.must_not_be_empty]
-        # }
-        methods = dict(self.schema_cls.__dict__)
-        # df = methods.pop('_declared_fields')
-        # for kf, vf in df.items():
-        #     setattr(self.schema_cls, kf, vf)
-
-        methods.update(methods.pop('_declared_fields'))
-        self.schema_cls.child_fieldnames = {
-            k for k, v in self.schema_cls._declared_fields.items()
-        } - parent_fieldnames
-        self.schema_cls.__tablename__ = parent.__tablename__
-        self.schema_cls._model = parent._model
-        self.schema_cls.extends_on = extends_on
-        parent._declared_fields[extends_on] = fields.Nested(self.schema_cls(partial=True))
-
-        # return object()
-        # parent_fields = parent._declared_fields
-
-        # cls_name = f'{name}{self.extends_on.title()}'
-        # nested_methods = dict(self.schema_cls.__dict__)
-        # nested_methods['__qualname__'] = cls_name
-        # nested_methods['__tablename__'] = parent._model.__tablename__
-        # nested_schema_cls = type(cls_name, (Schema,), nested_methods)
-
-        # new_parent_methods = nested_methods.copy()
-        # new_parent_methods['__qualname__'] = name
-
-        # # clear child's methods of any pre-existing fields
-        # for m, m_val in new_parent_methods.copy().items():
-        #     if isinstance(m_val, fields.Field):
-        #         del new_parent_methods[m]
-
-        # # merge parental fields
-        # new_parent_methods.update({k: v for k, v in parent_fields.items()})
-        # extends_on_attrs['validate'] = [validators.must_not_be_empty]
-        # new_parent_methods[self.extends_on] = fields.Nested(nested_schema_cls, **extends_on_attrs)
-
-        # # reference nested keys under `_nests` (on the parent)
-        # parent._nests = getattr(parent, '_nests', [])
-        # parent._nests.append(self.extends_on)
-        # new_parent_methods['_model'] = parent._model
-        # new_parent_methods['__tablename__'] = parent._model.__tablename__
-
-        # schema_cls = type(name, (Schema,), new_parent_methods)
-
-        # ret =  ViewMaker(schema_cls, self.router)
-
-        # return object()
-
-
 def adjust_fields(schema_cls):
     declared_fields = dict(schema_cls._declared_fields)
     iterables = []
@@ -398,8 +275,7 @@ def adjust_fields(schema_cls):
 
     schema_meta = schema_cls.Meta
     omit_me = not getattr(schema_meta, 'create_views', True)
-    is_kid = schema_cls.is_kid
-    if not is_kid and not omit_me and iterables:
+    if not omit_me and iterables:
         hook = hooks.escape_iterable(iterables)
         schema_cls._post_validation_write_cleaners.append(hook)
     return schema_cls
@@ -408,7 +284,6 @@ def adjust_fields(schema_cls):
 def build_app(app, registered_schemas):
     print("* Building views...")
     router = app.router
-
     for schema_name, schema_cls in registered_schemas:
         tablename = getattr(schema_cls, '__tablename__', None)
         print(f'\t+ processing {tablename}')
@@ -422,12 +297,7 @@ def build_app(app, registered_schemas):
 
     for schema_name, schema_cls in registered_schemas:
 
-        # dispatch the view creation handler depending on schema's dependency scheme
-        if schema_cls.__base__ is not PostSchema:
-            post_view = InheritedViewMaker(schema_cls, router)
-            post_view.rewrite_inherited()
-        else:
-            post_view = ViewMaker(schema_cls, router)
+        post_view = ViewMaker(schema_cls, router)
 
         # invoke the relationship processing
         joins = post_view.process_relationships(registered_schemas)

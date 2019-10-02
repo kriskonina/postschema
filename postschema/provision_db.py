@@ -77,6 +77,24 @@ def setup_db(Base):
     conn = engine.connect()
     conn.execute("COMMIT")
 
+    print("\t* Adding Postgres functions...")
+    # try:
+    #     for fn_sql in glob(str(FNS_PATTERN)):
+    #         print(f'\t  - adding `{os.path.split(fn_sql)[1]}`')
+    #         conn.execute(open(fn_sql).read(), [])
+    # finally:
+    #     conn.close()
+
+    from sqlalchemy import event
+    from sqlalchemy.schema import DDL
+
+    for fn_sql in glob(str(FNS_PATTERN)):
+        event.listen(
+            Base.metadata,
+            'before_create',
+            DDL(open(fn_sql).read())
+        )
+
     Base.metadata.create_all(engine)
     if not os.environ.get('TRAVIS', False):
         alembic_dist = os.path.join(postschema_instance_path, 'alembic')
@@ -92,9 +110,4 @@ def setup_db(Base):
 def provision_db(engine):
     conn = engine.connect()
     print("\t* Adding Postgres functions...")
-    try:
-        for fn_sql in glob(str(FNS_PATTERN)):
-            print(f'\t  - adding `{os.path.split(fn_sql)[1]}`')
-            conn.execute(open(fn_sql).read())
-    finally:
-        conn.close()
+    

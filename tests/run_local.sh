@@ -28,7 +28,4 @@ export REDIS_DB=3
 
 cd mock
 export PYTHONPATH=$PYTHONPATH:$PWD/../..
-echo $PWD/../..
-# provision the db
-# python3 provision_db.py
 adev runserver --host 0.0.0.0 --port 9999

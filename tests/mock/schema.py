@@ -5,7 +5,7 @@ import sqlalchemy as sql
 from aiohttp import web
 from marshmallow import fields, validate, validates, ValidationError
 from postschema import PostSchema, validators
-from postschema.contrib import Actor
+from postschema.contrib import ActorRoot
 from postschema.fields import ForeignResources, ForeignResource
 from postschema.utils import json_response
 from postschema.view import AuxView
@@ -94,22 +94,36 @@ class Distributor(PostSchema):
 
     class Meta:
         route_base = 'dist'
+
         list_by = ['meta']
         delete_by = ['meta']
 
 
-class Operator(Actor):
+class Operator(ActorRoot):
+    __tablename__ = 'operator'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('operator_id_seq'),
+                        read_only=True, primary_key=True)
     phone = fields.String(sqlfield=sql.String(32), required=True)
     city = fields.String(sqlfield=sql.String(255), required=True, index=True)
     badges = fields.List(fields.String(), sqlfield=JSONB, required=False,
                          validate=validators.must_not_be_empty)
 
     class Meta:
-        extends_on = 'details'
-        get_by = ['phone', 'city', 'badges']
-        list_by = ['city', 'phone']
+        get_by = ['name', 'id', 'phone', 'city', 'badges']
+        list_by = ['name', 'id', 'email', 'city', 'phone', 'badges']
         excluded_ops = ['delete']
         # exclude_from_updates = ['badges']
+
+
+class Staff(ActorRoot):
+    __tablename__ = 'staff'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('staff_id_seq'),
+                        read_only=True, primary_key=True)
+    role = fields.String(sqlfield=sql.String(32), required=True)
+
+    class Meta:
+        get_by = ['role', 'email']
+        excluded_ops = ['delete']
 
 
 class DrawNumberView(AuxView):
@@ -203,7 +217,6 @@ class CustomOpsResource(PostSchema):
         return await self.before_post(*args)
 
     async def after_put(self, request, select_payload, update_payload, res):
-        print(update_payload)
         values = {'address': update_payload.pop('address'), 'newval': '_put'}
         query = f"UPDATE customop SET custom_getter=custom_getter || %(newval)s WHERE address=%(address)s"
         async with request.app.db_pool.acquire() as conn:
@@ -211,7 +224,6 @@ class CustomOpsResource(PostSchema):
                 await cur.execute(query, values)
 
     async def after_patch(self, request, select_payload, update_payload, res):
-        print(update_payload)
         values = {'address': update_payload.pop('address'), 'newval': '_patch'}
         query = f"UPDATE customop SET custom_getter=custom_getter || %(newval)s WHERE address=%(address)s"
         async with request.app.db_pool.acquire() as conn:
@@ -221,28 +233,3 @@ class CustomOpsResource(PostSchema):
     class Meta:
         route_base = 'customop'
         get_by = ['id', 'address', 'read_only_field', 'state', 'custom_getter']
-
-
-# class Unit(PostSchema):
-#     __tablename__ = 'unit'
-#     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('unit_id_seq'),
-#                         primary_key=True)
-#     name = fields.String(sqlfield=sql.String(16), required=True, unique=True, index=True)
-#     clinic_id = OneToOne('clinic.id')
-#     operators = ManyToMany('actor.id')
-
-    # @validates('clinic_id')
-    # def idd(self, item):
-    #     raise ValidationError('cliniccc')
-
-    # @validates('name')
-    # def namee(self, item):
-    #     raise ValidationError('nameee')
-
-    # class Meta:
-    #     get_by = ['id', 'name', 'clinic_id', 'operators']
-    #     list_by = ['clinic_id', 'name']
-
-        # __table_args__: sql.UniqueConstraint = (
-        #     sql.UniqueConstraint('name', 'venue_id', name='_room_name_venue_uq'),
-        # )
