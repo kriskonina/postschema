@@ -93,12 +93,12 @@ class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
             error_store=error_store,
             index=index)
 
-    async def run_async_validators(self, data):
+    async def run_async_validators(self, request, data):
         for async_validator in self._deferred_async_validators:
             hooks = async_validator.__postschema_hooks__
             fieldname = hooks['fieldname']
             try:
-                await async_validator(data[fieldname])
+                await async_validator(request, data[fieldname])
                 return {}
             except KeyError:
                 pass

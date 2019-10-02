@@ -147,7 +147,7 @@ class CommonViewMixin:
             raise post_exceptions.ValidationError(err_msg if not envelope_key else {envelope_key: err_msg})
 
         try:
-            err_msg = await ref_schema.run_async_validators(payload_used) or err_msg
+            err_msg = await ref_schema.run_async_validators(self.request, payload_used) or err_msg
         except AttributeError:
             # ignore validating \w Schemas not inheriting from PostSchema
             pass
@@ -887,7 +887,6 @@ class ViewsTemplate:
         # validate the payload
         cleaned_payload = await self._validate_singular_payload()
         cleaned_payload = self._clean_write_payload(cleaned_payload)
-        print(cleaned_payload)
 
         if hasattr(self.schema, 'before_post'):
             cleaned_payload = await self.schema.before_post(self.request, cleaned_payload) or cleaned_payload
