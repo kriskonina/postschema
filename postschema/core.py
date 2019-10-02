@@ -266,8 +266,12 @@ def adjust_fields(schema_cls):
         if isinstance(colv, fields.String):
             sqlfield = colv.metadata.get('sqlfield')
             if sqlfield is not None:
-                validator = validate.Length(max=sqlfield.length)
-                colv.validators.append(validator)
+                try:
+                    validator = validate.Length(max=sqlfield.length)
+                    colv.validators.append(validator)
+                except AttributeError:
+                    # sqlalchemy field in use could be inheriting from `String` class
+                    pass
         elif isinstance(colv, ITERABLE_FIELDS):
             # ensure relation fields are not included
             if not isinstance(colv, postschema_fields.Relationship):
