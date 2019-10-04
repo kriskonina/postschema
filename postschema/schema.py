@@ -43,6 +43,8 @@ class PostSchemaMeta(SchemaMeta):
         second_base = kls.mro()[1]
         second_base_name = second_base.__name__
         if second_base is not MarshmallowBaseSchema and name != "RootSchema" and second_base_name != 'RootSchema':
+            if '__tablename__' not in methods:
+                raise AttributeError(f'PostSchema `{name}` needs to define `__tablename__`')
             setattr(_schemas, name, kls)
             for base in kls.mro():
                 if base.__name__ == 'RootSchema':

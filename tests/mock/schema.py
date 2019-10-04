@@ -6,7 +6,7 @@ from aiohttp import web
 from marshmallow import fields, validate, validates, ValidationError
 from postschema import PostSchema, validators
 from postschema.contrib import ActorRoot
-from postschema.fields import ForeignResources, ForeignResource
+from postschema.fields import ForeignResources, ForeignResource, AutoImpliedForeignResource
 from postschema.utils import json_response
 from postschema.view import AuxView
 
@@ -233,3 +233,68 @@ class CustomOpsResource(PostSchema):
     class Meta:
         route_base = 'customop'
         get_by = ['id', 'address', 'read_only_field', 'state', 'custom_getter']
+
+
+class Barn(PostSchema):
+    __tablename__ = 'barn'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('barn_id_seq'),
+                        read_only=True, primary_key=True)
+    name = fields.String(sqlfield=sql.String(50), unique=True)
+
+    class Meta:
+        get_by = ['id', 'name']
+
+
+class Fodder(PostSchema):
+    __tablename__ = 'fodder'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('fodder_id_seq'),
+                        read_only=True, primary_key=True)
+    name = fields.String(sqlfield=sql.String(50), unique=True)
+
+
+class Box(PostSchema):
+    __tablename__ = 'box'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('box_id_seq'),
+                        read_only=True, primary_key=True)
+    barn = ForeignResource('barn.id')
+    fodder = ForeignResource('fodder.id')
+
+    class Meta:
+        get_by = ['id', 'barn', 'fodder']
+
+
+class Requirements(PostSchema):
+    __tablename__ = 'req'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('req_id_seq'),
+                        read_only=True, primary_key=True)
+    diet = fields.String(sqlfield=sql.Text)
+    hygiene = fields.String(sqlfield=sql.Text)
+
+    class Meta:
+        route_base = 'req'
+
+
+class Species(PostSchema):
+    __tablename__ = 'species'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('species_id_seq'),
+                        read_only=True, primary_key=True)
+    name = fields.String(sqlfield=sql.String(50), unique=True)
+    reqs = ForeignResource('req.id')
+
+    class Meta:
+        get_by = ['reqs']
+
+
+class Animal(PostSchema):
+    __tablename__ = 'animal'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('animal_id_seq'),
+                        read_only=True, primary_key=True)
+    name = fields.String(sqlfield=sql.String(50), unique=True)
+    box = ForeignResource('box.id')
+    species = ForeignResource('species.id')
+    barn = AutoImpliedForeignResource('barn.id', from_column='box', foreign_column='barn')
+    fodder = AutoImpliedForeignResource('fodder.id', from_column='box', foreign_column='fodder')
+    reqs = AutoImpliedForeignResource('req.id', from_column='species', foreign_column='reqs')
+
+    class Meta:
+        get_by = ['id', 'name', 'box', 'species', 'barn', 'fodder', 'reqs']

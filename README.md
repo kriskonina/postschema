@@ -57,3 +57,7 @@ Postschema allows for the following attributes to be defined on top of it:
     * order_by (must be of `Array` type)
 
 - `__table_args__`: Passed to SQLAlchemy model's Meta class
+
+
+## Known issues
+- Generally, there's no support for recursive nesting of resources. Although it's still possible to define them, the functionality of system is guaranteed to fail.

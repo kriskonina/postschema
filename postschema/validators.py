@@ -9,7 +9,7 @@ def must_not_be_empty(val):
 
 def adjust_children_field(fieldname):
     def make_children_post_load(self, data, **k):
-        if self.partial:
+        if self.partial or self._use is None:
             # in case of validating the `select` part of the total payload
             return data
         data[fieldname] = Json(data[fieldname])

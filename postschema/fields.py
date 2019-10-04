@@ -44,3 +44,15 @@ class ForeignResources(Relationship, fields.List):
 
     def _deserialize(self, *args, **kwargs):
         return list(set(super()._deserialize(*args, **kwargs)))
+
+
+class AutoImpliedForeignResource(ForeignResource):
+    def __init__(self, related_schema, from_column, foreign_column, *args, **kwargs):
+        self.from_column = from_column
+        self.foreign_column = foreign_column
+        kwargs.update({
+            'fk': sql.ForeignKey(related_schema),
+            'index': True,
+            'read_only': True
+        })
+        super().__init__(related_schema, *args, **kwargs)

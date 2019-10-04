@@ -17,7 +17,7 @@ from sqlalchemy.sql.schema import Sequence
 
 from . import exceptions as post_exceptions
 from .contrib import Pagination
-from .fields import Set, Relationship
+from .fields import Set, Relationship, AutoImpliedForeignResource
 from .hooks import translate_naive_nested, translate_naive_nested_to_dict
 from .utils import json_response, retype_schema
 from .validators import must_not_be_empty, adjust_children_field
@@ -397,6 +397,7 @@ class ViewsClassBase(web.View):
 
         read_schema = cls.relationize_schema(joins) or cls.schema_cls
         cls.get_schema = read_schema(use='read', joins=get_joins, only=get_by, partial=True)
+        cls.get_schema._use = 'read'
         cls.list_schema = read_schema(use='read', joins=list_joins, only=list_by, partial=True)
         cls.delete_schema = read_schema(use='read', joins=get_joins, partial=True, only=delete_by)
 
@@ -568,22 +569,68 @@ class ViewsClassBase(web.View):
 
     @classmethod
     def _prepare_insert_query(cls):
-        insert_cols = [
+        '''Pre-render the INSERT query with fixed values,
+        such as sequence-based primary keys and auto-inferred FKs
+        '''
+
+        insert_cols = deque(
             key for key, val in cls.model.__table__.columns.items()
             if key != cls.pk_column_name and val.primary_key
-        ]
+        )
 
-        values = [f"%({colname})s" for colname in insert_cols]
+        values = deque(f"%({colname})s" for colname in insert_cols)
 
         # ensure the pk ends up as a last col
         insert_cols.append(cls.pk_column_name)
-        colnames = ','.join(insert_cols)
+
         if cls.pk_autoicr:
             values.append(f"NEXTVAL('{cls.pk_col.default.name}')")
         else:
             values.append(f'%({cls.pk_column_name})')
         valnames = ','.join(values)
 
+        # handle the AutoImpliedFK columns by first grouping
+        # them by the same destination table
+        cte_members = {}
+        extra_colnames = []
+        extra_values = []
+        from_ctes = set()
+        declared_fields = cls.schema_cls._declared_fields
+        cte_groups = dd(list)
+        for k, v in declared_fields.items():
+            if isinstance(v, AutoImpliedForeignResource):
+                self_col_name = v.from_column
+                if self_col_name not in declared_fields:
+                    raise AttributeError(f'`{self_col_name}` is not present on {cls.schema_cls}')
+
+                from_column = declared_fields[self_col_name]
+                from_column.required = True
+                from_column_target_table = from_column.target_table
+                dest_tablename = from_column_target_table['name']
+                extra_colnames.append(k)
+                extra_values.append(f'"{self_col_name}_cte".{v.foreign_column}')
+                from_ctes.add(f'"{self_col_name}_cte"')
+                dest_key = f"{dest_tablename}:{from_column_target_table['pk']}:{self_col_name}"
+                cte_groups[dest_key].append(v.foreign_column)
+
+        for dest_key, fk_cols in cte_groups.items():
+            dest_tablename, dest_pk, self_col_name = dest_key.split(':')
+            dest_cols = ','.join(fk_col for fk_col in fk_cols)
+            cte_members[self_col_name] = f'SELECT {dest_cols} FROM "{dest_tablename}" WHERE "{dest_tablename}".{dest_pk}=%({self_col_name})s'
+
+        if cte_members:
+            insert_cols.extendleft(extra_colnames)
+            values.extendleft(extra_values)
+            cte = ',\n'.join(f'{k}_cte AS ({stmt})' for k, stmt in cte_members.items())
+            cte = 'WITH ' + cte
+            colnames = ','.join(insert_cols)
+            valnames = ','.join(values)
+            from_stmt = ','.join(from_ctes)
+            return (f'{cte}\nINSERT INTO "{cls.tablename}" ({colnames}{{cols}}) '
+                    f'SELECT {valnames}{{vals}} FROM {from_stmt}'
+                    f'RETURNING {cls.pk_column_name}')
+
+        colnames = ','.join(insert_cols)
         return f"""INSERT INTO "{cls.tablename}" ({colnames}{{cols}})
             VALUES ( {valnames}{{vals}} )
             RETURNING {cls.pk_column_name}"""
@@ -721,7 +768,6 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             async with conn.cursor() as cur:
                 try:
                     await cur.execute(query, values)
-                    print("!!", cur.query.decode())
                 except Exception:
                     print("!!", cur.query.decode())
                     raise
@@ -818,7 +864,6 @@ class ViewsTemplate:
         # validate the query payload
         cleaned_payload = await self._validate_singular_payload()
         self.cleaned_payload_keys = list(cleaned_payload) or []
-
         get_query = dict(self.request.query)
         base_stmt = await self._parse_select_fields(
             get_query, self._prepare_get_query) or self.get_query_stmt
@@ -905,6 +950,8 @@ class ViewsTemplate:
                     # TODO: sentry
                     raise exc
                 res = await cur.fetchone()
+                if res is None:
+                    raise post_exceptions.CreateFailed()
 
         if hasattr(self.schema, 'after_post'):
             await spawn(self.request, self.schema.after_post(self.request, cleaned_payload, res[0]))

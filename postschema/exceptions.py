@@ -1,6 +1,9 @@
 import ujson
 from aiohttp import web
 
+failed_create_json = ujson.dumps({
+    "error": "Resource create not complete"
+})
 failed_update_json = ujson.dumps({
     "error": "Resource update not complete"
 })
@@ -16,6 +19,17 @@ class ValidationError(web.HTTPError):
         super().__init__(
             body=ujson.dumps(json),
             reason='Request payload invalid',
+            content_type='application/json',
+            *args, **kwargs)
+
+
+class CreateFailed(web.HTTPError):
+    status_code = 422
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            body=failed_create_json,
+            reason='Create failed',
             content_type='application/json',
             *args, **kwargs)
 
