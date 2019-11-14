@@ -50,32 +50,11 @@ from marshmallow import fields
 scopes = ['patient', 'doctor', 'operator']
 
 
-async def twilio_handler(request, to, msg):
-    AccountSid = os.environ.get('TWILIO_ACCOUNT_ID')
-    AuthToken = os.environ.get('TWILIO_AUTH_TOKEN')
-    url = f'https://{AccountSid}:{AuthToken}@api.twilio.com/2010-04-01/Accounts/{AccountSid}/Messages.json'
-    sender = request.app.config.sms_sender
-
-    payload = {
-        'Body': msg,
-        'From': sender,
-        'To': to
-    }
-
-    async with request.app.cli_session.post(url, data=payload) as resp:
-        resp_data = await resp.json()
-        if resp.status != 200:
-            request.app.error_logger.error(f"Failed to send text",
-                                           code=resp_data['code'],
-                                           to=to, resp=resp_data)
-
-
 def create_app():
     from postschema.middlewares import auth_middleware
     app = web.Application(middlewares=[auth_middleware])
     config = {
-        'scopes': scopes,
-        'send_sms': twilio_handler
+        'scopes': scopes
     }
     setup_postschema(app, initial_logging_context={'version': '0.5.0'}, **config)
     app.on_startup.append(init_resources)

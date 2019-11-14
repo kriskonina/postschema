@@ -33,8 +33,6 @@ export EMAIL_HOSTNAME=localhost
 export EMAIL_USERNAME="$USER@localhost"
 export EMAIL_FROM="noreply@localhost"
 export DEFAULT_SMS_SENDER=Postschema
-export TWILIO_ACCOUNT_ID=AC43e14575d4d526db4282dd5034c18094
-export TWILIO_AUTH_TOKEN=8c5766eaee1e22d9a36e386b31557680
 
 cd mock
 export PYTHONPATH=$PYTHONPATH:$PWD/../..
