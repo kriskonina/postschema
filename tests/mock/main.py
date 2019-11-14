@@ -2,9 +2,8 @@ import os
 from pathlib import Path
 
 import aiopg
-# import aioredis
+import aioredis
 from aiohttp import web
-from aiojobs.aiohttp import setup as aiojobs_setup
 from postschema import setup_postschema
 
 import schema # noqa
@@ -33,18 +32,52 @@ async def init_resources(_app):
     dsn = f'dbname={POSTGRES_DB} user={POSTGRES_USER} password={POSTGRES_PASSWORD} host={POSTGRES_HOST} port={POSTGRES_PORT}' # noqa
     pool = await aiopg.create_pool(dsn, echo=False, pool_recycle=3600)
     _app.db_pool = pool
-    # redis_pool = await aioredis.create_pool(
-    #     f"redis://{REDIS_HOST}:{REDIS_PORT}",
-    #     db=REDIS_DB,
-    #     encoding="utf8")
-    # _app.redis_cli = aioredis.Redis(redis_pool)
-    print("* Resources set up OK.")
+    redis_pool = await aioredis.create_pool(
+        f"redis://{REDIS_HOST}:{REDIS_PORT}",
+        db=REDIS_DB,
+        encoding="utf8")
+    _app.redis_cli = aioredis.Redis(redis_pool)
+    _app.info_logger.debug("Resources set up OK")
+
+
+from marshmallow import fields
+
+
+# class Scopes:
+#     owner = fields.Integer()
+#     staff = fields.List(fields.Integer())
+#     patient = fields.Integer()
+scopes = ['patient', 'doctor', 'operator']
+
+
+async def twilio_handler(request, to, msg):
+    AccountSid = os.environ.get('TWILIO_ACCOUNT_ID')
+    AuthToken = os.environ.get('TWILIO_AUTH_TOKEN')
+    url = f'https://{AccountSid}:{AuthToken}@api.twilio.com/2010-04-01/Accounts/{AccountSid}/Messages.json'
+    sender = request.app.config.sms_sender
+
+    payload = {
+        'Body': msg,
+        'From': sender,
+        'To': to
+    }
+
+    async with request.app.cli_session.post(url, data=payload) as resp:
+        resp_data = await resp.json()
+        if resp.status != 200:
+            request.app.error_logger.error(f"Failed to send text",
+                                           code=resp_data['code'],
+                                           to=to, resp=resp_data)
 
 
 def create_app():
-    app = web.Application()
-    aiojobs_setup(app)
-    setup_postschema(app)
+    from postschema.middlewares import auth_middleware
+    app = web.Application(middlewares=[auth_middleware])
+    config = {
+        'scopes': scopes,
+        'send_sms': twilio_handler
+    }
+    setup_postschema(app, initial_logging_context={'version': '0.5.0'}, **config)
     app.on_startup.append(init_resources)
     app.on_cleanup.append(cleanup)
     return app

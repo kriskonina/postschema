@@ -14,7 +14,11 @@ class Set(fields.List):
 
 class Relationship:
     def process_related_schema(self, related_schema_arg):
-        f_table, f_pk = related_schema_arg.split('.')
+        try:
+            f_table, f_pk = related_schema_arg.split('.')
+        except (ValueError, AttributeError):
+            raise TypeError(
+                '`related_schema` argument should be of format: <foreign_table_name>.<foreign_table_pk>')
         self.target_table = {
             'name': f_table,
             'pk': f_pk
@@ -31,7 +35,7 @@ class ForeignResource(Relationship, fields.Integer):
         super().__init__(*args, **kwargs)
 
 
-class ForeignResources(Relationship, fields.List):
+class FRBase(Relationship, fields.List):
     def __init__(self, related_schema, *args, **kwargs):
         self.process_related_schema(related_schema)
         kwargs.update({
@@ -46,6 +50,14 @@ class ForeignResources(Relationship, fields.List):
         return list(set(super()._deserialize(*args, **kwargs)))
 
 
+class ForeignResources(FRBase):
+    pass
+
+
+class AutoSessionField:
+    pass
+
+
 class AutoImpliedForeignResource(ForeignResource):
     def __init__(self, related_schema, from_column, foreign_column, *args, **kwargs):
         self.from_column = from_column
@@ -56,3 +68,56 @@ class AutoImpliedForeignResource(ForeignResource):
             'read_only': True
         })
         super().__init__(related_schema, *args, **kwargs)
+
+
+class AutoSessionForeignResource(ForeignResource):
+    def __init__(self, related_schema, target_column, session_field, **kwargs):
+        self.target_column = target_column
+        self.session_field = session_field
+        kwargs['required'] = True
+        super().__init__(related_schema, **kwargs)
+
+
+class AutoSessionOwner(AutoSessionField, ForeignResource):
+    def __init__(self, **kwargs):
+        super().__init__('actor.id', **kwargs)
+        self.session_key = 'actor_id'
+
+
+class AutoSessionSelectedWorkspace(AutoSessionField, ForeignResource):
+    def __init__(self, **kwargs):
+        super().__init__('workspace.id', **kwargs)
+        self.session_key = 'workspace'
+
+
+class AutoSessionPhone(AutoSessionField, fields.String):
+    def __init__(self, **kwargs):
+        kwargs.update({
+            'sqlfield': sql.String(255),
+            'required': True,
+            'index': True
+        })
+        super().__init__(**kwargs)
+        self.session_key = 'phone'
+
+
+class AutoSessionEmail(AutoSessionField, fields.Email):
+    def __init__(self, **kwargs):
+        kwargs.update({
+            'sqlfield': sql.String(255),
+            'required': True,
+            'index': True
+        })
+        super().__init__(**kwargs)
+        self.session_key = 'email'
+
+
+class AutoSessionStatus(AutoSessionField, fields.Int):
+    def __init__(self, **kwargs):
+        kwargs.update({
+            'sqlfield': sql.Int,
+            'required': True,
+            'index': True
+        })
+        super().__init__(**kwargs)
+        self.session_key = 'status'

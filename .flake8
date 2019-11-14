@@ -7,5 +7,5 @@ exclude =
     dist,
     venv
 max-complexity = 10
-max-line-length = 110
+max-line-length = 111
 ignore = W503

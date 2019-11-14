@@ -1,3 +1,4 @@
+from contextlib import suppress
 from psycopg2.extras import Json
 
 
@@ -28,9 +29,7 @@ def translate_naive_nested_to_dict(nested_map, extraction_field):
 def escape_iterable(fieldnames):
     def wrapped(payload, view_instance, **kwargs):
         for fieldname in fieldnames:
-            try:
+            with suppress(KeyError):
                 payload[fieldname] = Json(payload[fieldname])
-            except KeyError:
-                pass
         return payload
     return wrapped

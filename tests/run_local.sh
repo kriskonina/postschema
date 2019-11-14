@@ -26,6 +26,16 @@ export REDIS_HOST=0.0.0.0
 export REDIS_PORT=6379
 export REDIS_DB=3
 
+export APP_MODE=dev
+export ADMIN_PASSWORD="aSAbSSnOMHkpx2gfQPo2TSdwyjQneos7QXEjQ19KQMw"
+export FERNET_KEY="AszPcqphEfONbBEprJGo73fg0R-ApUsq77Rw10L5SWQ=" # CHANGE IT!
+export EMAIL_HOSTNAME=localhost
+export EMAIL_USERNAME="$USER@localhost"
+export EMAIL_FROM="noreply@localhost"
+export DEFAULT_SMS_SENDER=Postschema
+export TWILIO_ACCOUNT_ID=AC43e14575d4d526db4282dd5034c18094
+export TWILIO_AUTH_TOKEN=8c5766eaee1e22d9a36e386b31557680
+
 cd mock
 export PYTHONPATH=$PYTHONPATH:$PWD/../..
 adev runserver --host 0.0.0.0 --port 9999

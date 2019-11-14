@@ -15,7 +15,7 @@ before_script:
 - docker-compose -f tests/docker-compose.yml up --build -d
 - PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/main.py &
 script:
-- newman run https://www.getpostman.com/collections/8341d18e7cc454859eea
+- newman run https://www.getpostman.com/collections/7c12f6f99b8e54094500
 deploy:
   provider: pypi
   skip_cleanup: true

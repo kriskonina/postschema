@@ -5,9 +5,15 @@ import sqlalchemy as sql
 from aiohttp import web
 from marshmallow import fields, validate, validates, ValidationError
 from postschema import PostSchema, validators
-from postschema.contrib import ActorRoot
-from postschema.fields import ForeignResources, ForeignResource, AutoImpliedForeignResource
+from postschema.fields import (
+    ForeignResources, ForeignResource,
+    AutoImpliedForeignResource, AutoSessionOwner,
+    AutoSessionSelectedWorkspace,
+    AutoSessionForeignResource
+)
 from postschema.utils import json_response
+from postschema.role import RoleBase
+from postschema.schema import RootSchema
 from postschema.view import AuxView
 
 from sqlalchemy.dialects.postgresql import JSONB
@@ -28,12 +34,17 @@ class PlainResource(PostSchema):
     date = fields.Date(sqlfield=sql.Date)
     list = fields.List(fields.String, sqlfield=JSONB)
 
-    class Meta:
-        exclude_from_updates = ['unique_field', 'integer']
-        excluded_ops = ['put']
+    class Public:
         get_by = ['id', 'name']
         list_by = ['name', 'email']
         delete_by = ['name']
+
+        class permissions:
+            allow_all = True
+
+    class Meta:
+        exclude_from_updates = ['unique_field', 'integer']
+        excluded_ops = ['put']
         __table_args__ = (
             sql.UniqueConstraint('name', 'email', name='_name_email_plain_uq'),
         )
@@ -48,8 +59,11 @@ class Product(PostSchema):
     descr = ForeignResource('desc.id', unique=True, required=True)
     producer = ForeignResource('producer.id', required=True)
 
-    class Meta:
+    class Public:
         get_by = ['id', 'name', 'descr', 'producer']
+        
+        class permissions:
+            allow_all = True
 
 
 class Description(PostSchema):
@@ -60,7 +74,12 @@ class Description(PostSchema):
 
     class Meta:
         route_base = 'desc'
+
+    class Public:
         get_by = ['id', 'text']
+        
+        class permissions:
+            allow_all = True
 
 
 class Store(PostSchema):
@@ -70,8 +89,11 @@ class Store(PostSchema):
     name = fields.String(sqlfield=sql.String(50), unique=True)
     distributors = ForeignResources('dist.id')
 
-    class Meta:
+    class Public:
         get_by = ['id', 'name', 'distributors']
+        
+        class permissions:
+            allow_all = True
 
 
 class Producer(PostSchema):
@@ -81,8 +103,11 @@ class Producer(PostSchema):
     name = fields.String(sqlfield=sql.String(50), unique=True)
     distributors = ForeignResources('dist.id')
 
-    class Meta:
+    class Public:
         get_by = ['name', 'id']
+        
+        class permissions:
+            allow_all = True
 
 
 class Distributor(PostSchema):
@@ -95,8 +120,37 @@ class Distributor(PostSchema):
     class Meta:
         route_base = 'dist'
 
+    class Public:
         list_by = ['meta']
         delete_by = ['meta']
+        
+        class permissions:
+            allow_all = True
+
+
+class ActorRoot(RootSchema):
+    status = fields.Integer(sqlfield=sql.Integer, default='0', missing=0)
+    name = fields.String(sqlfield=sql.String(16), required=True, index=True)
+    email = fields.Email(sqlfield=sql.String(30), required=True, unique=True)
+    token = fields.String(sqlfield=sql.String(30), required=True, index=True)
+    groups = fields.List(fields.Integer(), sqlfield=JSONB, required=True, default='[]',
+                         dump_only=True)
+
+    async def before_post(self, parent, request, data):
+        data['status'] = 0
+        data['groups'] = '[]'
+        return data
+
+    class Public:
+        list_by = ['name', 'email', 'id']
+        get_by = ['id', 'status', 'name', 'email', 'token']
+
+        class permissions:
+            allow_all = True
+
+    class Meta:
+        exclude_from_updates = ['status', 'token', 'groups']
+        # excluded_ops = ['delete']
 
 
 class Operator(ActorRoot):
@@ -109,9 +163,14 @@ class Operator(ActorRoot):
                          validate=validators.must_not_be_empty)
 
     class Meta:
+        excluded_ops = ['delete']
+
+    class Public:
         get_by = ['name', 'id', 'phone', 'city', 'badges']
         list_by = ['name', 'id', 'email', 'city', 'phone', 'badges']
-        excluded_ops = ['delete']
+
+        class permissions:
+            allow_all = True
         # exclude_from_updates = ['badges']
 
 
@@ -122,8 +181,13 @@ class Staff(ActorRoot):
     role = fields.String(sqlfield=sql.String(32), required=True)
 
     class Meta:
-        get_by = ['role', 'email']
         excluded_ops = ['delete']
+
+    class Public:
+        get_by = ['role', 'email']
+
+        class permissions:
+            allow_all = True
 
 
 class DrawNumberView(AuxView):
@@ -162,10 +226,27 @@ class DrawNumberView(AuxView):
             return json_response(h_payload['header_param2'])
         return json_response('ok')
 
+    class Public:
+        class permissions:
+            get = {}
+
+    class Authed:
+        class permissions:
+            patch = '*'
+
 
 class SimpleAuxView(AuxView):
     async def get(self):
         return json_response('ok')
+
+    class Public:
+        class permissions:
+            get = {}
+            post = {}
+
+    class Authed:
+        class permissions:
+            patch = ['Owner']
 
 
 class CustomOpsResource(PostSchema):
@@ -186,7 +267,7 @@ class CustomOpsResource(PostSchema):
         if not re.search(r'\d+', item):
             raise ValidationError("This field needs to contain numbers")
 
-    async def before_post(self, request, data):
+    async def before_post(self, parent, request, data):
         data['read_only_field'] = 'initial_val'
         addr = data.get('address', '')
         if 'Washington' in addr:
@@ -232,7 +313,12 @@ class CustomOpsResource(PostSchema):
 
     class Meta:
         route_base = 'customop'
+
+    class Public:
         get_by = ['id', 'address', 'read_only_field', 'state', 'custom_getter']
+
+        class permissions:
+            allow_all = True
 
 
 class Barn(PostSchema):
@@ -241,8 +327,11 @@ class Barn(PostSchema):
                         read_only=True, primary_key=True)
     name = fields.String(sqlfield=sql.String(50), unique=True)
 
-    class Meta:
+    class Public:
         get_by = ['id', 'name']
+
+        class permissions:
+            allow_all = True
 
 
 class Fodder(PostSchema):
@@ -250,6 +339,10 @@ class Fodder(PostSchema):
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('fodder_id_seq'),
                         read_only=True, primary_key=True)
     name = fields.String(sqlfield=sql.String(50), unique=True)
+
+    class Public:
+        class permissions:
+            allow_all = True
 
 
 class Box(PostSchema):
@@ -259,8 +352,11 @@ class Box(PostSchema):
     barn = ForeignResource('barn.id')
     fodder = ForeignResource('fodder.id')
 
-    class Meta:
+    class Public:
         get_by = ['id', 'barn', 'fodder']
+
+        class permissions:
+            allow_all = True
 
 
 class Requirements(PostSchema):
@@ -272,6 +368,10 @@ class Requirements(PostSchema):
 
     class Meta:
         route_base = 'req'
+        
+    class Public:
+        class permissions:
+            allow_all = True
 
 
 class Species(PostSchema):
@@ -281,8 +381,11 @@ class Species(PostSchema):
     name = fields.String(sqlfield=sql.String(50), unique=True)
     reqs = ForeignResource('req.id')
 
-    class Meta:
+    class Public:
         get_by = ['reqs']
+
+        class permissions:
+            allow_all = True
 
 
 class Animal(PostSchema):
@@ -296,5 +399,216 @@ class Animal(PostSchema):
     fodder = AutoImpliedForeignResource('fodder.id', from_column='box', foreign_column='fodder')
     reqs = AutoImpliedForeignResource('req.id', from_column='species', foreign_column='reqs')
 
-    class Meta:
+    class Public:
         get_by = ['id', 'name', 'box', 'species', 'barn', 'fodder', 'reqs']
+
+        class permissions:
+            allow_all = True
+
+
+class AuthedSimpleResource(PostSchema):
+    __tablename__ = 'authedsimple'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('aa_id_seq'),
+                        read_only=True, primary_key=True)
+
+    class Meta:
+        route_base = 'authedsimple'
+
+    class Authed:
+        class permissions:
+            post = ['Owner']
+
+
+class BB(PostSchema):
+    __tablename__ = 'bb'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('bb_seq'),
+                        read_only=True, primary_key=True)
+
+    class Authed:
+        class permissions:
+            post = ['Owner', 'Staff']
+            read = '*'
+
+
+class AuthedPlainResource(PostSchema):
+    __tablename__ = 'authsimple'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('authsimple_id_seq'),
+                        read_only=True, primary_key=True)
+    text = fields.String(sqlfield=sql.Text)
+    num = fields.Integer(sqlfield=sql.Integer)
+    arr = fields.List(fields.String, sqlfield=JSONB)
+
+    class Authed:
+        get_by = ['id', 'num']
+
+        class permissions:
+            # allow_all = ['*']
+            post = ['Owner', 'Staff']
+            list = ['Owner']
+
+    class Private:
+        get_by = ['id', 'num', 'arr', 'text']
+
+    class Public:
+        get_by = ['id']
+
+    class Meta:
+        excluded_ops = ['put']
+        route_base = 'authplain'
+
+
+class Clinic(PostSchema):
+    __tablename__ = 'clinic'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('clinic_id_seq'),
+                        read_only=True, primary_key=True)
+    text = fields.String(sqlfield=sql.Text, default='clinicname')
+    owner = AutoSessionOwner()
+    workspace = AutoSessionSelectedWorkspace()
+
+    class Authed:
+        class permissions:
+            post = ['Owner']
+
+    class Private:
+        get_by = ['id', 'workspace', 'owner']
+        list_by = ['id', 'workspace', 'owner']
+
+        class permissions:
+            get = {
+                '*': 'self.owner = session.actor_id'
+            }
+            list = {
+                '*': 'self.workspace = session.workspace'
+            }
+            update = {
+                'Owner': 'self.owner = session.actor_id'
+            }
+
+    class Meta:
+        def default_get_critera(request):
+            return {'owner': request.session.actor_id}
+
+
+class Unit(PostSchema):
+    __tablename__ = 'unit'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('unit_id_seq'),
+                        read_only=True, primary_key=True)
+    workspace = AutoSessionSelectedWorkspace()
+    clinic = AutoSessionForeignResource('clinic.id', target_column='workspace', session_field='workspace')
+
+    class Public:
+        get_by = ['id']
+
+    class Authed:
+        class permissions:
+            post = ['Owner']
+
+
+class ExpendableResource(PostSchema):
+    __tablename__ = 'expen'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('expen_id_seq'),
+                        read_only=True, primary_key=True)
+    owner = AutoSessionOwner()
+
+    class Meta:
+        route_base = 'expen'
+
+    class Private:
+        class permissions:
+            delete = {
+                'Owner': 'self.owner = session.actor_id'
+            }
+
+    class Public:
+        class permissions:
+            post = {}
+
+
+class ManagerialResource(PostSchema):
+    __tablename__ = 'managerial'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('man_id_seq'),
+                        read_only=True, primary_key=True)
+
+    class Meta:
+        route_base = 'managerial'
+
+    class Authed:
+        class permissions:
+            post = ['Manager']
+
+
+class WorkspaceyResource(PostSchema):
+    __tablename__ = 'work'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('work_id_seq'),
+                        read_only=True, primary_key=True)
+    workspace = AutoSessionSelectedWorkspace()
+
+    class Meta:
+        route_base = 'work'
+
+        def default_get_critera(request):
+            return {'workspace': request.session.workspace}
+
+    class Authed:
+        class permissions:
+            post = '*'
+
+    class Private:
+        class permissions:
+            get = {
+                ('Owner', 'Staff'): 'self.workspace = session.workspace'
+            }
+
+
+class WorkspaceBelongResource(PostSchema):
+    __tablename__ = 'inworkspaces'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('inworkspaces_id_seq'),
+                        read_only=True, primary_key=True)
+    workspace = AutoSessionSelectedWorkspace()
+
+    class Meta:
+        route_base = 'inworkspaces'
+
+        def default_get_critera(request):
+            return {'workspace': request.session.workspace}
+
+    class Authed:
+        class permissions:
+            post = '*'
+
+    class Private:
+        class permissions:
+            get = {
+                ('Owner', 'Staff'): 'self.workspace -> session.workspaces'
+            }
+
+
+class VerifiedResource(PostSchema):
+    __tablename__ = 'verified'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('verified_id_seq'),
+                        read_only=True, primary_key=True)
+
+    class Meta:
+        route_base = 'verified'
+
+    class Authed:
+        verified_email = ['post']
+        verified_phone = ['post']
+
+        class permissions:
+            post = '*'
+
+
+class Doctor(RoleBase):
+    spec = fields.String(sqlfield=sql.String(150), required=True)
+    ward_id = fields.Int(sqlfield=sql.Integer)
+
+    class Meta:
+        scopes = ['Doctor', 'Manager']
+
+
+class Secretary(RoleBase):
+    employment = fields.String(sqlfield=sql.Text, required=True)
+
+    class Meta:
+        scopes = ['Staff']

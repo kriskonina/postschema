@@ -22,17 +22,42 @@ def adjust_children_field(fieldname):
         table_name = target_table['name']
         pk = target_table['pk']
         ids = ','.join(value)
-        query = f"SELECT COALESCE(json_agg(id::text), '[]'::json) FROM {table_name} WHERE {pk}=ANY('{{{ids}}}')"
+        query = f"SELECT COALESCE(json_agg(id::text), '[]'::json) FROM \"{table_name}\" WHERE {pk}=ANY('{{{ids}}}')"
         async with self.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 try:
                     await cur.execute(query)
-                except Exception as exc:
-                    print(cur.query.decode())
-                    # TODO: sentry
-                    raise exc
+                except Exception:
+                    self.app.error_logger.exception('Failed to execute FKs checking query', 
+                                                    query=cur.query.decode())
+                    raise
                 res = (await cur.fetchone())[0]
                 invalid_pks = set(value) - set(res)
                 if invalid_pks:
                     raise ValidationError(f'Foreign keys not found: {", ".join(map(str, invalid_pks))}')
     return validator_template, make_children_post_load
+
+
+def autosession_field_validator(fieldname):
+    async def _autosession_field_validator(self, val):
+        if not val:
+            return
+
+        fieldval = self.declared_fields[fieldname]
+        tablename = fieldval.target_table['name']
+        pk = fieldval.target_table['pk']
+        colname = fieldval.target_column
+        sessval = self.session[fieldval.session_field]
+        query = f'SELECT 1 FROM "{tablename}" WHERE {colname}=%s AND {pk}=%s'
+
+        async with self.app.db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                try:
+                    await cur.execute(query, [sessval, val])
+                except Exception:
+                    self.app.error_logger.exception('Failed to execute an FK checking query',
+                                                    query=cur.query.decode())
+                    raise
+                if not await cur.fetchone():
+                    raise ValidationError(f'Foreign key doesn\'t exist or no sufficient permissions held.')
+    return _autosession_field_validator

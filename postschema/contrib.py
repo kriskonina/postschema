@@ -1,9 +1,11 @@
-import sqlalchemy as sql
-from marshmallow import fields, Schema
-from marshmallow.validate import Range, OneOf
-from sqlalchemy.dialects.postgresql import JSONB
+import os
 
-from .schema import PostSchema, RootSchema
+# import ujson
+from marshmallow import Schema, fields
+from marshmallow.validate import Range, OneOf
+
+
+APP_MODE = os.environ.get('APP_MODE', 'dev')
 
 
 class Pagination(Schema):
@@ -13,33 +15,6 @@ class Pagination(Schema):
     order_dir = fields.String(missing="asc", validate=[OneOf(['desc', 'asc'])])
 
 
-class Group(PostSchema):
-    __tablename__ = 'group'
-    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('group_id_seq'),
-                        primary_key=True)
-    scope = fields.String(sqlfield=sql.String(16), required=True, unique=True, default='self')
-    name = fields.String(sqlfield=sql.String(16), required=True, unique=True, index=True)
 
-    class Meta:
-        get_by = ['id', 'scope']
-        pagination_schema = Pagination
-
-
-class ActorRoot(RootSchema):
-    status = fields.Integer(sqlfield=sql.Integer, default='0', missing=0)
-    name = fields.String(sqlfield=sql.String(16), required=True, index=True)
-    email = fields.Email(sqlfield=sql.String(30), required=True, unique=True)
-    token = fields.String(sqlfield=sql.String(30), required=True, index=True)
-    groups = fields.List(fields.Integer(), sqlfield=JSONB, required=True, default='[]',
-                         dump_only=True)
-
-    async def before_post(self, request, data):
-        data['status'] = 0
-        data['groups'] = '[]'
-        return data
-
-    class Meta:
-        # excluded_ops = ['delete']
-        list_by = ['name', 'email', 'id']
-        get_by = ['id', 'status', 'name', 'email', 'token']
-        exclude_from_updates = ['status', 'token', 'groups']
+# TODO:
+# 1. Test updating workspace with new members (fail no such field)

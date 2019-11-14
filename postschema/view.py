@@ -1,34 +1,34 @@
 import functools
-import re
 import warnings
+import weakref
 
 from collections import deque, defaultdict as dd
+from contextlib import suppress
 from dataclasses import dataclass
 from importlib import import_module
-from weakref import proxy
 
 import ujson
 from aiohttp import web
 from aiojobs.aiohttp import spawn
-from async_property import async_cached_property
+from cached_property import cached_property
 from marshmallow import Schema, ValidationError, fields, validate, post_load
 from psycopg2 import errors as postgres_errors
 from sqlalchemy.sql.schema import Sequence
 
 from . import exceptions as post_exceptions
-from .contrib import Pagination
-from .fields import Set, Relationship, AutoImpliedForeignResource
+from .auth.perms import SessionContext
+from .fields import (
+    Set, Relationship, AutoImpliedForeignResource,
+    AutoSessionField, AutoSessionForeignResource
+)
 from .hooks import translate_naive_nested, translate_naive_nested_to_dict
-from .utils import json_response, retype_schema
+from .utils import json_response, retype_schema, parse_postgres_err
 from .validators import must_not_be_empty, adjust_children_field
 
 __all__ = ['ViewsBase']
 
 NESTABLE_FIELDS = (fields.Dict, fields.Nested, Set)
 ITERABLE_FIELDS = (Set, fields.List)
-PG_ERR_PAT = re.compile(
-    r'(?P<prefix>([\s\w]|_)+)\((?P<name>.*?)\)\=\((?P<val>.*?)\)(?P<reason>.*)'
-)
 
 
 class WrongType(Exception):
@@ -81,16 +81,13 @@ def adjust_pagination_schema(pagination_schema, schema_cls, list_by_fields, pk):
     # Construct a brand new pagination class based on `pagination_schema`
     # to include `list_by_fields` as an argument to `OneOf` validator of `order_by` field.
     pagination_methods = declared_fields.copy()
-    # en
     # Ensure that `order_by` doesn't include any nestable fields.
     for fname, fval in schema_cls._declared_fields.items():
         if isinstance(fval, NESTABLE_FIELDS):
-            try:
+            with suppress(ValueError):
                 list_by_fields.remove(fname)
-            except ValueError:
-                pass
 
-    # upon completing the loading, translate the nested fields (if present) to their composite form
+    # Upon completing the loading, translate the nested fields (if present) to their composite form
     pagination_methods['adjust_nested_fields'] = post_load(
         translate_naive_nested(schema_cls, 'order_by'))
 
@@ -136,7 +133,15 @@ class CommonViewMixin:
         if ref_schema == self.schema and self.schema is None:
             warnings.warn("Can't validate payload without body schema")
             return {}
-        ref_schema.app = proxy(self.request.app)
+        ref_schema.session = weakref.proxy(self.request.session)
+        ref_schema.app = weakref.proxy(self.request.app)
+
+        try:
+            autosession_fields = ref_schema._autosession_fields
+        except AttributeError:
+            autosession_fields = {}
+        self.extend_payload_with_session(payload_used, autosession_fields)
+
         err_msg = None
         try:
             loaded = ref_schema.load(payload_used)
@@ -146,11 +151,10 @@ class CommonViewMixin:
             err_msg = merr.messages
             raise post_exceptions.ValidationError(err_msg if not envelope_key else {envelope_key: err_msg})
 
-        try:
-            err_msg = await ref_schema.run_async_validators(payload_used) or err_msg
-        except AttributeError:
+        with suppress(AttributeError):
             # ignore validating \w Schemas not inheriting from PostSchema
-            pass
+            err_msg = await ref_schema.run_async_validators(payload_used) or err_msg
+
         if err_msg:
             raise post_exceptions.ValidationError(err_msg if not envelope_key else {envelope_key: err_msg})
 
@@ -163,7 +167,7 @@ class AuxViewMeta(type):
             return super(AuxViewMeta, cls).__new__(cls, name, bases, methods)
         schemas = dd(dict)
         iterable_fields = []
-        allowed_locations = ['path', 'query', 'header', 'body']
+        allowed_locations = ['path', 'query', 'header', 'body', 'form']
         invmap = {}
         for k, v in methods.copy().items():
             if isinstance(v, fields.Field):
@@ -171,7 +175,7 @@ class AuxViewMeta(type):
                 try:
                     location = meta['location']
                 except KeyError:
-                    raise KeyError(f'Field `{k}` need to define `location` attribute')
+                    raise KeyError(f'Field `{name}.{k}` need to define `location` attribute')
                 if location not in allowed_locations:
                     raise AttributeError(f'Location {location} (defined on `{k}`) is invalid')
                 if location == 'path':
@@ -195,16 +199,15 @@ class AuxViewMeta(type):
             f'{k}_schema': type('PathSchema', (Schema,), v)()
             for k, v in schemas.items()
         }
-        try:
+
+        with suppress(KeyError):
             methods['header_schema'] = type(schemas.pop('header_schema'))(unknown='INCLUDE')
-        except KeyError:
-            pass
+
         methods.update({
             '_iterable_fields': iterable_fields,
             **schemas
         })
-        kls = super(AuxViewMeta, cls).__new__(cls, name, bases, methods)
-        return kls
+        return super(AuxViewMeta, cls).__new__(cls, name, bases, methods)
 
 
 class AuxView(metaclass=AuxViewMeta):
@@ -215,6 +218,7 @@ class AuxViewBase(web.View, CommonViewMixin):
     def __init__(self, request):
         self._request = request
         self.path_payload = {}
+        self.request_type = request.session.request_type  # one of: public, authed, private
 
     async def _iter(self):
         if hasattr(self, 'path_schema'):
@@ -223,6 +227,14 @@ class AuxViewBase(web.View, CommonViewMixin):
                 payload, schema=self.path_schema, envelope_key='path')
             self.path_payload = cleaned
         return await super()._iter()
+
+    async def validate_form(self):
+        form_payload = await self.form_payload
+        try:
+            return await self._validate_singular_payload(
+                form_payload, schema=self.form_schema, envelope_key='form')
+        except ValidationError as vexc:
+            raise post_exceptions.ValidationError(vexc.messages)
 
     async def validate_header(self):
         try:
@@ -233,7 +245,7 @@ class AuxViewBase(web.View, CommonViewMixin):
 
     async def validate_payload(self):
         try:
-            return await self._validate_singular_payload()
+            return await self._validate_singular_payload(schema=self.body_schema)
         except ValidationError as vexc:
             raise post_exceptions.ValidationError(vexc.messages)
 
@@ -244,13 +256,17 @@ class AuxViewBase(web.View, CommonViewMixin):
         except ValidationError as vexc:
             raise post_exceptions.ValidationError(vexc.messages)
 
-    @async_cached_property
+    @cached_property
     async def payload(self):
         '''Refers to JSON payload transmitted in body'''
         try:
             return await self.request.json(loads=ujson.loads)
         except Exception:
             raise web.HTTPBadRequest(reason='cannot read payload')
+
+    @cached_property
+    async def form_payload(self):
+        return await self.request.post()
 
     @property
     @functools.lru_cache()
@@ -283,7 +299,7 @@ class AuxViewBase(web.View, CommonViewMixin):
         return getattr(self, '_method', self.request.method).lower()
 
     @property
-    def schema(self):
+    def body_schema(self):
         try:
             return self.body_schema
         except AttributeError:
@@ -296,6 +312,7 @@ class ViewsClassBase(web.View):
         self._request = request
         self._orig_cleaned_payload = {}
         self._tables_to_join = None
+        self.request_type = request.session.request_type  # one of: public, authed, private
 
     @classmethod
     def relationize_schema(cls, joins):
@@ -315,25 +332,32 @@ class ViewsClassBase(web.View):
 
     @classmethod
     def post_init(cls, joins):
+        from .contrib import Pagination
         cls.schemas = import_module('postschema.schema')._schemas
         table = cls.model.__table__
         declared_fields = cls.schema_cls._declared_fields.items()
 
         cls.iterable_fields = [field for field, fieldval in declared_fields
-                               if isinstance(fieldval, ITERABLE_FIELDS)
-                               and not isinstance(fieldval, Relationship)]
+                               if isinstance(fieldval, fields.Dict) or (isinstance(fieldval, ITERABLE_FIELDS)
+                                                                        and not isinstance(fieldval,
+                                                                                           Relationship)
+                                                                        )]
 
-        # extends_on = getattr(cls.schema_cls.Meta, 'extends_on', None)
-        mergeable_fields = cls.iterable_fields[:]
-        # if extends_on:
-        #     mergeable_fields.append(extends_on)
-        cls.mergeable_fields = mergeable_fields
+        autosession_fields = {field: fieldval.session_key for field, fieldval in declared_fields
+                              if isinstance(fieldval, AutoSessionField)}
+
+        cls.mergeable_fields = cls.iterable_fields[:]
 
         cls.pk_col = table.primary_key.columns_autoinc_first[0]
         cls.pk_column_name = cls.pk_col.name
         cls.pk_autoicr = isinstance(cls.pk_col.default, Sequence)
 
         schema_metacls = getattr(cls.schema_cls, 'Meta', object)
+
+        public_meta = cls.schema_cls.Public
+        private_meta = getattr(cls.schema_cls, 'Private', None)
+        authed_meta = getattr(cls.schema_cls, 'Authed', None)
+
         cls._naive_fields_to_composite_stmts()
         cls.schema_cls._join_to_schema_where_stmt = joins
 
@@ -342,18 +366,31 @@ class ViewsClassBase(web.View):
         except AttributeError:
             selects_nested_map = {}
 
-        get_by = getattr(schema_metacls, 'get_by', None) or [cls.pk_column_name]
-        get_by_select = {field: selects_nested_map.get(field, field) for field in get_by}
-        list_by = getattr(schema_metacls, 'list_by', get_by) or get_by
-        list_by_select = {field: selects_nested_map.get(field, field) for field in list_by}
-        delete_by = getattr(schema_metacls, 'delete_by', None) or [cls.pk_column_name]
+        public_get_by = getattr(public_meta, 'get_by', None) or [cls.pk_column_name]
+        public_get_by_select = {field: selects_nested_map.get(field, field) for field in public_get_by}
+        public_list_by = getattr(public_meta, 'list_by', public_get_by) or public_get_by
+        public_list_by_select = {field: selects_nested_map.get(field, field) for field in public_list_by}
+        public_delete_by = getattr(public_meta, 'delete_by', None) or [cls.pk_column_name]
         read_only_fields = [field for field, fieldval in declared_fields
                             if fieldval.metadata.get('read_only', False)]
+
+        auth_get_by = getattr(authed_meta, 'get_by', public_get_by)
+        auth_get_by_select = {field: selects_nested_map.get(field, field) for field in auth_get_by}
+        auth_list_by = getattr(authed_meta, 'list_by', auth_get_by) or auth_get_by
+        auth_list_by_select = {field: selects_nested_map.get(field, field) for field in auth_list_by}
+        auth_delete_by = getattr(authed_meta, 'delete_by', None) or [cls.pk_column_name]
+
+        private_get_by = getattr(private_meta, 'get_by', auth_get_by)
+        private_get_by_select = {field: selects_nested_map.get(field, field) for field in private_get_by}
+        private_list_by = getattr(private_meta, 'list_by', auth_list_by)
+        private_list_by_select = {field: selects_nested_map.get(field, field)
+                                  for field in private_list_by}
+        private_delete_by = getattr(private_meta, 'delete_by', auth_delete_by)
 
         pagination_schema_raw = getattr(schema_metacls, 'pagination_schema', Pagination)
 
         cls.pagination_schema = adjust_pagination_schema(pagination_schema_raw,
-                                                         cls.schema_cls, list_by.copy(),
+                                                         cls.schema_cls, public_list_by.copy(),
                                                          cls.pk_column_name)()
         cls.select_schema = make_select_fields_schema(cls.schema_cls)()
 
@@ -361,8 +398,21 @@ class ViewsClassBase(web.View):
         update_excluded = [*excluded, *read_only_fields]
 
         cls.insert_query_stmt = cls._prepare_insert_query()
-        cls.get_query_stmt = cls._prepare_get_query(get_by_select)
-        cls.list_query_stmt = cls._prepare_list_query(list_by_select)
+        cls.allowed_selectors_variants = {
+            'public': {
+                'get_query_stmt': cls._prepare_get_query(public_get_by_select, request_type='public'),
+                'list_query_stmt': cls._prepare_list_query(public_list_by_select, request_type='public')
+            },
+            'authed': {
+                'get_query_stmt': cls._prepare_get_query(auth_get_by_select, request_type='authed'),
+                'list_query_stmt': cls._prepare_list_query(auth_list_by_select, request_type='authed')
+            },
+            'private': {
+                'get_query_stmt': cls._prepare_get_query(private_get_by_select, request_type='private'),
+                'list_query_stmt': cls._prepare_list_query(private_list_by_select, request_type='private')
+            }
+        }
+
         cls.update_query_stmt = FallbackString(f"""
             WITH rows AS (
                 UPDATE "{cls.schema_cls.__tablename__}"
@@ -390,23 +440,50 @@ class ViewsClassBase(web.View):
         """)
         cls.cherrypick_m2m_stmts = cls._render_cherrypick_m2m_stmts()
 
-        get_joins, list_joins = cls._prepare_join_statements(joins, get_by, list_by)
+        public_get_joins, public_list_joins = cls._prepare_join_statements(
+            joins, public_get_by, public_list_by)
+        auth_get_joins, auth_list_joins = cls._prepare_join_statements(
+            joins, auth_get_by, auth_list_by)
+        private_get_joins, private_list_joins = cls._prepare_join_statements(
+            joins, private_get_by, private_list_by)
 
-        cls.post_schema = cls.schema_cls(use='write', exclude=read_only_fields)
+        cls.post_schema = cls.schema_cls(use='write', exclude=read_only_fields,
+                                         autosession_fields=autosession_fields)
         cls.patch_schema = cls.put_schema = cls.schema_cls(use='write', partial=True, exclude=update_excluded)
 
         read_schema = cls.relationize_schema(joins) or cls.schema_cls
-        cls.get_schema = read_schema(use='read', joins=get_joins, only=get_by, partial=True)
-        cls.get_schema._use = 'read'
-        cls.list_schema = read_schema(use='read', joins=list_joins, only=list_by, partial=True)
-        cls.delete_schema = read_schema(use='read', joins=get_joins, partial=True, only=delete_by)
+        cls.schema_variants = {
+            'public': {
+                'get_schema': read_schema(
+                    use='read', joins=public_get_joins, only=public_get_by, partial=True),
+                'list_schema': read_schema(
+                    use='read', joins=public_list_joins, only=public_list_by, partial=True),
+                'delete_schema': read_schema(
+                    use='read', joins=public_get_joins, partial=True, only=public_delete_by)
+            },
+            'authed': {
+                'get_schema': read_schema(use='read', joins=auth_get_joins, only=auth_get_by, partial=True),
+                'list_schema': read_schema(use='read', joins=auth_list_joins, only=auth_list_by, partial=True),
+                'delete_schema': read_schema(
+                    use='read', joins=auth_get_joins, partial=True, only=auth_delete_by)
+            },
+            'private': {
+                'get_schema': read_schema(
+                    use='read', joins=private_get_joins, only=private_get_by, partial=True),
+                'list_schema': read_schema(
+                    use='read', joins=private_list_joins, only=private_list_by, partial=True),
+                'delete_schema': read_schema(
+                    use='read', joins=private_get_joins, partial=True, only=private_delete_by)
+            }
+        }
+
 
     @classmethod
     def _naive_fields_to_composite_stmts(cls):
         schema = cls.schema_cls
         tablename = schema.__tablename__
         nested_fields_to_json_query = {}
-        nested_fields_to_select = {}
+        # nested_fields_to_select = {}
 
         for aname, aval in schema._declared_fields.items():
             attr_name = aval.attribute or aname
@@ -452,7 +529,10 @@ class ViewsClassBase(web.View):
         return include_dict
 
     @classmethod
-    def _prepare_list_query(cls, list_by, compile_selects=False):
+    def _prepare_list_query(cls, list_by, compile_selects=False, request_type=None):
+
+        metacls_name = request_type.title()
+
         field_to_table = {
             field: li[0]._model.__table__.name
             for field, li in cls.schema_cls._join_to_schema_where_stmt.items()
@@ -479,7 +559,7 @@ class ViewsClassBase(web.View):
 
                 table = linked_schema._model.__table__
                 pk_column_name = table.primary_key.columns_autoinc_first[0].name
-                schema_metacls = getattr(linked_schema, 'Meta', object)
+                schema_metacls = getattr(linked_schema, metacls_name, object)
 
                 try:
                     selects_nested_map = linked_schema._nested_select_stmts
@@ -518,7 +598,10 @@ class ViewsClassBase(web.View):
         ''')
 
     @classmethod
-    def _prepare_get_query(cls, get_by, compile_selects=False):
+    def _prepare_get_query(cls, get_by, compile_selects=False, request_type=None):
+
+        metacls_name = request_type.title()
+
         field_to_table = {
             field: li[0]._model.__table__.name
             for field, li in cls.schema_cls._join_to_schema_where_stmt.items()
@@ -533,8 +616,8 @@ class ViewsClassBase(web.View):
             )
 
         joined_fields = dd(dict)
+        joins_to_schemas = cls.schema_cls._join_to_schema_where_stmt
         for getter_field in get_by.copy():
-            joins_to_schemas = cls.schema_cls._join_to_schema_where_stmt
             if getter_field in joins_to_schemas:
                 linked_schema = joins_to_schemas[getter_field][0]
                 popped_field = get_by.pop(getter_field, None)
@@ -543,8 +626,7 @@ class ViewsClassBase(web.View):
 
                 table = linked_schema._model.__table__
                 pk_column_name = table.primary_key.columns_autoinc_first[0].name
-                schema_metacls = getattr(linked_schema, 'Meta', object)
-
+                schema_metacls = getattr(linked_schema, metacls_name, object)
                 try:
                     selects_nested_map = linked_schema._nested_select_stmts
                 except AttributeError:
@@ -596,9 +678,19 @@ class ViewsClassBase(web.View):
         extra_values = []
         from_ctes = set()
         declared_fields = cls.schema_cls._declared_fields
-        cte_groups = dd(list)
+        cte_autoimplied = dd(list)
+
         for k, v in declared_fields.items():
-            if isinstance(v, AutoImpliedForeignResource):
+
+            if isinstance(v, AutoSessionForeignResource):
+                target_table = v.target_table['name']
+                target_schema = cls.registered_schemas._cont(target_table)
+                if v.target_column not in target_schema._declared_fields:
+                    raise AttributeError(f'{target_schema} doesn\'t define `{v.target_column}` field as referenced by {cls.schema_cls}.{k}')
+                if v.session_field not in SessionContext.__annotations__:
+                    raise AttributeError(f'`{v.session_field}` field defined on {cls.schema_cls}.{k} is not a valid session context field')
+
+            elif isinstance(v, AutoImpliedForeignResource):
                 self_col_name = v.from_column
                 if self_col_name not in declared_fields:
                     raise AttributeError(f'`{self_col_name}` is not present on {cls.schema_cls}')
@@ -611,9 +703,9 @@ class ViewsClassBase(web.View):
                 extra_values.append(f'"{self_col_name}_cte".{v.foreign_column}')
                 from_ctes.add(f'"{self_col_name}_cte"')
                 dest_key = f"{dest_tablename}:{from_column_target_table['pk']}:{self_col_name}"
-                cte_groups[dest_key].append(v.foreign_column)
+                cte_autoimplied[dest_key].append(v.foreign_column)
 
-        for dest_key, fk_cols in cte_groups.items():
+        for dest_key, fk_cols in cte_autoimplied.items():
             dest_tablename, dest_pk, self_col_name = dest_key.split(':')
             dest_cols = ','.join(fk_col for fk_col in fk_cols)
             cte_members[self_col_name] = f'SELECT {dest_cols} FROM "{dest_tablename}" WHERE "{dest_tablename}".{dest_pk}=%({self_col_name})s'
@@ -626,13 +718,16 @@ class ViewsClassBase(web.View):
             colnames = ','.join(insert_cols)
             valnames = ','.join(values)
             from_stmt = ','.join(from_ctes)
+
             return (f'{cte}\nINSERT INTO "{cls.tablename}" ({colnames}{{cols}}) '
-                    f'SELECT {valnames}{{vals}} FROM {from_stmt}'
+                    f'SELECT {valnames}{{vals}} FROM {from_stmt} '
+                    f'{{on_conflict}} '
                     f'RETURNING {cls.pk_column_name}')
 
         colnames = ','.join(insert_cols)
         return f"""INSERT INTO "{cls.tablename}" ({colnames}{{cols}})
             VALUES ( {valnames}{{vals}} )
+            {{on_conflict}}
             RETURNING {cls.pk_column_name}"""
 
     @classmethod
@@ -681,12 +776,32 @@ class ViewsClassBase(web.View):
 
 class ViewsBase(ViewsClassBase, CommonViewMixin):
 
-    @async_cached_property
+    @cached_property
     async def payload(self):
         try:
             return await self.request.json(loads=ujson.loads)
         except Exception:
             raise web.HTTPBadRequest(reason='cannot read payload')
+
+    @property
+    def get_schema(self):
+        return self.schema_variants[self.request_type]['get_schema']
+
+    @property
+    def list_schema(self):
+        return self.schema_variants[self.request_type]['list_schema']
+
+    @property
+    def delete_schema(self):
+        return self.schema_variants[self.request_type]['delete_schema']
+
+    @property
+    def get_query_stmt(self):
+        return self.allowed_selectors_variants[self.request_type]['get_query_stmt']
+
+    @property
+    def list_query_stmt(self):
+        return self.allowed_selectors_variants[self.request_type]['list_query_stmt']
 
     @property
     def method(self):
@@ -759,6 +874,15 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             payload = cleaner(payload, self) or payload
         return payload
 
+    def extend_payload_with_session(self, payload, autosession_fields):
+        for declared_field, session_key in autosession_fields.items():
+            try:
+                payload[declared_field] = self.request.session[session_key]
+            except (AttributeError, KeyError):
+                # shouldn't happen. Something's wrong with the session
+                self.request.app.error_logger.exception('Session not found or corrupted')
+                raise web.HTTPUnauthorized(reason='Session not found or corrupted')
+
     async def _fetch(self, cleaned_payload, query):
         '''Common logic for `get()` and `list()`'''
 
@@ -769,7 +893,8 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                 try:
                     await cur.execute(query, values)
                 except Exception:
-                    print("!!", cur.query.decode())
+                    self.request.app.error_logger.exception('Failed to fetch results',
+                                                            query=cur.query.decode())
                     raise
                 try:
                     data = (await cur.fetchone())[0]
@@ -790,15 +915,16 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             # TODO: allow for dot-separated fields to indicate linked tables' fields to be included
             self._tables_to_join = set(list(select_with) + self.cleaned_payload_keys) & self.schema._joinable_fields # noqa
             del get_query['select']
-            return query_maker(select_with, compile_selects=False)
+            return query_maker(select_with, compile_selects=False, request_type=self.request_type)
 
-    def _render_insert_query(self, payload):
+    def _render_insert_query(self, payload, on_conflict=''):
         vals = ','.join(f"%({colname})s" for colname in payload)
         cols = ','.join(payload)
         if vals:
             vals = ',' + vals
             cols = ',' + cols
-        return self.insert_query_stmt.format(cols=cols, vals=vals)
+        return self.insert_query_stmt.format(cols=cols, vals=vals, on_conflict=on_conflict, 
+                                             session=self.request.session)
 
     def _whereize_query(self, cleaned_payload, query): # noqa
         try:
@@ -811,6 +937,10 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
         joins = []
         wheres = deque()
         values = {}
+
+        # inject authorization condition
+        with suppress(KeyError):
+            wheres.append(self.request.auth_conditions['stmt'])
 
         for nested_field, nested_trans in nested_where_stmts.items():
             nested_in_payload = cleaned_payload.pop(nested_field, None)
@@ -829,10 +959,13 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                 joins.append(self.schema._joins[fk_field])
             fk_in_payload = cleaned_payload.pop(fk_field, None)
             if fk_in_payload:
-                for key, val in fk_in_payload.items():
-                    trans_key = f'{fk_field}_{key}'
-                    values.update({trans_key: val})
-                    wheres.append(where_stmt.format(subkey=key, fill=trans_key))
+                with suppress(AttributeError):
+                    # if <schema>.Meta defines a `default_get_critera` function
+                    # which in turn returns an expected FK value, we can ignore this
+                    for key, val in fk_in_payload.items():
+                        trans_key = f'{fk_field}_{key}'
+                        values.update({trans_key: val})
+                        wheres.append(where_stmt.format(subkey=key, fill=trans_key))
 
         for key in cleaned_payload.copy():
             wheres.appendleft(f'"{tablename}".{key}=%(w_{key})s')
@@ -845,24 +978,26 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
         return query.format(where=wheres_q, joins=joins), values
 
 
-def parse_postgres_err(perr):
-    res = PG_ERR_PAT.search(perr.diag.message_detail)
-    errs = {}
-    if res:
-        parsed = res.groupdict()
-        prefix = parsed['prefix']
-        names = parsed['name'].split(', ')
-        vals = parsed['val'].split(', ')
-        reason = parsed['reason'].strip()
-        for key, val in zip(names, vals):
-            errs[key] = [f'{prefix}({val}) ' + reason]
-    return errs or perr.diag.message_detail
-
-
 class ViewsTemplate:
     async def get(self):
         # validate the query payload
-        cleaned_payload = await self._validate_singular_payload()
+        empty_payload_exc = None
+        try:
+            cleaned_payload = await self._validate_singular_payload()
+        except web.HTTPError as exc:
+            empty_payload_exc = exc
+            cleaned_payload = {}
+
+        if not cleaned_payload:
+            if self.request.session.is_authed and hasattr(self.schema.Meta, 'default_get_critera'):
+                # This is the only condition under which we allow
+                # there to be either no payload or for it to be empty
+                cleaned_payload = self.schema.Meta.default_get_critera(self.request)
+            else:
+                if empty_payload_exc is not None:
+                    raise empty_payload_exc
+                raise post_exceptions.ValidationError({'payload': ['Empty payload is not accepted']})
+
         self.cleaned_payload_keys = list(cleaned_payload) or []
         get_query = dict(self.request.query)
         base_stmt = await self._parse_select_fields(
@@ -928,13 +1063,14 @@ class ViewsTemplate:
 
         return await self._fetch(cleaned_payload, query)
 
-    async def post(self):
+    async def post(self, external_payload=None):
         # validate the payload
-        cleaned_payload = await self._validate_singular_payload()
+        cleaned_payload = external_payload or await self._validate_singular_payload()
         cleaned_payload = self._clean_write_payload(cleaned_payload)
 
         if hasattr(self.schema, 'before_post'):
-            cleaned_payload = await self.schema.before_post(self.request, cleaned_payload) or cleaned_payload
+            cleaned_payload = await self.schema.before_post(
+                weakref.proxy(self), self.request, cleaned_payload) or cleaned_payload
 
         insert_query = self._render_insert_query(cleaned_payload)
 
@@ -944,13 +1080,17 @@ class ViewsTemplate:
                     await cur.execute(insert_query, cleaned_payload)
                 except postgres_errors.IntegrityError as ierr:
                     raise post_exceptions.ValidationError(parse_postgres_err(ierr))
-                except Exception as exc:
-                    print(f'!! Failed adding to {self.tablename} resource', flush=1)
-                    print(cur.query.decode(), flush=1)
-                    # TODO: sentry
-                    raise exc
+                except Exception:
+                    self.request.app.error_logger.exception('Failed to execute insert query',
+                                                            query=cur.query.decode())
+                    raise
                 res = await cur.fetchone()
                 if res is None:
+                    if self.request.session:
+                        # Most likely a cross workspace insert
+                        self.request.app.error_logger.warn('Cross workspace insert')
+                        raise web.HTTPConflict(reason='Illegal cross workspace insert')
+                    self.request.app.error_logger.error("Failed to create a resource", query=cur.query.decode())
                     raise post_exceptions.CreateFailed()
 
         if hasattr(self.schema, 'after_post'):
@@ -963,7 +1103,7 @@ class ViewsTemplate:
         cleaned_payload = self._clean_write_payload(cleaned_payload)
 
         if hasattr(self.schema, 'before_update'):
-            cleaned_payload = await self.schema.before_update(self.request, cleaned_payload) \
+            cleaned_payload = await self.schema.before_update(weakref.proxy(self), self.request, cleaned_payload) \
                 or cleaned_payload
 
         query_raw = self.update_query_stmt
@@ -982,13 +1122,13 @@ class ViewsTemplate:
                     await cur.execute(query, query_values)
                 except postgres_errors.IntegrityError as ierr:
                     raise post_exceptions.ValidationError({"payload": parse_postgres_err(ierr)})
-                except Exception as exc:
-                    print(f'!! Failed updating the {self.tablename} resource', flush=1)
-                    print(cur.query.decode())
-                    # TODO: sentry
-                    raise exc
+                except Exception:
+                    self.request.app.error_logger.exception('Failed to execute an update query',
+                                                            query=cur.query.decode())
+                    raise
                 res = await cur.fetchone()
                 if not res or not res[0]:
+                    self.request.app.error_logger.error("Failed to update a resource", query=cur.query.decode())
                     raise post_exceptions.UpdateFailed()
 
         if hasattr(self.schema, 'after_put'):
@@ -1005,8 +1145,8 @@ class ViewsTemplate:
             return await self.schema.patch(self.request, cleaned_select, cleaned_payload)
 
         if hasattr(self.schema, 'before_update'):
-            cleaned_payload = await self.schema.before_update(self.request, cleaned_payload) \
-                or cleaned_payload
+            cleaned_payload = await self.schema.before_update(
+                weakref.proxy(self), self.request, cleaned_payload) or cleaned_payload
 
         query_raw = self.update_query_stmt
         query_with_where, query_values = self._whereize_query(cleaned_select, query_raw)
@@ -1027,14 +1167,13 @@ class ViewsTemplate:
                     await cur.execute(query, query_values)
                 except postgres_errors.IntegrityError as ierr:
                     raise post_exceptions.ValidationError({"payload": parse_postgres_err(ierr)})
-                except Exception as exc:
-                    print(f'!! Failed updating the {self.tablename} resource', flush=1)
-                    print(cur.query.decode())
-                    # TODO: sentry
-                    raise exc
+                except Exception:
+                    self.request.app.error_logger.exception('Failed to execute an update query',
+                                                            query=cur.query.decode())
+                    raise
                 res = await cur.fetchone()
                 if not res or not res[0]:
-                    print(cur.query.decode())
+                    self.request.app.error_logger.error('Failed to update a resource', query=cur.query.decode())
                     raise post_exceptions.UpdateFailed()
 
         if hasattr(self.schema, 'after_patch'):
@@ -1082,15 +1221,16 @@ class ViewsTemplate:
                 async with cur.begin():
                     try:
                         await cur.execute(query, query_values)
-                    except Exception as exc:
-                        print(f'!! Failed to delete from the {self.tablename} resource', flush=1)
-                        print(cur.query.decode())
-                        # TODO: sentry
-                        raise exc
+                    except Exception:
+                        self.request.app.error_logger.exception('Failed to execute a delete query',
+                                                                query=cur.query.decode())
+                        raise
 
                     # fetch the query result under the same transaction, before commiting
                     res = await cur.fetchone()
                     if not res or not res[0]:
+                        self.request.app.error_logger.error('Failed to delete a resource',
+                                                            query=cur.query.decode())
                         raise post_exceptions.DeleteFailed()
                     deleted_ids = res[0]
 
@@ -1104,15 +1244,17 @@ class ViewsTemplate:
                         m2m_query = self.cherrypick_m2m_stmts.format(deleted_pks=f'array{deleted_ids}')
                         try:
                             await cur.execute(m2m_query)
-                        except Exception as exc:
-                            print(f"!! Failed to delete the resource's M2M dependencies", exc, flush=1)
+                        except Exception:
+                            self.request.app.error_logger.exception(
+                                'Failed to execute the deletion of M2M dependencies', query=m2m_query)
                             await cur.execute('rollback;')
                             raise post_exceptions.DeleteFailed()
 
                         res = await cur.fetchone()
                         if not res or not res[0]:
                             await cur.execute('rollback;')
-                            print("FAIL!")
+                            self.request.app.error_logger.exception(
+                                'Failed to delete the resource\'s M2M dependencies', query=m2m_query)
                             raise post_exceptions.DeleteFailed(body="Failed to delete the M2M dependencies")
                         deleted_m2m_refs = res[0]
 

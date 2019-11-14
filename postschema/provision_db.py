@@ -5,10 +5,12 @@ from pathlib import Path
 from time import sleep
 
 # from aiohttp import web
+import bcrypt
 from alembic.config import Config
 from alembic import command
 from sqlalchemy import create_engine
 
+from .logging import setup_logging
 # from postschema import setup_postschema
 
 APP_MODE = os.environ.get("APP_MODE", 'dev')
@@ -20,6 +22,8 @@ POSTGRES_DB = os.environ.get('POSTGRES_DB')
 POSTGRES_USER = os.environ.get('POSTGRES_USER')
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
+
+info_logger, error_logger = setup_logging()
 
 
 def get_url():
@@ -43,6 +47,19 @@ def make_alembic_dir():
     return alembic_ini_destination, postschema_instance_path
 
 
+def create_admin_actor(conn):
+    # create one Admin-scoped account
+    salt = bcrypt.gensalt()
+    passwd = os.environ.get('ADMIN_PASSWORD') or '123456'
+    hashed_passwd = bcrypt.hashpw(passwd.encode(), salt).decode()
+    query = (
+        'INSERT INTO actor (id,status,email,password,role,scopes,details) '
+        f"""VALUES (NEXTVAL('actor_id_seq'),1,'admin@example.com','{hashed_passwd}','Generic','["Admin"]'::jsonb,'{{}}'::jsonb) """
+        'ON CONFLICT (email) DO UPDATE SET status=1'
+    )
+    conn.execute(query)
+
+
 def setup_db(Base):
     alembic_ini_destination, postschema_instance_path = make_alembic_dir()
     uri = f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/'
@@ -53,10 +70,10 @@ def setup_db(Base):
         try:
             conn = engine.connect()
             conn.execute("COMMIT")
-            print("\t* Connected!")
+            info_logger.debug("Connected!")
             break
         except Exception:
-            print(f"\t ! Can't connect to DB. Waiting {time_wait}s...")
+            info_logger.warn(f"! Can't connect to DB. Waiting {time_wait}s...")
             sleep(time_wait)
             time_wait *= 2
             retries -= 1
@@ -77,7 +94,7 @@ def setup_db(Base):
     conn = engine.connect()
     conn.execute("COMMIT")
 
-    print("\t* Adding Postgres functions...")
+    # info_logger.debug("Adding Postgres functions...")
     # try:
     #     for fn_sql in glob(str(FNS_PATTERN)):
     #         print(f'\t  - adding `{os.path.split(fn_sql)[1]}`')
@@ -103,11 +120,7 @@ def setup_db(Base):
         alembic_cfg.set_main_option("script_location", alembic_dist)
         command.stamp(alembic_cfg, "head")
 
+    create_admin_actor(conn)
+
     conn.close()
     return engine
-
-
-def provision_db(engine):
-    conn = engine.connect()
-    print("\t* Adding Postgres functions...")
-    

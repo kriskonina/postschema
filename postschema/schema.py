@@ -7,11 +7,16 @@ Base = declarative_base()
 
 
 class DefaultMetaBase:
+    create_views = True
     excluded_ops = []
+    exclude_from_updates = []
+
+
+class DefaultOperations:
     get_by = []
     list_by = []
-    exclude_from_updates = []
-    create_views = True
+    delete_by = []
+    disallow_authed = []
 
 
 class _schemascls:
@@ -23,9 +28,7 @@ class _schemascls:
                 yield k, v
 
     def __matmul__(self, other):
-        for k, v in self:
-            if other == v.__tablename__:
-                return v
+        return self._cont(other)
 
     def __repr__(self):
         attrs = list(self)
@@ -33,43 +36,25 @@ class _schemascls:
             return f'<No {self._name}>'
         return f"<{self._name}: {', '.join(k for k, v in self)}>"
 
+    def _cont(self, other):
+        for k, v in self:
+            if other == v.__tablename__:
+                return v
+
 
 _schemas = _schemascls()
 
 
-class PostSchemaMeta(SchemaMeta):
-    def __new__(cls, name, bases, methods):
-        kls = super(PostSchemaMeta, cls).__new__(cls, name, bases, methods)
-        second_base = kls.mro()[1]
-        second_base_name = second_base.__name__
-        if second_base is not MarshmallowBaseSchema and name != "RootSchema" and second_base_name != 'RootSchema':
-            if '__tablename__' not in methods:
-                raise AttributeError(f'PostSchema `{name}` needs to define `__tablename__`')
-            setattr(_schemas, name, kls)
-            for base in kls.mro():
-                if base.__name__ == 'RootSchema':
-                    return cls._conflate_schemas(kls)
-        return kls
-
-    def _conflate_schemas(kls):
-        defined_metacls = getattr(kls, 'Meta', None)
-        if defined_metacls is None:
-            # means 'Meta' isn't defined on neither this schema nor its parent
-            attrs = dict(kls.__dict__)
-            attrs['Meta'] = defined_metacls
-            return type(kls.__name__, kls.__bases__, attrs)
-        return kls
-
-
-class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
+class PostSchemaBase(MarshmallowBaseSchema):
 
     Base = Base
 
-    def __init__(self, use=None, joins=None, *a, **kwargs):
+    def __init__(self, use=None, joins=None, autosession_fields={}, *a, **kwargs):
         super().__init__(*a, **kwargs)
         only = set(kwargs.get('only', []) or [])
         self._use = use
         self._joins = joins
+        self._autosession_fields = autosession_fields
         self._joinable_fields = joinable = set(joins or [])
         self._default_joinable_tables = only & joinable
         self._deferred_async_validators = []
@@ -110,6 +95,51 @@ class PostSchema(MarshmallowBaseSchema, metaclass=PostSchemaMeta):
                 error_store = hooks['error_store']
                 error_store.store_error(inner_emsgs, fieldname, index=index)
                 return error_store.errors
+
+
+class PostSchemaMeta(SchemaMeta):
+
+    def __new__(cls, name, bases, methods):
+        kls = super(PostSchemaMeta, cls).__new__(cls, name, bases, methods)
+        second_base = kls.mro()[1]
+        second_base_name = second_base.__name__
+        if second_base is not PostSchemaBase and name != "RootSchema" and second_base_name != 'RootSchema':
+            if '__tablename__' not in methods and '__tablename__' not in second_base.__dict__:
+                raise AttributeError(f'PostSchema `{name}` needs to define `__tablename__`')
+            cls._conflate_meta_classes(kls)
+            setattr(_schemas, name, kls)
+            return kls
+        return kls
+
+    def _conflate_meta_classes(kls):
+        '''Not dealing with `Meta` metaclass as it's included on `SchemaMeta`'''
+        metaclasses = ['Public', 'Private', 'Authed']
+        attrs = kls.__dict__
+        new_attrs = {}
+        for metaclass_name in metaclasses:
+            metacls = getattr(kls, metaclass_name, None)
+            # first parent come across to have corresponding metaclass defined
+            # will be used as a base for this one
+
+            for ancestor in kls.mro()[1:]:
+                parental_metacls = getattr(ancestor, metaclass_name, None)
+                if parental_metacls is not None:
+                    new_attrs[metaclass_name] = type(
+                        metaclass_name,
+                        (parental_metacls, ),
+                        {} if metacls is None else dict(metacls.__dict__)
+                    )
+
+        if 'Public' not in attrs and 'Public' not in new_attrs:
+            # it's the only mandatory Meta class
+            new_attrs['Public'] = DefaultOperations
+
+        for k, v in new_attrs.items():
+            setattr(kls, k, v)
+
+
+class PostSchema(PostSchemaBase, metaclass=PostSchemaMeta):
+    pass
 
 
 class RootSchema(PostSchema):

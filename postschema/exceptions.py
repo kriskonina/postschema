@@ -58,3 +58,18 @@ class DeleteFailed(web.HTTPError):
             reason='Delete failed',
             content_type='application/json',
             *args, **kwargs)
+
+
+class WorkspaceAdditionFailed(web.HTTPError):
+    status_code = 400
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(
+            reason='Failed to add new actor to workspace table',
+            content_type='application/json')
+
+
+class HandledInternalError(web.HTTPInternalServerError):
+    def __init__(self, *args, **kwargs):
+        kwargs['reason'] = 'A known error occured and it\'s being handled'
+        super().__init__(*args, **kwargs)

@@ -19,7 +19,7 @@ Each definition of a field needs to include a reference to the corresponding sql
 
     
 
-
+---
 _class_ __Meta__
 
 Options object for both _marshmallow.Schema_ and _postschema.PostSchema_
@@ -33,15 +33,15 @@ Example usage:
         exclude = ("password", "secret_attribute")
         route_base = "myview"
 
+        def default_get_critera(request):
+            return {'owner': request.session.actor_id}
+
 Refer to [marshmallow documentation](https://marshmallow.readthedocs.io/en/3.0/api_reference.html#marshmallow.Schema.Meta) for more on _Meta_'s available options.
 
 Postschema allows for the following attributes to be defined on top of it:
 - `route_base`: URL base for the resource
 - `create_views`: Boolean to indicate whether to create views from the schema definition.
 - `order_by`: List of fields by which to order the results, unless otherwise specified (i.e. by pagination query object)
-- `get_by`: List of fields to allow the HTTP requests to query, while `GET`-ting the schema resource. If found empty, the schema's primary key will be used as the only allowed query field.
-- `list_by`: List of fields to allow the HTTP requests to query, while `GET`-ting the schema's **multiple** resources. If this field is left undefined, the default will take `get_by`'s value.
-- `delete_by`: List of fields to allow the HTTP requests to query, while `DELETE`-ting the schema's **single/multiple** resources. If this field is left undefined, the default will be set to schema's primary key.
 - `exclude_from_updates`: List of fields disallowed in update payload (`PUT`/`PATCH`)
 - `excluded_ops`: List of 'operations' not available for the view wizard. These 'operations' include:
     - post
@@ -55,9 +55,80 @@ Postschema allows for the following attributes to be defined on top of it:
     * limit (must be of `fields.Integer` type)
     * order_dir (must be of `fields.String` type, values either `ASC` or `DESC`)
     * order_by (must be of `Array` type)
+- `default_get_critera`: Function or callable taking one positional argument - an aiohttp Request object. Expected to return a dictionary including query criteria
+for the GET operation if no query payload is provided.
 
 - `__table_args__`: Passed to SQLAlchemy model's Meta class
 
+---
+_class_ __Public__, _class_ __Authed__, _class_ __Private__
+
+A group of auth mini-framework classes, used to describe the allowed operation and the resources they return. 
+
+The three classes leverage the notion of a _scope_. 5 scopes are defined as default:
+- (All scopes)
+- Admin
+- Owner
+- Manager
+- Staff
+
+In addition, custom scopes can be added by supplying an iterable to `setup_postchema`'s `scopes` keyword argument. 
+
+Scopes live under `app.config.scopes`.
+
+
+All three classes can describe the following attributes:
+- `get_by`: List of fields to allow the HTTP requests to query, while `GET`-ting the schema resource. If found empty, the schema's primary key will be used as the only allowed query field.
+- `list_by`: List of fields to allow the HTTP requests to query, while `GET`-ting the schema's **multiple** resources. If this field is left undefined, the default will take `get_by`'s value.
+- `delete_by`: List of fields to allow the HTTP requests to query, while `DELETE`-ting the schema's **single/multiple** resources. If this field is left undefined, the default will be set to schema's primary key.
+
+In addition, __Private__ and __Authed__ classes accept the following attributes:
+- `verified_email` List of operations requiring that the requesting account's email address is verified
+- `verified_phone` List of operations requiring that the requesting account's phone number is verified
+
+---
+_class_ __Public__
+
+Class describing access rules to resources listed as public. One extra attribute can be defined on this class:
+- `disallow_authed` List of operations defined under Public.permissions to be marked inaccessible should the request be authenticated
+- `forced_logout` Boolean denoting whether or not each authed request should be stripped off its session token upon requesting resource operation
+listed under `Public.disallow_authed`.
+
+To control which operations are allowed for such resource, define a `permissions` subclass, on which the following attributes are allowed:
+- `allow_all` Boolean denoting whether to open all operations to public access
+- `<operation_name>` An empty dictionary with valid operation name as a key. E.g.
+
+      class Public:
+         ...
+         class permissions:
+            get: {}
+            post: {}
+---
+_class_ __Authed__
+
+Class describing access rules to resources with whom only the authenticated actors can interact. Similarly to `Public`, define `permissions` subclass to define the following allowed attributes:
+- `allow_all` A list of valid scopes to apply to all operations
+- `<operation_name>` A list or iterable containing valid scope names. Requesting actors with these scopes will be allowed to perform requested actions. Example:
+
+---
+_class_ __Private__
+
+Class describe private access rules to private resources, i.e. the ones with a clearly designated owner/administrator. Use a `permissions` subclass desired behaviour for each operation:
+- `<operation_name>` A dictionary mapping, rougly, scopes to private resource condition statement. The key can be of string type, its value found in the `app.config.scopes`, or a tuple of such. Example:
+
+      class Private:
+         ...
+         class permissions:
+            list: {
+                ('Admin', 'Owner'): 'self.id = auth.actor_id',
+                'Staff': 'foreign_table.staffer = auth.actor_id'
+            },
+            get: {
+                '*': 'foreign_table.workspace -> auth.workspaces'
+            }
+
+
+#
 
 ## Known issues
-- Generally, there's no support for recursive nesting of resources. Although it's still possible to define them, the functionality of system is guaranteed to fail.
+- Generally, there's no support for recursive nesting of resources. Although it's still possible to define them, the functionality of the system is guaranteed to fail.
