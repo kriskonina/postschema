@@ -19,7 +19,7 @@ class RoleBaseMeta(SchemaMeta):
             try:
                 set(meta.scopes)
             except (AttributeError, TypeError):
-                raise AttributeError(f'Missing `scopes` attribute on `{cls}` or is of wrong type')
+                raise AttributeError(f'Missing `scopes` attribute on `{name}.Meta` role class or is of wrong type')
 
             kls = super(RoleBaseMeta, cls).__new__(cls, name, bases, methods)
             ROLES[name] = kls

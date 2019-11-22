@@ -13,8 +13,3 @@ class Pagination(Schema):
     limit = fields.Integer(missing=50, validate=[Range(min=1, max=10000)])
     order_by = fields.List(fields.String())
     order_dir = fields.String(missing="asc", validate=[OneOf(['desc', 'asc'])])
-
-
-
-# TODO:
-# 1. Test updating workspace with new members (fail no such field)
