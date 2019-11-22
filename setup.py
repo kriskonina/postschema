@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='postschema',
-    version='0.9.3',
+    version='0.9.4',
     description='Async python ORM for postgres',
     url='https://github.com/kriskavalieri/postschema',
     author='Kris Kavalieri',
@@ -31,5 +31,6 @@ setup(
         'colorama==0.4.1',
         'structlog==19.2.0',
         'apispec==3.1.0',
+        'cached-property==1.5.1'
     ]
 )
