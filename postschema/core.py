@@ -342,8 +342,6 @@ def build_app(app, registered_schemas):
 
     @auth(scopes=['Admin'])
     async def apispec_context(request):
-        import json
-        return json_response(json.load(open('/tmp/openapi.json')))
         return json_response(request.app.openapi_spec)
 
     created = dd(int)
