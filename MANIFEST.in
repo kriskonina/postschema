@@ -1,2 +1,3 @@
-graft postschema/sql
+graft postschema/sql 
+graft postschema/auth/templates
 recursive-include postschema *.ini *.mako
