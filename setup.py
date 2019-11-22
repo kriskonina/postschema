@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='postschema',
-    version='0.9.1',
+    version='0.9.2',
     description='Async python ORM for postgres',
     url='https://github.com/kriskavalieri/postschema',
     author='Kris Kavalieri',
@@ -18,10 +18,18 @@ setup(
         'aiopg==1.0.0',
         'aioredis==1.3.0',
         'alembic==1.2.1',
+        'aiohttp_jinja2==1.1.1',
         'async-property==0.2.1',
         'marshmallow==3.2.0',
         'psycopg2-binary==2.8.3',
         'SQLAlchemy==1.3.8',
-        'ujson==1.35'
+        'ujson==1.35',
+        'aiosmtplib==1.1.0',
+        'bcrypt==3.1.7',
+        'aiohttp_jinja2==1.1.1',
+        'cryptography==2.7',
+        'colorama==0.4.1',
+        'structlog==19.2.0',
+        'apispec==3.1.0',
     ]
 )
