@@ -5,6 +5,7 @@ import sqlalchemy as sql
 from aiohttp import web
 from marshmallow import fields, validate, validates, ValidationError
 from postschema import PostSchema, validators
+from postschema.decorators import summary
 from postschema.fields import (
     ForeignResources, ForeignResource,
     AutoImpliedForeignResource, AutoSessionOwner,
@@ -236,6 +237,7 @@ class DrawNumberView(AuxView):
 
 
 class SimpleAuxView(AuxView):
+    @summary('Test simple auxiliary view')
     async def get(self):
         return json_response('ok')
 

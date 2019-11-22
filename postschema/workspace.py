@@ -6,6 +6,7 @@ from .schema import PostSchema
 
 
 class Workspace(PostSchema):
+    '''Manages workspace operations'''
     __tablename__ = 'workspace'
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('workspace_id_seq'),
                         read_only=True, primary_key=True)

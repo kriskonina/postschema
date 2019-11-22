@@ -2,7 +2,6 @@ import os
 import ujson
 import urllib.parse
 from email.mime.text import MIMEText
-from types import MappingProxyType
 
 # from datetime import datetime
 
@@ -22,6 +21,7 @@ from . import (
     exceptions as post_exceptions,
     validators
 )
+from .decorators import summary
 from .schema import RootSchema
 from .utils import (
     generate_random_word,
@@ -58,6 +58,7 @@ async def send_email_user_invitation(request, by, link, to):
         username=os.environ.get('EMAIL_USERNAME'),
         password=os.environ.get('EMAIL_PASSWORD')
     )
+
 
 async def send_email_reset_link(request, checkcode, to):
     redirect_to = request.app.config.redirect_reset_password_to.format(checkcode=checkcode)
@@ -132,6 +133,7 @@ async def send_phone_activation_pin(request, phone_num, actor_id):
 class PhoneActivationView(AuxView):
     pin = fields.String(location='path')
 
+    @summary('Verify phone number')
     async def get(self):
         pin = self.path_payload['pin']
         key = f'postschema:activate:phone:{pin}'
@@ -172,7 +174,9 @@ class PhoneActivationView(AuxView):
 class InvitedUserActivationView(AuxView):
     reg_token = fields.String(location='path')
 
+    @summary('Activate user')
     async def post(self):
+        '''Flag user as active by providing a valid registration token'''
         reg_token = self.path_payload['reg_token']
 
         account_key = f'postschema:activate:email:{reg_token}'
@@ -229,6 +233,7 @@ class CreatedUserActivationView(AuxView):
     reg_token = fields.String(location='path')
     workspace_name = fields.String(location='body', required=True)
 
+    @summary('Verify standalone user')
     async def post(self):
         reg_token = self.path_payload['reg_token']
         workspace_payload = await self.validate_payload()
@@ -290,6 +295,7 @@ class CreatedUserActivationView(AuxView):
 class SendPhoneLink(AuxView):
     phone = fields.String(location='body', required=True)
 
+    @summary('Send phone number verification link')
     async def post(self):
         payload = await self.validate_payload()
         number = payload['phone']
@@ -316,6 +322,7 @@ class SendPhoneLink(AuxView):
 class SendEmailLink(AuxView):
     email = fields.Email(required=True, location='body')
 
+    @summary('Send email with verification link')
     async def post(self):
         payload = await self.validate_payload()
         # first check if this phone number exists in our database
@@ -332,7 +339,7 @@ class SendEmailLink(AuxView):
                 except TypeError:
                     raise post_exceptions.ValidationError(
                         {'email': ["Email doesn't exist or already confirmed"]})
-        
+
         if self.request.session.ia_authed:
             data['workspace'] = self.request.session.workspace
 
@@ -353,9 +360,9 @@ class LoginView(AuxView):
     password = fields.String(required=True, location='body')
     workspace = fields.Int(location='body')
 
+    @summary('Log in a user')
     async def post(self):
-        '''
-        Create a session entry in Redis for the authenticated user, 
+        '''Create a session entry in Redis for the authenticated user,
         set a session cookie on the response object.
         '''
         payload = await self.validate_payload()
@@ -442,6 +449,7 @@ class LoginView(AuxView):
 
 
 class LogoutView(AuxView):
+    @summary('Log out a user')
     async def get(self):
         session_cookie_name = self.request.app.config.session_key
         session_cookie = self.request.cookies.get(session_cookie_name, None)
@@ -472,6 +480,7 @@ class ChangePassword(AuxView):
                               location='form', required=True,
                               validate=validate.Length(min=6))
 
+    @summary('Change user\'s password')
     async def post(self):
         checkcode = self.path_payload['checkcode']
         payload = await self.validate_form()
@@ -504,6 +513,7 @@ class ChangePassword(AuxView):
 class ResetPassword(AuxView):
     email = fields.Email(required=True, location='body')
 
+    @summary('Reset user\'s password')
     async def post(self):
         payload = await self.validate_payload()
         query = 'SELECT id, email FROM actor WHERE email=%s'
@@ -554,6 +564,7 @@ class InviteUser(AuxView):
         missing=[]
     )
 
+    @summary('Invite a user')
     async def post(self):
         inviter = self.request.session['email']
         owned_workspaces = set(self.request.session['workspaces'])
@@ -620,6 +631,7 @@ class GrantScope(AuxView):
         required=True
     )
 
+    @summary('Update user\'s scopes')
     async def patch(self):
         actor_id = self.path_payload['actor_id']
         payload = await self.validate_payload()
@@ -650,6 +662,7 @@ class GrantScope(AuxView):
 
         return web.HTTPOk()
 
+    @summary('Grant scopes on a user')
     async def post(self):
         actor_id = self.path_payload['actor_id']
         payload = await self.validate_payload()
@@ -676,6 +689,7 @@ class GrantScope(AuxView):
 
         return web.HTTPOk()
 
+    @summary('Revoke user\'s scopes')
     async def delete(self):
         actor_id = self.path_payload['actor_id']
         payload = await self.validate_payload()
@@ -721,6 +735,7 @@ class GrantWorkspace(AuxView):
         required=True
     )
 
+    @summary('Grant workspaces on a user')
     async def post(self):
         actor_id = self.path_payload['actor_id']
         owner_id = self.request.session['actor_id']
@@ -782,6 +797,7 @@ class GrantWorkspace(AuxView):
 
         return web.HTTPOk()
 
+    @summary('Deregister user\'s workspaces')
     async def delete(self):
         actor_id = self.path_payload['actor_id']
         owner_id = self.request.session['actor_id']
@@ -837,7 +853,6 @@ class PrincipalActorBase(RootSchema):
     __tablename__ = 'actor'
     __aux_routes__ = {
         '/activate/email/send/': SendEmailLink,
-        # '/activate/email/{reg_token}/': EmailActivationView,
         '/created/activate/email/{reg_token}/': CreatedUserActivationView,
         '/invitee/activate/email/{reg_token}/': InvitedUserActivationView,
         '/activate/phone/send/': SendPhoneLink,
@@ -1076,4 +1091,4 @@ class PrincipalActorBase(RootSchema):
 
 
 class PrincipalActor(PrincipalActorBase):
-    pass
+    '''Handles all operations on Actor'''

@@ -3,6 +3,7 @@ import weakref
 from collections import defaultdict as dd
 from contextlib import suppress
 
+import aiohttp_jinja2
 import sqlalchemy as sql
 import ujson
 from aiohttp import web
@@ -25,8 +26,10 @@ from . import (
     validators as postschema_validators
 )
 from .auth.perms import TopSchemaPermFactory, AuxSchemaPermFactory
+from .decorators import auth
 from .schema import DefaultMetaBase
-from .utils import retype_schema
+from .spec import APISpecBuilder
+from .utils import retype_schema, json_response
 from .view import AuxViewBase, ViewsBase, ViewsTemplate
 
 Base = declarative_base()
@@ -194,6 +197,7 @@ class ViewMaker:
                     raise NameError(f'One of `{self.schema_cls}`\'s auxiliary routes contains illegal value (/list/)')
                 url = self.base_resource_url + routename
                 view_methods = dict(proto_viewcls.__dict__)
+
                 view_cls = type(
                     proto_viewcls.__qualname__,
                     (mod_parent_base, AuxViewBase),
@@ -213,7 +217,7 @@ class ViewMaker:
                             web.HTTPMethodNotAllowed(method=op, allowed_methods=allowed))
                         )
                 self.router.add_route("*", url, view_cls)
-                yield view_cls.__name__
+                yield view_cls
 
     @property
     def omit_me(self):
@@ -331,6 +335,17 @@ def build_app(app, registered_schemas):
     app.info_logger.debug("* Building views...")
     router = app.router
 
+    @auth(scopes=['Admin'])
+    @aiohttp_jinja2.template('redoc.html')
+    async def apidoc(request):
+        return {'appname': request.app.app_name}
+
+    @auth(scopes=['Admin'])
+    async def apispec_context(request):
+        import json
+        return json_response(json.load(open('/tmp/openapi.json')))
+        return json_response(request.app.openapi_spec)
+
     created = dd(int)
 
     for schema_name, schema_cls in registered_schemas:
@@ -348,6 +363,8 @@ def build_app(app, registered_schemas):
     perm_builder = TopSchemaPermFactory(registered_schemas, app.config.scopes)
     aux_perm_builder = AuxSchemaPermFactory(registered_schemas, app.config.scopes)
 
+    spec_builder = APISpecBuilder(app, router)
+
     for schema_name, schema_cls in registered_schemas:
         post_view = ViewMaker(schema_cls, router, registered_schemas)
         # invoke the relationship processing
@@ -364,6 +381,13 @@ def build_app(app, registered_schemas):
             **perm_builder.operation_constraints
         }
         created['Views'] += 1
-        created['Auxiliary views'] += len(tuple(post_view.create_aux_views(cls_view, aux_perm_builder)))
+        aux_views = tuple(post_view.create_aux_views(cls_view, aux_perm_builder))
+        created['Auxiliary views'] += len(aux_views)
+        spec_builder.add_schema_spec(schema_cls, post_view, cls_view, aux_views)
+
+    spec_builder.build_spec()
+
+    router.add_get('/api/doc/', apidoc)
+    router.add_get('/api/doc/openapi.yaml', apispec_context)
 
     app.info_logger.info('System ready', created=dict(created))

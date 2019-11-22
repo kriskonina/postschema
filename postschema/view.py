@@ -22,6 +22,7 @@ from .fields import (
     AutoSessionField, AutoSessionForeignResource
 )
 from .hooks import translate_naive_nested, translate_naive_nested_to_dict
+from .schema import DefaultMetaBase
 from .utils import json_response, retype_schema, parse_postgres_err
 from .validators import must_not_be_empty, adjust_children_field
 
@@ -165,6 +166,11 @@ class AuxViewMeta(type):
     def __new__(cls, name, bases, methods): # noqa
         if not bases:
             return super(AuxViewMeta, cls).__new__(cls, name, bases, methods)
+
+        # Aux Views can't support Private permission class, as it doesn't make sense in this context
+        if 'Private' in methods:
+            raise AttributeError('Aux views don\'t support Private permission definitions')
+
         schemas = dd(dict)
         iterable_fields = []
         allowed_locations = ['path', 'query', 'header', 'body', 'form']
@@ -202,6 +208,16 @@ class AuxViewMeta(type):
 
         with suppress(KeyError):
             methods['header_schema'] = type(schemas.pop('header_schema'))(unknown='INCLUDE')
+
+        meta_cls = methods.get('Meta')
+        try:
+            meta_methods = dict(meta_cls.__dict__)
+        except AttributeError:
+            meta_methods = {}
+
+        meta_methods.pop('route_base', None)
+        new_meta = type('Meta', (DefaultMetaBase, ), meta_methods)
+        methods['Meta'] = new_meta
 
         methods.update({
             '_iterable_fields': iterable_fields,

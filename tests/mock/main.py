@@ -56,7 +56,7 @@ def create_app():
     config = {
         'scopes': scopes
     }
-    setup_postschema(app, initial_logging_context={'version': '0.5.0'}, **config)
+    setup_postschema(app, 'test_app', version='0.5.0', description='My New API Server', **config)
     app.on_startup.append(init_resources)
     app.on_cleanup.append(cleanup)
     return app

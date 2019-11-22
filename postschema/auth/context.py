@@ -1,8 +1,7 @@
-from functools import lru_cache
+from types import MappingProxyType
 
 from aiohttp import web
 from cryptography.fernet import InvalidToken
-from types import MappingProxyType
 
 
 ILLEGAL_XSCOPE = 'Illegal cross-scope request'
@@ -38,7 +37,18 @@ class BracketedFrozenset(frozenset):
             return f'{[i for i in self]}'
 
 
-class AuthContext(AccessBase):
+class StandaloneAuthedView:
+    def authorize_standalone(self, scopes, phone_verified=False, email_verified=False):
+        if not set(scopes) & self.session_ctxt['scopes']:
+            raise web.HTTPForbidden(reason='Actor is short of required scopes')
+            if phone_verified:
+                self.verified_email = [self.operation]
+            if email_verified:
+                self.verified_phone = [self.operation]
+            self.check_verification_status()
+
+
+class AuthContext(AccessBase, StandaloneAuthedView):
     perms = {}
 
     def __init__(self, request, forced_logout=False,

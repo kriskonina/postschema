@@ -13,7 +13,6 @@ def set_init_logging_context(request):
 
 
 def set_logging_context(app, **context):
-    # print(context)
     app.info_logger = app.info_logger.bind(**context)
     app.error_logger = app.error_logger.bind(**context)
 
@@ -24,7 +23,20 @@ async def auth_middleware(request, handler):
     try:
         auth_ctxt = AuthContext(request, **handler._perm_options)
     except AttributeError:
+        # .e.g 404
         return await handler(request)
+    except TypeError:
+        if 'scopes' in handler._perm_options:
+            auth_ctxt = AuthContext(request)
+            auth_ctxt.request_type = 'authed'
+            await auth_ctxt.set_session_context()
+            set_logging_context(request.app,
+                                op=auth_ctxt.operation,
+                                actor_id=auth_ctxt['actor_id'],
+                                workspace=auth_ctxt['workspace'])
+            auth_ctxt.authorize_standalone(**handler._perm_options)
+            return await handler(request)
+        raise
 
     auth_ctxt.set_level_permissions()
     await auth_ctxt.set_session_context()

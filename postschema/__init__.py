@@ -23,6 +23,7 @@ from .utils import generate_random_word
 DEFAULT_SCOPES = {'*', 'Admin', 'Owner', 'Manager', 'Staff'}
 THIS_DIR = Path(__file__).parent
 AUTH_TEMPLATES_DIR = THIS_DIR / 'auth' / 'templates'
+SCOPES = []
 
 
 async def default_send_sms(*args):
@@ -104,7 +105,10 @@ class ConfigBearer(dict):
         del self[key]
 
 
-def setup_postschema(app, *, template_dirs: list = [],
+def setup_postschema(app, appname: str, *,
+                     version: str = 'unreleased',
+                     template_dirs: list = [],
+                     description: str = '',
                      send_sms: Optional[Callable] = None,
                      info_logger_processors: Optional[list] = None,
                      error_logger_processors: Optional[list] = None,
@@ -115,6 +119,13 @@ def setup_postschema(app, *, template_dirs: list = [],
     scopes = app_config.get('scopes', [])
     SCOPES = frozenset(scope.title() for scope in DEFAULT_SCOPES | set(scopes))
     os.environ['SCOPES'] = ujson.dumps(SCOPES)
+
+    initial_logging_context['version'] = version
+    initial_logging_context['app_mode'] = app_mode = os.environ.get('APP_MODE')
+    app.app_mode = app_mode
+    app.app_name = appname
+    app.app_description = description
+    app.version = version
 
     # create loggers
     info_logger, error_logger = setup_logging(info_logger_processors, error_logger_processors,

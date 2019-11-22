@@ -1,24 +1,24 @@
-language: generic
-dist: bionic
-cache: pip
-env:
-  global: export POSTSCHEMA_PORT=9999 export POSTGRES_PASSWORD=1234 export POSTGRES_DB=postschemadb
-    export POSTGRES_USER=postschema export POSTGRES_HOST=0.0.0.0 export POSTGRES_PORT=5432
-    export REDIS_HOST=0.0.0.0 export REDIS_PORT=6379 export REDIS_DB=3
-before_install:
-- sudo apt-get update
-- sudo apt-get install -y python3.7 python3.7-dev python3-setuptools python3-pip
-- npm install -g newman
-install:
-- python3.7 -m pip install -r tests/requirements.txt
-before_script:
-- docker-compose -f tests/docker-compose.yml up --build -d
-- PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/main.py &
-script:
-- newman run https://www.getpostman.com/collections/7c12f6f99b8e54094500
-deploy:
-  provider: pypi
-  skip_cleanup: true
-  user: "kris.kavalieri"
-  password:
-    secure: MpBunmXvn3KMl2daCuU1DBcMiiZNnj8WF3iyc+1A4borx4E0ibo0m/1HMVd5QSgdDy8BQpzwgsyAp2CWugxSmtuBurg7IDCFtCiKUJJSHcIZKANPLwKErOHTEBs2KPrylym9jaziph1xl3ahl2w0evCdABasMTws8ZtkHCbvZdVs7n+Cfu4ooJsC64JB5EGVdGg2PkmpsGH2uvelSYJDSdylUpN1v0lBhaInZr2xIS2KfKVHvDom219qGMuueRb+1A6ZImQDkX9jr1OQMo4yOkuFrnJPc1UziE8FSJhwfNeWdSB3CPHh3Qe0noNTKWZ3Y+fmAZdhluZ3JCR0/LAI40JiFdIoNxya0xFmB33w9PVea0J3exE3q6zIZgOP6oq7ZF2/JhjK8v6ngwBq+ec7qKbMNP6Cl3tjgyzfmtNzBvYmhBPmX0tZdAIrqMS3Slaev3JLyAkEUOqZxi+5dWA61wMOh5UxEL5OSlAyAXa4hODsa8RUHaDasSFRhvKw3PBM9cN6NgNt12HmSnaalWP5qc/X3YHORxab8EXB63aTpG3lQiXMNp3qTLW5cAc9DFFL42BLx1CI4MLEenDJRv51mfI2owacLJgMP4IfGKaINAfmnDpc/3PkoZ5+pmgblndE0v/2vA//cJnV+9YErf8aVIb9KXJe8dpjtwSmrMW/fuY=
+# language: generic
+# dist: bionic
+# cache: pip
+# env:
+#   global: export POSTSCHEMA_PORT=9999 export POSTGRES_PASSWORD=1234 export POSTGRES_DB=postschemadb
+#     export POSTGRES_USER=postschema export POSTGRES_HOST=0.0.0.0 export POSTGRES_PORT=5432
+#     export REDIS_HOST=0.0.0.0 export REDIS_PORT=6379 export REDIS_DB=3
+# before_install:
+# - sudo apt-get update
+# - sudo apt-get install -y python3.7 python3.7-dev python3-setuptools python3-pip
+# - npm install -g newman
+# install:
+# - python3.7 -m pip install -r tests/requirements.txt
+# before_script:
+# - docker-compose -f tests/docker-compose.yml up --build -d
+# - PYTHONPATH=$PYTHONPATH:$PWD/tests/ python3.7 tests/mock/main.py &
+# script:
+# - newman run https://www.getpostman.com/collections/7c12f6f99b8e54094500
+# deploy:
+#   provider: pypi
+#   skip_cleanup: true
+#   user: "kris.kavalieri"
+#   password:
+#     secure: MpBunmXvn3KMl2daCuU1DBcMiiZNnj8WF3iyc+1A4borx4E0ibo0m/1HMVd5QSgdDy8BQpzwgsyAp2CWugxSmtuBurg7IDCFtCiKUJJSHcIZKANPLwKErOHTEBs2KPrylym9jaziph1xl3ahl2w0evCdABasMTws8ZtkHCbvZdVs7n+Cfu4ooJsC64JB5EGVdGg2PkmpsGH2uvelSYJDSdylUpN1v0lBhaInZr2xIS2KfKVHvDom219qGMuueRb+1A6ZImQDkX9jr1OQMo4yOkuFrnJPc1UziE8FSJhwfNeWdSB3CPHh3Qe0noNTKWZ3Y+fmAZdhluZ3JCR0/LAI40JiFdIoNxya0xFmB33w9PVea0J3exE3q6zIZgOP6oq7ZF2/JhjK8v6ngwBq+ec7qKbMNP6Cl3tjgyzfmtNzBvYmhBPmX0tZdAIrqMS3Slaev3JLyAkEUOqZxi+5dWA61wMOh5UxEL5OSlAyAXa4hODsa8RUHaDasSFRhvKw3PBM9cN6NgNt12HmSnaalWP5qc/X3YHORxab8EXB63aTpG3lQiXMNp3qTLW5cAc9DFFL42BLx1CI4MLEenDJRv51mfI2owacLJgMP4IfGKaINAfmnDpc/3PkoZ5+pmgblndE0v/2vA//cJnV+9YErf8aVIb9KXJe8dpjtwSmrMW/fuY=
