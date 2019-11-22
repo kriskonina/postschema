@@ -9,6 +9,8 @@ from typing import Callable, Optional, List
 
 import aiohttp
 import aiohttp_jinja2
+import aiopg
+import aioredis
 import jinja2
 import ujson
 from aiojobs.aiohttp import setup as aiojobs_setup
@@ -20,6 +22,14 @@ from .logging import setup_logging
 from .schema import PostSchema, _schemas as registered_schemas # noqa
 from .utils import generate_random_word
 
+REDIS_HOST = os.environ.get('REDIS_HOST')
+REDIS_PORT = os.environ.get('REDIS_PORT')
+REDIS_DB = int(os.environ.get('REDIS_DB', '3'))
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
+POSTGRES_DB = os.environ.get('POSTGRES_DB')
+POSTGRES_USER = os.environ.get('POSTGRES_USER')
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
+POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
 DEFAULT_SCOPES = {'*', 'Admin', 'Owner', 'Manager', 'Staff'}
 THIS_DIR = Path(__file__).parent
 AUTH_TEMPLATES_DIR = THIS_DIR / 'auth' / 'templates'
@@ -31,7 +41,21 @@ async def default_send_sms(*args):
 
 
 async def cleanup(app):
-    await app.cli_session.close()
+    app.redis_cli.close()
+    await app.redis_cli.wait_closed()
+    app.db_pool.terminate()
+
+
+async def init_resources(app):
+    dsn = f'dbname={POSTGRES_DB} user={POSTGRES_USER} password={POSTGRES_PASSWORD} host={POSTGRES_HOST} port={POSTGRES_PORT}' # noqa
+    pool = await aiopg.create_pool(dsn, echo=False, pool_recycle=3600)
+    app.db_pool = pool
+    redis_pool = await aioredis.create_pool(
+        f"redis://{REDIS_HOST}:{REDIS_PORT}",
+        db=REDIS_DB,
+        encoding="utf8")
+    app.redis_cli = aioredis.Redis(redis_pool)
+    app.info_logger.debug("Resources set up OK")
 
 
 async def startup(app):
@@ -148,14 +172,13 @@ def setup_postschema(app, appname: str, *,
         [AUTH_TEMPLATES_DIR, *template_dirs]
     ))
 
-    app.cli_session = aiohttp.ClientSession
     if 'redirect_reset_password_to' not in app_config:
         app_config['redirect_reset_password_to'] = redirect_reset_password_to = '/passform/{checkcode}/'
         app.add_routes(
             [aiohttp.web.get(redirect_reset_password_to, pass_reset_form)]
         )
 
-    app.on_startup.append(startup)
+    app.on_startup.extend([startup, init_resources])
     app.on_cleanup.append(cleanup)
 
     if alembic_dest is None:
