@@ -176,6 +176,10 @@ class AuthContext(AccessBase, StandaloneAuthedView):
             pipe.smembers(scopes_key)
             session_ctxt, workspaces, scopes = await pipe.execute()
 
+            if not session_ctxt:
+                # session cookie is valid, but not pointing to any active account
+                raise web.HTTPUnauthorized(reason='Unknown actor')
+
             if session_ctxt['workspace'] == '-1' and 'Admin' not in scopes:
                 self.error_logger.error('Request by unassigned actor', actor_id=actor_id)
                 raise web.HTTPUnauthorized(reason='Actor not assigned to any workspace')
