@@ -30,10 +30,10 @@ POSTGRES_DB = os.environ.get('POSTGRES_DB')
 POSTGRES_USER = os.environ.get('POSTGRES_USER')
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
-DEFAULT_SCOPES = {'*', 'Admin', 'Owner', 'Manager', 'Staff'}
+DEFAULT_ROLES = {'*', 'Admin', 'Owner', 'Manager', 'Staff'}
 THIS_DIR = Path(__file__).parent
 AUTH_TEMPLATES_DIR = THIS_DIR / 'auth' / 'templates'
-SCOPES = []
+ROLES = []
 
 
 async def default_send_sms(*args):
@@ -84,7 +84,7 @@ async def pass_reset_form(request):
 
 @dataclass
 class AppConfig:
-    scopes: List[str] = field(default_factory=list)
+    roles: List[str] = field(default_factory=list)
     session_key: str = 'postsession'
     session_ttl: int = 3600 * 24 * 30  # a month
     invitation_link_ttl: int = 3600 * 24 * 7  # a week
@@ -103,8 +103,8 @@ class AppConfig:
 class ImmutableConfig:
     account_details_key: str = 'postschema:account:{}'
     workspaces_key: str = 'postschema:workspaces:{}'
-    scopes_key: str = 'postschema:scopes:{}'
-    roles: dict = field(default_factory=dict)
+    roles_key: str = 'postschema:roles:{}'
+    scopes: dict = field(default_factory=dict)
 
 
 def exception_handler(logger):
@@ -140,9 +140,9 @@ def setup_postschema(app, appname: str, *,
                      default_logging_level: Optional[int] = None,
                      alembic_dest=None, extra_config={}, **app_config):
 
-    scopes = app_config.get('scopes', [])
-    SCOPES = frozenset(scope.title() for scope in DEFAULT_SCOPES | set(scopes))
-    os.environ['SCOPES'] = ujson.dumps(SCOPES)
+    roles = app_config.get('roles', [])
+    ROLES = frozenset(role.title() for role in DEFAULT_ROLES | set(roles))
+    os.environ['ROLES'] = ujson.dumps(ROLES)
 
     initial_logging_context['version'] = version
     initial_logging_context['app_mode'] = app_mode = os.environ.get('APP_MODE')
@@ -158,10 +158,10 @@ def setup_postschema(app, appname: str, *,
     from .actor import PrincipalActor
     from .core import Base
     from .provision_db import setup_db
-    from .role import RoleBase
+    from .scope import ScopeBase
     from .workspace import Workspace  # noqa
 
-    RoleBase._validate_scopes(SCOPES)
+    ScopeBase._validate_roles(ROLES)
 
     app.info_logger = info_logger.new(**initial_logging_context)
     app.error_logger = error_logger.new(**initial_logging_context)
@@ -194,13 +194,13 @@ def setup_postschema(app, appname: str, *,
     config = ConfigBearer(extra_config)
     app_config = AppConfig(**app_config)
     # extend with immutable config opts
-    app_config._update(ImmutableConfig(roles=RoleBase._roles))
+    app_config._update(ImmutableConfig(scopes=ScopeBase._scopes))
     config.update(app_config.__dict__)
     app.config = config
 
     app.principal_actor_schema = PrincipalActor
     app.schemas = registered_schemas
-    app.config.scopes = SCOPES
+    app.config.roles = ROLES
     app.send_sms = partial(send_sms or default_send_sms, app)
     build_app(app, registered_schemas)
 

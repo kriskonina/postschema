@@ -335,12 +335,12 @@ def build_app(app, registered_schemas):
     app.info_logger.debug("* Building views...")
     router = app.router
 
-    @auth(scopes=['Admin'])
+    @auth(roles=['Admin'])
     @aiohttp_jinja2.template('redoc.html')
     async def apidoc(request):
         return {'appname': request.app.app_name}
 
-    @auth(scopes=['Admin'])
+    @auth(roles=['Admin'])
     async def apispec_context(request):
         return json_response(request.app.openapi_spec)
 
@@ -358,8 +358,8 @@ def build_app(app, registered_schemas):
             schema_cls._model = create_model(schema_cls, app.info_logger)
             created['Models'] += 1
 
-    perm_builder = TopSchemaPermFactory(registered_schemas, app.config.scopes)
-    aux_perm_builder = AuxSchemaPermFactory(registered_schemas, app.config.scopes)
+    perm_builder = TopSchemaPermFactory(registered_schemas, app.config.roles)
+    aux_perm_builder = AuxSchemaPermFactory(registered_schemas, app.config.roles)
 
     spec_builder = APISpecBuilder(app, router)
 

@@ -10,7 +10,7 @@ from apispec.ext.marshmallow.openapi import OpenAPIConverter
 from marshmallow import Schema
 
 from .auth.perms import ALL_BASIC_OPERATIONS
-from .role import ROLES
+from .scope import SCOPES
 
 ALL_OPS = ALL_BASIC_OPERATIONS[:]
 ALL_OPS.append("update")
@@ -55,12 +55,12 @@ class AuxSpecBuilder:
         if permissions:
             perm_ops = getattr(permissions, method)
             try:
-                scopes = list(perm_ops.keys())[0]
+                roles = list(perm_ops.keys())[0]
             except AttributeError:
-                scopes = perm_ops
-            if isinstance(scopes, str):
-                scopes = [scopes]
-            extras['security'] = [{'authed': scopes}]
+                roles = perm_ops
+            if isinstance(roles, str):
+                roles = [roles]
+            extras['security'] = [{'authed': roles}]
 
         op_doc = getattr(self._auxview, method).__doc__
         if op_doc:
@@ -237,17 +237,17 @@ class APISpecBuilder(AuxSpecBuilder):
             self._build_schema_spec(schema_cls, *args)
 
     def build_spec(self):
-        roles = []
-        for rolename, role_inst in ROLES.items():
-            role = f'{rolename}Role'
-            roles.append(role)
-            self.spec.components.schema(role, schema=role_inst)
+        scopes = []
+        for scopename, scope_inst in SCOPES.items():
+            scope = f'{scopename}Scope'
+            scopes.append(scope)
+            self.spec.components.schema(scope, schema=scope_inst)
 
         raw_spec = dict(self.spec.to_dict())
-        raw_spec['components']['schemas']['ActorPost']['discriminator'] = {'propertyName': 'role'}
+        raw_spec['components']['schemas']['ActorPost']['discriminator'] = {'propertyName': 'scope'}
         raw_spec['components']['schemas']['ActorPost']['properties']['details'] = {
             'oneOf': [
-                {'$ref': f'#/components/schemas/{role}'} for role in roles
+                {'$ref': f'#/components/schemas/{scope}'} for scope in scopes
             ]
         }
         raw_spec['info']['description'] = self.desc
@@ -296,12 +296,12 @@ class APISpecBuilder(AuxSpecBuilder):
         if authed:
             perm_ops = getattr(perm_cls.permissions, op)
             try:
-                scopes = list(perm_ops.keys())[0]
+                roles = list(perm_ops.keys())[0]
             except AttributeError:
-                scopes = perm_ops
-            if isinstance(scopes, str):
-                scopes = [scopes]
-            extras['security'] = [{'authed': scopes}]
+                roles = perm_ops
+            if isinstance(roles, str):
+                roles = [roles]
+            extras['security'] = [{'authed': roles}]
 
         self.spec.components.schema(schema_name, schema=schema)
 

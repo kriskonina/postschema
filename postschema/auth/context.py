@@ -4,7 +4,7 @@ from aiohttp import web
 from cryptography.fernet import InvalidToken
 
 
-ILLEGAL_XSCOPE = 'Illegal cross-scope request'
+ILLEGAL_XROLE = 'Illegal cross-role request'
 
 
 class AccessBase:
@@ -38,9 +38,9 @@ class BracketedFrozenset(frozenset):
 
 
 class StandaloneAuthedView:
-    def authorize_standalone(self, scopes, phone_verified=False, email_verified=False):
-        if not set(scopes) & self.session_ctxt['scopes']:
-            raise web.HTTPForbidden(reason='Actor is short of required scopes')
+    def authorize_standalone(self, roles, phone_verified=False, email_verified=False):
+        if not set(roles) & self.session_ctxt['roles']:
+            raise web.HTTPForbidden(reason='Actor is short of required roles')
             if phone_verified:
                 self.verified_email = [self.operation]
             if email_verified:
@@ -73,29 +73,29 @@ class AuthContext(AccessBase, StandaloneAuthedView):
         return bool(self._session_ctxt)
 
     def _authorize_private(self):
-        held_scopes = self.session_ctxt['scopes']
-        selected_scope = None
+        held_roles = self.session_ctxt['roles']
+        selected_role = None
 
         if '*' in self.level_permissions:
-            selected_scope = '*'
+            selected_role = '*'
         else:
-            for allowed_scope, scope_details in self.level_permissions.items():
-                scope_type = scope_details['type']
-                if scope_type == tuple:
-                    for ascope in allowed_scope:
-                        if ascope in held_scopes:
-                            selected_scope = allowed_scope
+            for allowed_role, role_details in self.level_permissions.items():
+                role_type = role_details['type']
+                if role_type == tuple:
+                    for arole in allowed_role:
+                        if arole in held_roles:
+                            selected_role = allowed_role
                             break
                 else:
-                    if allowed_scope in held_scopes:
-                        selected_scope = allowed_scope
+                    if allowed_role in held_roles:
+                        selected_role = allowed_role
                         break
 
-        if selected_scope is None:
-            self.error_logger.error('Illegal cross scope request attempted')
-            raise web.HTTPForbidden(reason=ILLEGAL_XSCOPE)
+        if selected_role is None:
+            self.error_logger.error('Illegal cross role request attempted')
+            raise web.HTTPForbidden(reason=ILLEGAL_XROLE)
 
-        auth_condition = self.level_permissions[selected_scope].copy()
+        auth_condition = self.level_permissions[selected_role].copy()
         auth_condition['stmt'] = auth_condition['stmt'].format(session=self)
 
         return auth_condition
@@ -104,17 +104,17 @@ class AuthContext(AccessBase, StandaloneAuthedView):
         if not self.needs_session:
             return {}
 
-        if 'Admin' in self.session_ctxt['scopes']:
+        if 'Admin' in self.session_ctxt['roles']:
             return {}
 
         try:
-            if not self.level_permissions & self.session_ctxt['scopes']:
+            if not self.level_permissions & self.session_ctxt['roles']:
                 # already certain it's an Authed type request
                 self.check_verification_status()
                 if '*' in self.level_permissions:
                     return {}
-                self.error_logger.error('Illegal cross scope request attempted')
-                raise web.HTTPForbidden(reason=ILLEGAL_XSCOPE)
+                self.error_logger.error('Illegal cross role request attempted')
+                raise web.HTTPForbidden(reason=ILLEGAL_XROLE)
         except (KeyError, TypeError):
             # private request_type
             self.check_verification_status()
@@ -161,11 +161,11 @@ class AuthContext(AccessBase, StandaloneAuthedView):
             self.is_authed = True
             account_details_key = self.request.app.config.account_details_key.format(actor_id)
             workspaces_key = self.request.app.config.workspaces_key.format(actor_id)
-            scopes_key = self.request.app.config.scopes_key.format(actor_id)
+            roles_key = self.request.app.config.roles_key.format(actor_id)
 
             if not self.needs_session and self.forced_logout:
                 # erase the session aka forced logout if this is an authed request
-                await self.request.app.redis_cli.delete(account_details_key, scopes_key)
+                await self.request.app.redis_cli.delete(account_details_key, roles_key)
                 self.session_ctxt = MappingProxyType({})
                 self.delete_session_cookie = True
                 return
@@ -173,14 +173,14 @@ class AuthContext(AccessBase, StandaloneAuthedView):
             pipe = self.request.app.redis_cli.pipeline()
             pipe.hgetall(account_details_key)
             pipe.smembers(workspaces_key)
-            pipe.smembers(scopes_key)
-            session_ctxt, workspaces, scopes = await pipe.execute()
+            pipe.smembers(roles_key)
+            session_ctxt, workspaces, roles = await pipe.execute()
 
             if not session_ctxt:
                 # session cookie is valid, but not pointing to any active account
                 raise web.HTTPUnauthorized(reason='Unknown actor')
 
-            if session_ctxt['workspace'] == '-1' and 'Admin' not in scopes:
+            if session_ctxt['workspace'] == '-1' and 'Admin' not in roles:
                 self.error_logger.error('Request by unassigned actor', actor_id=actor_id)
                 raise web.HTTPUnauthorized(reason='Actor not assigned to any workspace')
 
@@ -192,7 +192,7 @@ class AuthContext(AccessBase, StandaloneAuthedView):
             session_ctxt['phone_confirmed'] = int(session_ctxt['phone_confirmed'])
             session_ctxt['email_confirmed'] = int(session_ctxt['email_confirmed'])
             session_ctxt['workspaces'] = BracketedFrozenset(workspaces)
-            session_ctxt['scopes'] = BracketedFrozenset(scopes)
+            session_ctxt['roles'] = BracketedFrozenset(roles)
 
         else:
             session_ctxt = {}

@@ -48,12 +48,12 @@ def make_alembic_dir():
 
 
 def create_admin_actor(conn):
-    # create one Admin-scoped account
+    # create one Admin-role bearing account
     salt = bcrypt.gensalt()
     passwd = os.environ.get('ADMIN_PASSWORD') or '123456'
     hashed_passwd = bcrypt.hashpw(passwd.encode(), salt).decode()
     query = (
-        'INSERT INTO actor (id,status,email,password,role,scopes,details) '
+        'INSERT INTO actor (id,status,email,password,scope,roles,details) '
         f"""VALUES (NEXTVAL('actor_id_seq'),1,'admin@example.com','{hashed_passwd}','Generic','["Admin"]'::jsonb,'{{}}'::jsonb) """
         'ON CONFLICT (email) DO UPDATE SET status=1'
     )

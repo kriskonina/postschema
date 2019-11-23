@@ -26,7 +26,7 @@ async def auth_middleware(request, handler):
         # .e.g 404
         return await handler(request)
     except TypeError:
-        if 'scopes' in handler._perm_options:
+        if 'roles' in handler._perm_options:
             auth_ctxt = AuthContext(request)
             auth_ctxt.request_type = 'authed'
             await auth_ctxt.set_session_context()

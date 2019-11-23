@@ -10,14 +10,14 @@ THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR.parent
 POSTSCHEMA_PORT = os.environ.get('POSTSCHEMA_PORT')
 
-scopes = ['patient', 'doctor', 'operator']
+roles = ['patient', 'doctor', 'operator']
 
 
 def create_app():
     from postschema.middlewares import auth_middleware
     app = web.Application(middlewares=[auth_middleware])
     config = {
-        'scopes': scopes
+        'roles': roles
     }
     setup_postschema(app, 'test_app', version='0.5.0', description='My New API Server', **config)
     return app

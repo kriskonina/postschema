@@ -29,15 +29,15 @@ from .utils import (
     json_response,
     parse_postgres_err
 )
-from .role import RoleBase
+from .scope import ScopeBase
 from .view import AuxView
 
 APP_MODE = os.environ.get('APP_MODE', 'dev')
-INALIENABLE_SCOPES = ['*', 'Admin', 'Owner']
-# we don't allow any actor to have a wildcard and Admin scope
-SCOPES = sorted(
-    scope for scope in ujson.loads(os.environ.get('SCOPES', '[]'))
-    if scope not in INALIENABLE_SCOPES)
+INALIENABLE_ROLES = ['*', 'Admin', 'Owner']
+# we don't allow any actor to have a wildcard and Admin role
+ROLES = sorted(
+    role for role in ujson.loads(os.environ.get('ROLES', '[]'))
+    if role not in INALIENABLE_ROLES)
 
 
 async def send_email_user_invitation(request, by, link, to):
@@ -95,7 +95,7 @@ async def send_email_activation_link(request, data, link_path_basis=None):
     data['status'] = 0
     data['email_confirmed'] = 0
     data['phone_confirmed'] = 0
-    data['scopes'] = ','.join(data['scopes'])
+    data['roles'] = ','.join(data['roles'])
     data['workspaces'] = data.get('workspaces', '') or ''
 
     expire = 3600 * 6  # 6 hours
@@ -188,7 +188,7 @@ class InvitedUserActivationView(AuxView):
         workspaces = account_data.pop('workspaces', '')
         account_data['email_confirmed'] = True
         account_data['status'] = 1
-        account_data['scopes'] = Json(account_data['scopes'].split(','))
+        account_data['roles'] = Json(account_data['roles'].split(','))
         account_data['details'] = Json(ujson.loads(account_data['details']))
         account_data.pop('workspace', None)
 
@@ -246,7 +246,7 @@ class CreatedUserActivationView(AuxView):
 
         account_data['email_confirmed'] = True
         account_data['status'] = 1
-        account_data['scopes'] = Json(account_data['scopes'].split(','))
+        account_data['roles'] = Json(account_data['roles'].split(','))
         # account_data['workspaces'] = Json(account_data['workspaces'].split(','))
         account_data['details'] = Json(ujson.loads(account_data['details']))
         account_data.pop('workspaces', None)
@@ -372,8 +372,8 @@ class LoginView(AuxView):
             "'email',email,"
             "'email_confirmed',COALESCE(email_confirmed, False)::int,"
             "'phone_confirmed',COALESCE(phone_confirmed, False)::int,"
-            "'role',role,"
-            "'scopes',scopes,"
+            "'scope',scope,"
+            "'roles',roles,"
             "'status',status,"
             "'password',password,"
             "'workspaces', COALESCE(jsonb_agg(workspace.id) FILTER (WHERE workspace.id IS NOT NULL),'[]'::jsonb)) "
@@ -407,7 +407,7 @@ class LoginView(AuxView):
 
         # put selected workspace on future session context
         data['workspace'] = workspace or -1
-        data['role'] = data['role'] or 'Generic'
+        data['scope'] = data['scope'] or 'Generic'
 
         try:
             if not bcrypt.checkpw(payload['password'].encode(), data['password'].encode()):
@@ -419,16 +419,16 @@ class LoginView(AuxView):
         payload.pop('password')
         actor_id = data.get('actor_id')
         account_key = self.request.app.config.account_details_key.format(actor_id)
-        scopes_key = self.request.app.config.scopes_key.format(actor_id)
+        roles_key = self.request.app.config.roles_key.format(actor_id)
         workspaces_key = self.request.app.config.workspaces_key.format(actor_id)
-        scopes = data.pop('scopes', [])
+        roles = data.pop('roles', [])
 
         # cache actor details
         workspaces = data.pop('workspaces')
         pipe = self.request.app.redis_cli.pipeline()
         pipe.hmset_dict(account_key, data)
-        if scopes:
-            pipe.sadd(scopes_key, *scopes)
+        if roles:
+            pipe.sadd(roles_key, *roles)
         if workspaces:
             pipe.sadd(workspaces_key, *workspaces)
         await pipe.execute()
@@ -459,8 +459,8 @@ class LogoutView(AuxView):
         # Also get rid off session context
         actor_id = self.request.session['actor_id']
         account_key = self.request.app.config.account_details_key.format(actor_id)
-        scopes_key = self.request.app.config.scopes_key.format(actor_id)
-        await self.request.app.redis_cli.delete(account_key, scopes_key)
+        roles_key = self.request.app.config.roles_key.format(actor_id)
+        await self.request.app.redis_cli.delete(account_key, roles_key)
         response = web.HTTPOk()
         response.del_cookie('postsession')
         self.request.app.info_logger.info("User logged out")#, actor_id=actor_id)
@@ -553,9 +553,9 @@ class ResetPassword(AuxView):
 
 class InviteUser(AuxView):
     email = fields.Email(required=True, location='body')
-    role = fields.String(sqlfield=sql.String(60),
-                         validate=[validate.OneOf(RoleBase._roles)],
-                         location='body', required=True)
+    scope = fields.String(sqlfield=sql.String(60),
+                          validate=[validate.OneOf(ScopeBase._scopes)],
+                          location='body', required=True)
     workspaces = fields.List(
         fields.String(),
         location='body',
@@ -595,12 +595,12 @@ class InviteUser(AuxView):
             # add owner's workspace as a default
             workspaces = [self.request.session.workspace]
 
-        role = payload['role'].title()
-        scopes = self.request.app.config.roles[role].Meta.scopes
+        scope = payload['scope'].title()
+        roles = self.request.app.config.scopes[scope].Meta.roles
 
         workspace = self.request.session.workspace
 
-        payload = f"{','.join(scopes)}:{','.join(workspaces)}:{role}:{email}:{workspace}"
+        payload = f"{','.join(roles)}:{','.join(workspaces)}:{scope}:{email}:{workspace}"
         encrypted_payload = self.request.app.commons.encrypt(payload)
         escaped_payload = urllib.parse.quote(encrypted_payload)
         path = f'actor/?inv={escaped_payload}'
@@ -619,11 +619,11 @@ class InviteUser(AuxView):
             post = ['Owner']
 
 
-class GrantScope(AuxView):
+class GrantRole(AuxView):
     actor_id = fields.Int(location='path')  # grantee
-    scopes = postschema_field.Set(
+    roles = postschema_field.Set(
         fields.String(
-            validate=[validate.OneOf(SCOPES)]
+            validate=[validate.OneOf(ROLES)]
         ),
         location='body',
         validate=[validators.must_not_be_empty],
@@ -631,20 +631,20 @@ class GrantScope(AuxView):
         required=True
     )
 
-    @summary('Update user\'s scopes')
+    @summary('Update user\'s roles')
     async def patch(self):
         actor_id = self.path_payload['actor_id']
         payload = await self.validate_payload()
-        scopes = payload['scopes']
+        roles = payload['roles']
 
-        query = ('UPDATE actor set scopes=('
+        query = ('UPDATE actor set roles=('
                  'SELECT json_agg(DISTINCT t.jsonb_array_elements) '
-                 '''FROM (SELECT jsonb_array_elements(scopes || %s)) t '''
-                 ') WHERE id=%s RETURNING scopes')
+                 '''FROM (SELECT jsonb_array_elements(roles || %s)) t '''
+                 ') WHERE id=%s RETURNING roles')
 
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(query, [Json(scopes), actor_id])
+                await cur.execute(query, [Json(roles), actor_id])
                 ret = await cur.fetchone()
                 if not ret:
                     raise post_exceptions.ValidationError({
@@ -652,26 +652,26 @@ class GrantScope(AuxView):
                             'actor_id': ['Actor ID doesn\'t not exist']
                         }
                     })
-                new_scopes = ret[0]
+                new_roles = ret[0]
 
-        scopes_key = self.request.app.config.scopes_key.format(actor_id)
-        self.request.session._session_ctxt['scopes'] = set(new_scopes)
-        if await self.request.app.redis_cli.exists(scopes_key):
-            await self.request.app.redis_cli.delete(scopes_key)
-            await self.request.app.redis_cli.sadd(scopes_key, *new_scopes)
+        roles_key = self.request.app.config.roles_key.format(actor_id)
+        self.request.session._session_ctxt['roles'] = set(new_roles)
+        if await self.request.app.redis_cli.exists(roles_key):
+            await self.request.app.redis_cli.delete(roles_key)
+            await self.request.app.redis_cli.sadd(roles_key, *new_roles)
 
         return web.HTTPOk()
 
-    @summary('Grant scopes on a user')
+    @summary('Grant roles on a user')
     async def post(self):
         actor_id = self.path_payload['actor_id']
         payload = await self.validate_payload()
-        scopes = payload['scopes']
+        roles = payload['roles']
 
-        query = 'UPDATE actor SET scopes=%s WHERE id=%s RETURNING scopes'
+        query = 'UPDATE actor SET roles=%s WHERE id=%s RETURNING roles'
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(query, [Json(scopes), actor_id])
+                await cur.execute(query, [Json(roles), actor_id])
                 ret = await cur.fetchone()
                 if not ret:
                     raise post_exceptions.ValidationError({
@@ -679,25 +679,25 @@ class GrantScope(AuxView):
                             'actor_id': ['Actor ID doesn\'t not exist']
                         }
                     })
-                new_scopes = ret[0]
+                new_roles = ret[0]
 
-        scopes_key = self.request.app.config.scopes_key.format(actor_id)
-        self.request.session._session_ctxt['scopes'] = set(new_scopes)
-        if await self.request.app.redis_cli.exists(scopes_key):
-            await self.request.app.redis_cli.delete(scopes_key)
-            await self.request.app.redis_cli.sadd(scopes_key, *new_scopes)
+        roles_key = self.request.app.config.roles_key.format(actor_id)
+        self.request.session._session_ctxt['roles'] = set(new_roles)
+        if await self.request.app.redis_cli.exists(roles_key):
+            await self.request.app.redis_cli.delete(roles_key)
+            await self.request.app.redis_cli.sadd(roles_key, *new_roles)
 
         return web.HTTPOk()
 
-    @summary('Revoke user\'s scopes')
+    @summary('Revoke user\'s roles')
     async def delete(self):
         actor_id = self.path_payload['actor_id']
         payload = await self.validate_payload()
-        scopes = payload['scopes']
+        roles = payload['roles']
 
-        scopes_joined = '-'.join(f"'{i}'" for i in scopes)
+        roles_joined = '-'.join(f"'{i}'" for i in roles)
 
-        query = f'UPDATE actor SET scopes = scopes-{scopes_joined} WHERE id=%s RETURNING scopes'
+        query = f'UPDATE actor SET roles = roles-{roles_joined} WHERE id=%s RETURNING roles'
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, [actor_id])
@@ -708,13 +708,13 @@ class GrantScope(AuxView):
                             'actor_id': ['Actor ID doesn\'t not exist']
                         }
                     })
-                new_scopes = ret[0]
+                new_roles = ret[0]
 
-        scopes_key = self.request.app.config.scopes_key.format(actor_id)
-        self.request.session._session_ctxt['scopes'] = set(new_scopes)
-        if await self.request.app.redis_cli.exists(scopes_key):
-            await self.request.app.redis_cli.delete(scopes_key)
-            await self.request.app.redis_cli.sadd(scopes_key, *new_scopes)
+        roles_key = self.request.app.config.roles_key.format(actor_id)
+        self.request.session._session_ctxt['roles'] = set(new_roles)
+        if await self.request.app.redis_cli.exists(roles_key):
+            await self.request.app.redis_cli.delete(roles_key)
+            await self.request.app.redis_cli.sadd(roles_key, *new_roles)
 
         return web.HTTPOk()
 
@@ -862,7 +862,7 @@ class PrincipalActorBase(RootSchema):
         '/pass/reset/': ResetPassword,
         '/pass/change/{checkcode}/': ChangePassword,
         '/invite/': InviteUser,
-        '/grant/{actor_id}/scopes/': GrantScope,
+        '/grant/{actor_id}/roles/': GrantRole,
         '/grant/{actor_id}/workspaces/': GrantWorkspace
     }
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('actor_id_seq'),
@@ -873,25 +873,23 @@ class PrincipalActorBase(RootSchema):
     email = fields.Email(sqlfield=sql.String(255), required=True, unique=True)
     email_confirmed = fields.Boolean(sqlfield=sql.Boolean, read_only=True)
     password = fields.String(sqlfield=sql.String(555), required=True, validate=validate.Length(min=6))
-    scopes = fields.List(
+    roles = fields.List(
         fields.String(
-            validate=[validate.OneOf(SCOPES)]
+            validate=[validate.OneOf(ROLES)]
         ),
         validate=[validators.must_not_be_empty],
         sqlfield=JSONB
     )
-    role = fields.String(sqlfield=sql.String(255))
+    scope = fields.String(sqlfield=sql.String(255))
     details = fields.Dict(sqlfield=JSONB)
 
     async def before_update(self, parent, request, payload):
-        # print(request.session.role)
         if 'details' in payload:
-            print(payload['details'])
-            role = request.session.role
-            role_inst = request.app.config.roles[role]
+            scope = request.session.scope
+            scope_inst = request.app.config.scopes[scope]
             details = await parent._validate_singular_payload(
                 payload['details'],
-                schema=role_inst(),
+                schema=scope_inst(),
                 envelope_key='details')
             payload['details'] = Json(details)
             return payload
@@ -954,7 +952,7 @@ class PrincipalActorBase(RootSchema):
         except InvalidToken:
             raise web.HTTPForbidden(reason='Invitation link is invalid or expired')
         try:
-            raw_scopes, raw_workspaces, role, email, workspace = decrypted_payload.split(":")
+            raw_roles, raw_workspaces, scope, email, workspace = decrypted_payload.split(":")
         except ValueError:
             raise post_exceptions.ValidationError({
                 'query': {
@@ -969,12 +967,12 @@ class PrincipalActorBase(RootSchema):
                 ]
             })
 
-        data['scopes'] = raw_scopes.split(',')
-        data['role'] = role
+        data['roles'] = raw_roles.split(',')
+        data['scope'] = scope
         data['workspace'] = workspace
         workspaces_invited_to = raw_workspaces.split(',')
 
-        role_inst = RoleBase._roles[role]
+        scope_inst = ScopeBase._scopes[scope]
 
         # If the invitee already exists in the actor table, return its workspaces
         query = (
@@ -992,10 +990,10 @@ class PrincipalActorBase(RootSchema):
                                               if w not in joined_workspaces)
                 else:
                     # if invitee doesn't exist yet, let's also validate the details key.
-                    # Its schema is represented by `role_inst`
+                    # Its schema is represented by `scope_inst`
                     details = data.get('details', {})
                     details_payload = await parent._validate_singular_payload(
-                        details, schema=role_inst(), envelope_key='details')
+                        details, schema=scope_inst(), envelope_key='details')
                     data['details'] = details_payload
 
         salt = bcrypt.gensalt()
@@ -1006,30 +1004,30 @@ class PrincipalActorBase(RootSchema):
 
     async def process_created_actor(self, data, request, parent):
         try:
-            data['scopes'] = data['scopes'].adapted
-            data['scopes'].append('Owner')
+            data['roles'] = data['roles'].adapted
+            data['roles'].append('Owner')
         except KeyError:
-            data['scopes'] = ['Owner']
-        data['scopes'] = set(data['scopes'])
+            data['roles'] = ['Owner']
+        data['roles'] = set(data['roles'])
         data['workspaces'] = []
 
-        role = data.get('role', 'Generic').title()
+        scope = data.get('scope', 'Generic').title()
 
-        if role != 'Generic':
-            if role not in RoleBase._roles:
+        if scope != 'Generic':
+            if scope not in ScopeBase._scopes:
                 raise post_exceptions.ValidationError({
-                    'role': ['Role doesn\'t exist']
+                    'scope': ['Scope doesn\'t exist']
                 })
 
-            # extend submitted scopes with the ones defined on the assigned role
-            role_scopes = request.app.config.roles[role].Meta.scopes
-            data['scopes'] |= set(role_scopes)
+            # extend submitted roles with the ones defined on the assigned scope
+            scope_roles = request.app.config.scopes[scope].Meta.roles
+            data['roles'] |= set(scope_roles)
 
-            # validate `details` key, using the schema instance described by `role` key
-            role_inst = RoleBase._roles[role]
+            # validate `details` key, using the schema instance described by `scope` key
+            scope_inst = ScopeBase._scopes[scope]
             details = data.get('details', {})
             details_payload = await parent._validate_singular_payload(
-                details, schema=role_inst(), envelope_key='details')
+                details, schema=scope_inst(), envelope_key='details')
             data['details'] = details_payload
 
         async with request.app.db_pool.acquire() as conn:
@@ -1069,7 +1067,7 @@ class PrincipalActorBase(RootSchema):
             post = {}
 
     class Private:
-        get_by = ['id', 'status', 'email', 'role', 'scopes', 'details']
+        get_by = ['id', 'status', 'email', 'scope', 'roles', 'details']
         list_by = ['email', 'id']
 
         class permissions:
@@ -1081,8 +1079,8 @@ class PrincipalActorBase(RootSchema):
             }
 
     class Meta:
-        exclude_from_updates = ['id', 'status', 'password', 'role',
-                                'scopes', 'email_confirmed', 'phone_confirmed']
+        exclude_from_updates = ['id', 'status', 'password', 'scope',
+                                'roles', 'email_confirmed', 'phone_confirmed']
         route_base = 'actor'
 
         def default_get_critera(request):

@@ -46,7 +46,7 @@ COMPOSITE_OPS = {
 @dataclass
 class SchemaFactoryBase:
     registered_schemas: list
-    scopes: frozenset
+    roles: frozenset
 
     def __call__(self, schema_cls):
         self.operation_constraints = {}
@@ -91,8 +91,8 @@ class SchemaFactoryBase:
                 raise TypeError(f"`{op_path}` should be of {all_annots[operation]} type")
             if perm_name == 'Private' and isinstance(details_struct, dict):
                 # when implemented on AuxSchemaPermFactory, the `Private.permissions` will be a list
-                for scope, statement in details_struct.items():
-                    yield op_path, operation, scope, statement
+                for role, statement in details_struct.items():
+                    yield op_path, operation, role, statement
             else:
                 yield op_path, operation, details_struct
 
@@ -108,26 +108,26 @@ class SchemaFactoryBase:
         authed_perms = getattr(perm_cls, 'permissions', object)
         if hasattr(authed_perms, 'allow_all') and authed_perms.allow_all:
             op_path = f"{self.schema_cls.__name__}.{perm_cls_name}.permissions.allow_all"
-            scopes = set(authed_perms.allow_all)
-            invalid_scopes = scopes - self.scopes
-            if invalid_scopes:
-                raise NameError(f'`{op_path}` contains invalid scope(s) ({invalid_scopes})')
-            return {}.fromkeys(ALL_BASIC_OPERATIONS, scopes)
+            roles = set(authed_perms.allow_all)
+            invalid_roles = roles - self.roles
+            if invalid_roles:
+                raise NameError(f'`{op_path}` contains invalid role(s) ({invalid_roles})')
+            return {}.fromkeys(ALL_BASIC_OPERATIONS, roles)
 
         perms = dd(dict)
         perm_template = PublicPrivatePerms if perm_cls_name == 'Private' else AuthedPermissions
 
-        for op_path, operation, scopes_list in self.compile_perm_type(perm_template, perm_cls_name):
+        for op_path, operation, roles_list in self.compile_perm_type(perm_template, perm_cls_name):
             operations = COMPOSITE_OPS.get(operation, [operation])
-            if not scopes_list:
+            if not roles_list:
                 raise ValueError(f"`{op_path}` can't be empty")
-            # ensure each scope exists
-            scopes = set(scopes_list)
-            invalid_scopes = scopes - self.scopes
-            if invalid_scopes:
-                raise NameError(f'`{op_path}` contains invalid scope(s) ({invalid_scopes})')
+            # ensure each role exists
+            roles = set(roles_list)
+            invalid_roles = roles - self.roles
+            if invalid_roles:
+                raise NameError(f'`{op_path}` contains invalid role(s) ({invalid_roles})')
             for oper in operations:
-                perms[oper] = scopes
+                perms[oper] = roles
         return perms
 
     def compile_public_perms(self):
@@ -161,15 +161,15 @@ class SchemaFactoryBase:
 class TopSchemaPermFactory(SchemaFactoryBase):
     def compile_private_perms(self):
         perms = dd(dict)
-        for op_path, operation, scope, statement in self.compile_perm_type(PublicPrivatePerms, 'Private'):
+        for op_path, operation, role, statement in self.compile_perm_type(PublicPrivatePerms, 'Private'):
             operations = COMPOSITE_OPS.get(operation, [operation])
-            op2_path = op_path + '.' + str(scope)
+            op2_path = op_path + '.' + str(role)
 
-            # scope can be an asterisk, a single scope name or a tuple of more. Validate first.
-            scopes = set(scope) if isinstance(scope, tuple) else set([scope])
-            invalid_scopes = scopes - self.scopes
-            if invalid_scopes:
-                raise NameError(f'`{op_path}` contains invalid scope(s) ({invalid_scopes})')
+            # role can be an asterisk, a single role name or a tuple of more. Validate first.
+            roles = set(role) if isinstance(role, tuple) else set([role])
+            invalid_roles = roles - self.roles
+            if invalid_roles:
+                raise NameError(f'`{op_path}` contains invalid role(s) ({invalid_roles})')
 
             initial_split = statement.split('=')
             if len(initial_split) != 2:
@@ -179,15 +179,15 @@ class TopSchemaPermFactory(SchemaFactoryBase):
                 operator = '->'
             else:
                 operator = '='
-            stmt = self.parse_perm_operation(op2_path, scope, initial_split, operator)
+            stmt = self.parse_perm_operation(op2_path, role, initial_split, operator)
             for oper in operations:
-                perms[oper][scope] = {
-                    'type': type(scope),
+                perms[oper][role] = {
+                    'type': type(role),
                     **stmt
                 }
         return perms
 
-    def parse_perm_operation(self, op_path, scope, initial_split, operator):  # noqa
+    def parse_perm_operation(self, op_path, role, initial_split, operator):  # noqa
         def _parse_side(side):
             idx, side = side
             side_name = ['left', 'right'][idx]

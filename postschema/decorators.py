@@ -1,7 +1,7 @@
 import os
 import ujson
 
-DEFINED_SCOPES_CACHE = []
+DEFINED_ROLES_CACHE = []
 
 
 def summary(msg):
@@ -11,23 +11,23 @@ def summary(msg):
     return wrapped
 
 
-def auth(scopes: list, phone_verified=False, email_verified=True):
+def auth(roles: list, phone_verified=False, email_verified=True):
     """Provide auth control to custom, standalone views.
     It's possible to require that email/phone is verified
     for the requesting actor, or/and that the requesting
-    actor is a holder of certain scopes.
+    actor is a holder of certain roles.
     """
-    global DEFINED_SCOPES_CACHE
-    DEFINED_SCOPES = DEFINED_SCOPES_CACHE or set(ujson.loads(os.environ.get('SCOPES')))
-    if not DEFINED_SCOPES_CACHE:
-        DEFINED_SCOPES_CACHE = DEFINED_SCOPES
+    global DEFINED_ROLES_CACHE
+    DEFINED_ROLES = DEFINED_ROLES_CACHE or set(ujson.loads(os.environ.get('ROLES')))
+    if not DEFINED_ROLES_CACHE:
+        DEFINED_ROLES_CACHE = DEFINED_ROLES
 
     def wrapped(fn):
-        diff = set(scopes) - DEFINED_SCOPES
+        diff = set(roles) - DEFINED_ROLES
         if diff:
-            raise ValueError(f'Invalid scopes ({diff}) defined for view coroutine `{fn}`')
+            raise ValueError(f'Invalid roles ({diff}) defined for view coroutine `{fn}`')
         perm_options = {
-            'scopes': scopes,
+            'roles': roles,
             'phone_verified': phone_verified,
             'email_verified': email_verified
         }

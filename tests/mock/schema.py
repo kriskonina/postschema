@@ -13,7 +13,7 @@ from postschema.fields import (
     AutoSessionForeignResource
 )
 from postschema.utils import json_response
-from postschema.role import RoleBase
+from postschema.scope import ScopeBase
 from postschema.schema import RootSchema
 from postschema.view import AuxView
 
@@ -179,13 +179,13 @@ class Staff(ActorRoot):
     __tablename__ = 'staff'
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('staff_id_seq'),
                         read_only=True, primary_key=True)
-    role = fields.String(sqlfield=sql.String(32), required=True)
+    scope = fields.String(sqlfield=sql.String(32), required=True)
 
     class Meta:
         excluded_ops = ['delete']
 
     class Public:
-        get_by = ['role', 'email']
+        get_by = ['scope', 'email']
 
         class permissions:
             allow_all = True
@@ -601,16 +601,16 @@ class VerifiedResource(PostSchema):
             post = '*'
 
 
-class Doctor(RoleBase):
+class Doctor(ScopeBase):
     spec = fields.String(sqlfield=sql.String(150), required=True)
     ward_id = fields.Int(sqlfield=sql.Integer)
 
     class Meta:
-        scopes = ['Doctor', 'Manager']
+        roles = ['Doctor', 'Manager']
 
 
-class Secretary(RoleBase):
+class Secretary(ScopeBase):
     employment = fields.String(sqlfield=sql.Text, required=True)
 
     class Meta:
-        scopes = ['Staff']
+        roles = ['Staff']

@@ -65,16 +65,16 @@ _class_ __Public__, _class_ __Authed__, _class_ __Private__
 
 A group of auth mini-framework classes, used to describe the allowed operation and the resources they return. 
 
-The three classes leverage the notion of a _scope_. 5 scopes are defined as default:
-- (All scopes)
+The three classes leverage the notion of a _role_. 5 roles are defined as default:
+- (All roles)
 - Admin
 - Owner
 - Manager
 - Staff
 
-In addition, custom scopes can be added by supplying an iterable to `setup_postchema`'s `scopes` keyword argument. 
+In addition, custom roles can be added by supplying an iterable to `setup_postchema`'s `roles` keyword argument. 
 
-Scopes live under `app.config.scopes`.
+roles live under `app.config.roles`.
 
 
 All three classes can describe the following attributes:
@@ -107,14 +107,14 @@ To control which operations are allowed for such resource, define a `permissions
 _class_ __Authed__
 
 Class describing access rules to resources with whom only the authenticated actors can interact. Similarly to `Public`, define `permissions` subclass to define the following allowed attributes:
-- `allow_all` A list of valid scopes to apply to all operations
-- `<operation_name>` A list or iterable containing valid scope names. Requesting actors with these scopes will be allowed to perform requested actions. Example:
+- `allow_all` A list of valid roles to apply to all operations
+- `<operation_name>` A list or iterable containing valid role names. Requesting actors with these roles will be allowed to perform requested actions. Example:
 
 ---
 _class_ __Private__
 
 Class describe private access rules to private resources, i.e. the ones with a clearly designated owner/administrator. Use a `permissions` subclass desired behaviour for each operation:
-- `<operation_name>` A dictionary mapping, rougly, scopes to private resource condition statement. The key can be of string type, its value found in the `app.config.scopes`, or a tuple of such. Example:
+- `<operation_name>` A dictionary mapping, rougly, roles to private resource condition statement. The key can be of string type, its value found in the `app.config.roles`, or a tuple of such. Example:
 
       class Private:
          ...
