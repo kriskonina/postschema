@@ -245,12 +245,11 @@ class APISpecBuilder(AuxSpecBuilder):
             self.spec.components.schema(scope, schema=scope_inst)
 
         raw_spec = dict(self.spec.to_dict())
-        raw_spec['components']['schemas']['ActorPost']['discriminator'] = {'propertyName': 'scope'}
-        raw_spec['components']['schemas']['ActorPost']['properties']['details'] = {
-            'oneOf': [
-                {'$ref': f'#/components/schemas/{scope}'} for scope in scopes
-            ]
-        }
+        details = {'oneOf': [{'$ref': f'#/components/schemas/{scope}'} for scope in scopes]}
+        raw_spec['components']['schemas']['ActorPost']['properties']['details'] = details
+        raw_spec['components']['schemas']['ActorGet']['properties']['details'] = details
+        raw_spec['components']['schemas']['ActorPut']['properties']['details'] = details
+        raw_spec['components']['schemas']['ActorPatch']['properties']['details'] = details
         raw_spec['info']['description'] = self.desc
         self.app.openapi_spec = raw_spec
 
@@ -259,6 +258,9 @@ class APISpecBuilder(AuxSpecBuilder):
             perms = perm_cls.permissions.__dict__
         except AttributeError:
             return
+
+        if hasattr(perm_cls.permissions, 'allow_all'):
+            perms = ['get', 'list', 'put', 'patch', 'delete', 'post']
 
         listed_ops = [op for op in ALL_OPS if op in perms and op not in excluded_ops]
 
