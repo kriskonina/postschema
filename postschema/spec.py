@@ -33,8 +33,8 @@ converter = OpenAPIConverter('3.0.2', schema_name_resolver, {})
 
 
 class AuxSpecBuilder:
-    
-    def _build_generic_op(self, method, summary_template, auxurl_root, permissions=None):
+
+    def _build_generic_op(self, method, summary_template, auxurl_root, permissions=None): # noqa
         name = self._auxview.__name__
         parent_tag = self._auxview.schema_cls.__name__
 
@@ -128,7 +128,8 @@ class AuxSpecBuilder:
 
         permissions = perms if authed else None
 
-        swagger_ops_raw = {op: getattr(self, f'_build_aux_{op}')(auxurl_root, permissions=permissions) for op in ops}
+        swagger_ops_raw = {op: getattr(self, f'_build_aux_{op}')(auxurl_root, permissions=permissions)
+                           for op in ops}
         swagger_ops = {k: v for k, v in swagger_ops_raw.items() if v is not None}
         self.spec.path(
             auxurl_root,
@@ -330,7 +331,7 @@ class APISpecBuilder(AuxSpecBuilder):
         except AttributeError:
             get_by = [self.pk_column_name]
         schema_name = f'{name}Get'
-        
+
         schema = type(schema_name, (Schema, ), {k: v for k, v in declared_fields.items() if k in get_by})
         return self.build_common_route(name, schema_name, schema, f'Return {name}', perm_cls, 'get', authed)
 

@@ -135,7 +135,7 @@ class AuthContext(AccessBase, StandaloneAuthedView):
         self.request_type = level
         self.level_permissions = level_perms
 
-    async def set_session_context(self):
+    async def set_session_context(self): # noqa
         session_token_name = self.request.app.config.session_key
         session_token = self.request.cookies.get(session_token_name, None)
         session_ttl = self.request.app.config.session_ttl
@@ -199,7 +199,7 @@ class AuthContext(AccessBase, StandaloneAuthedView):
 
         self._session_ctxt = session_ctxt
         self.session_ctxt = MappingProxyType(self._session_ctxt)
-    
+
     @property
     def needs_session(self):
         return self.request_type in ['private', 'authed']

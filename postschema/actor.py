@@ -51,7 +51,7 @@ async def send_email_user_invitation(request, by, link, to):
     message["From"] = os.environ.get('EMAIL_FROM')
     message["To"] = to
     message["Subject"] = "Create your new account"
-    status = await aiosmtplib.send(
+    await aiosmtplib.send(
         message,
         hostname=os.environ.get('EMAIL_HOSTNAME'),
         use_tls=True,
@@ -76,7 +76,7 @@ async def send_email_reset_link(request, checkcode, to):
     if APP_MODE == 'dev':
         return reset_link
 
-    status = await aiosmtplib.send(
+    await aiosmtplib.send(
         message,
         hostname=os.environ.get('EMAIL_HOSTNAME'),
         use_tls=True,
@@ -111,7 +111,7 @@ async def send_email_activation_link(request, data, link_path_basis=None):
     message["From"] = os.environ.get('EMAIL_FROM')
     message["To"] = data['email']
     message["Subject"] = "Activate your account"
-    status = await aiosmtplib.send(
+    await aiosmtplib.send(
         message,
         hostname=os.environ.get('EMAIL_HOSTNAME'),
         use_tls=True,
@@ -163,7 +163,8 @@ class PhoneActivationView(AuxView):
         account_key = self.request.app.config.account_details_key.format(actor_id)
         self.request.app.redis_cli.hset(account_key, 'phone_confirmed', 1)
         await self.request.session.set_session_context()
-        self.request.app.info_logger.info("Session context updated", actor_id=actor_id, changes={'phone_confirmed': 1})
+        self.request.app.info_logger.info("Session context updated",
+                                          actor_id=actor_id, changes={'phone_confirmed': 1})
         return resp
 
     class Public:
@@ -275,7 +276,7 @@ class CreatedUserActivationView(AuxView):
                             'Failed adding to workspace resource',
                             query=cur.query.decode())
                         raise
-   
+
                     workspace_id = (await cur.fetchone())[0]
 
         return json_response({
@@ -360,7 +361,7 @@ class LoginView(AuxView):
     password = fields.String(required=True, location='body')
     workspace = fields.Int(location='body')
 
-    @summary('Log in a user')
+    @summary('Log in a user') # noqa
     async def post(self):
         '''Create a session entry in Redis for the authenticated user,
         set a session cookie on the response object.
@@ -376,9 +377,9 @@ class LoginView(AuxView):
             "'roles',roles,"
             "'status',status,"
             "'password',password,"
-            "'workspaces', COALESCE(jsonb_agg(workspace.id) FILTER (WHERE workspace.id IS NOT NULL),'[]'::jsonb)) "
+            "'workspaces', COALESCE(jsonb_agg(workspace.id) FILTER (WHERE workspace.id IS NOT NULL),'[]'::jsonb)) " # noqa
         "FROM actor "
-        'LEFT JOIN workspace ON actor.id=workspace.owner OR format(\'"%%s"\', actor.id)::jsonb <@ workspace.members '
+        'LEFT JOIN workspace ON actor.id=workspace.owner OR format(\'"%%s"\', actor.id)::jsonb <@ workspace.members ' # noqa
         "WHERE status=1 AND email=%s "
         "GROUP BY actor.id"
         ) # noqa
@@ -440,7 +441,7 @@ class LoginView(AuxView):
                             session_token,
                             httponly=True,
                             max_age=self.request.app.config.session_ttl)
-        self.request.app.info_logger.info("User logged in")#, actor_id=actor_id)
+        self.request.app.info_logger.info("User logged in")
         return response
 
     class Public:
@@ -463,7 +464,7 @@ class LogoutView(AuxView):
         await self.request.app.redis_cli.delete(account_key, roles_key)
         response = web.HTTPOk()
         response.del_cookie('postsession')
-        self.request.app.info_logger.info("User logged out")#, actor_id=actor_id)
+        self.request.app.info_logger.info("User logged out")
         return response
 
     class Authed:
@@ -977,7 +978,7 @@ class PrincipalActorBase(RootSchema):
         # If the invitee already exists in the actor table, return its workspaces
         query = (
             "WITH user_cte AS (SELECT id FROM actor WHERE email=%s)\n"
-            "SELECT json_agg(DISTINCT workspace.id) FROM workspace, user_cte WHERE user_cte.id::text::jsonb <@ members"
+            "SELECT json_agg(DISTINCT workspace.id) FROM workspace, user_cte WHERE user_cte.id::text::jsonb <@ members" # noqa
         )
 
         async with request.app.db_pool.acquire() as conn:

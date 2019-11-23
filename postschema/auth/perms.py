@@ -154,7 +154,7 @@ class SchemaFactoryBase:
         if unrecognized_ops:
             uo = ', '.join(unrecognized_ops)
             raise ValueError(
-                f"{self.schema_cls.__name__}.{perm_cls.__name__}.{routinename} contains undefined operations: ({uo})")
+                f"{self.schema_cls.__name__}.{perm_cls.__name__}.{routinename} contains undefined operations: ({uo})") # noqa
         self.operation_constraints[routinename] = declared_ops
 
 
@@ -232,7 +232,8 @@ class TopSchemaPermFactory(SchemaFactoryBase):
 
         if operator == '->':
             if not issubclass(auth_field_type, Iterable):
-                raise TypeError(f'Auth field `{op_path}->{orig_tablename}.{authfield_name}` is not of iterable type')
+                raise TypeError(
+                    f'Auth field `{op_path}->{orig_tablename}.{authfield_name}` is not of iterable type')
             af = f'{{session.{authfield_name}}}'
             precursor = {
                 'stmt': f'''"{tablename}".{column}::text::jsonb <@ '{af}'::jsonb'''

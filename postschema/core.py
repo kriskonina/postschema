@@ -194,7 +194,8 @@ class ViewMaker:
                 if not routename.endswith('/'):
                     routename += '/'
                 if routename.endswith('/list/'):
-                    raise NameError(f'One of `{self.schema_cls}`\'s auxiliary routes contains illegal value (/list/)')
+                    raise NameError(
+                        f'One of `{self.schema_cls}`\'s auxiliary routes contains illegal value (/list/)')
                 url = self.base_resource_url + routename
                 view_methods = dict(proto_viewcls.__dict__)
 

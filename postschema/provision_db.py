@@ -27,7 +27,7 @@ info_logger, error_logger = setup_logging()
 
 
 def get_url():
-    return "postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}".format(**os.environ) 
+    return "postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}".format(**os.environ)
 
 
 def make_alembic_dir():
@@ -54,7 +54,7 @@ def create_admin_actor(conn):
     hashed_passwd = bcrypt.hashpw(passwd.encode(), salt).decode()
     query = (
         'INSERT INTO actor (id,status,email,password,scope,roles,details) '
-        f"""VALUES (NEXTVAL('actor_id_seq'),1,'admin@example.com','{hashed_passwd}','Generic','["Admin"]'::jsonb,'{{}}'::jsonb) """
+        f"""VALUES (NEXTVAL('actor_id_seq'),1,'admin@example.com','{hashed_passwd}','Generic','["Admin"]'::jsonb,'{{}}'::jsonb) """ # noqa
         'ON CONFLICT (email) DO UPDATE SET status=1'
     )
     conn.execute(query)
@@ -93,14 +93,6 @@ def setup_db(Base):
     engine = create_engine(uri, pool_recycle=3600)
     conn = engine.connect()
     conn.execute("COMMIT")
-
-    # info_logger.debug("Adding Postgres functions...")
-    # try:
-    #     for fn_sql in glob(str(FNS_PATTERN)):
-    #         print(f'\t  - adding `{os.path.split(fn_sql)[1]}`')
-    #         conn.execute(open(fn_sql).read(), [])
-    # finally:
-    #     conn.close()
 
     from sqlalchemy import event
     from sqlalchemy.schema import DDL

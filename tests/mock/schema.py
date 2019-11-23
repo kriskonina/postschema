@@ -62,7 +62,7 @@ class Product(PostSchema):
 
     class Public:
         get_by = ['id', 'name', 'descr', 'producer']
-        
+
         class permissions:
             allow_all = True
 
@@ -78,7 +78,7 @@ class Description(PostSchema):
 
     class Public:
         get_by = ['id', 'text']
-        
+
         class permissions:
             allow_all = True
 
@@ -92,7 +92,7 @@ class Store(PostSchema):
 
     class Public:
         get_by = ['id', 'name', 'distributors']
-        
+
         class permissions:
             allow_all = True
 
@@ -106,7 +106,7 @@ class Producer(PostSchema):
 
     class Public:
         get_by = ['name', 'id']
-        
+
         class permissions:
             allow_all = True
 
@@ -124,7 +124,7 @@ class Distributor(PostSchema):
     class Public:
         list_by = ['meta']
         delete_by = ['meta']
-        
+
         class permissions:
             allow_all = True
 
@@ -370,7 +370,7 @@ class Requirements(PostSchema):
 
     class Meta:
         route_base = 'req'
-        
+
     class Public:
         class permissions:
             allow_all = True

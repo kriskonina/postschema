@@ -188,11 +188,13 @@ def setup_postschema(app, appname: str, *,
         os.environ.setdefault('POSTCHEMA_INSTANCE_PATH', str(calling_module_path))
     else:
         alembic_destination = str(alembic_dest)
-        assert os.path.exists(alembic_destination), "`alembic_dest` argument doesn't point to an existing directory"
+        assert os.path.exists(alembic_destination),\
+            "`alembic_dest` argument doesn't point to an existing directory"
         os.environ.setdefault('POSTCHEMA_INSTANCE_PATH', alembic_destination)
 
     config = ConfigBearer(extra_config)
     app_config = AppConfig(**app_config)
+
     # extend with immutable config opts
     app_config._update(ImmutableConfig(scopes=ScopeBase._scopes))
     config.update(app_config.__dict__)

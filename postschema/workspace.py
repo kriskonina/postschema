@@ -45,4 +45,3 @@ class Workspace(PostSchema):
             update = {
                 'Owner': 'self.owner = session.actor_id'
             }
-

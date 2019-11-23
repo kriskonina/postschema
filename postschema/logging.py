@@ -79,7 +79,7 @@ def setup_logging(info_logger_processors: list = DEFAULT_INFO_LOGGER_PROCESSORS,
         context_class=dict,
         cache_logger_on_first_use=True
     )
-    
+
     infologger = LevelLogger('postschema.log', default_logging_level)
     errorlogger = LevelLogger('postschema.error', logging.ERROR)
 
@@ -93,7 +93,7 @@ def setup_logging(info_logger_processors: list = DEFAULT_INFO_LOGGER_PROCESSORS,
         processors=error_logger_processors,
         wrapper_class=error_logger_wrapper_class
     )
-    
+
     if not _cached_loggers:
         _cached_loggers.extend([info_logger, error_logger])
 
