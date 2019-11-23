@@ -868,6 +868,7 @@ class PrincipalActorBase(RootSchema):
     }
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('actor_id_seq'),
                         read_only=True, primary_key=True)
+    username = fields.String(sqlfield=sql.String(255))
     status = fields.Integer(sqlfield=sql.Integer, default='0', missing=0)
     phone = fields.String(sqlfield=sql.String(255))
     phone_confirmed = fields.Boolean(sqlfield=sql.Boolean, read_only=True)
