@@ -441,7 +441,7 @@ class LoginView(AuxView):
                             session_token,
                             httponly=True,
                             max_age=self.request.app.config.session_ttl)
-        self.request.app.info_logger.info("User logged in")
+        self.request.app.info_logger.info("User logged in", actor_id=actor_id)
         return response
 
     class Public:
@@ -464,7 +464,7 @@ class LogoutView(AuxView):
         await self.request.app.redis_cli.delete(account_key, roles_key)
         response = web.HTTPOk()
         response.del_cookie('postsession')
-        self.request.app.info_logger.info("User logged out")
+        self.request.app.info_logger.info("User logged out", actor_id=actor_id)
         return response
 
     class Authed:
@@ -1069,8 +1069,8 @@ class PrincipalActorBase(RootSchema):
             post = {}
 
     class Private:
-        get_by = ['id', 'status', 'email', 'scope', 'roles', 'details']
-        list_by = ['email', 'id']
+        get_by = ['id', 'username', 'status', 'email', 'scope', 'roles', 'details']
+        list_by = ['email', 'id', 'username']
 
         class permissions:
             get = {

@@ -53,8 +53,8 @@ def create_admin_actor(conn):
     passwd = os.environ.get('ADMIN_PASSWORD') or '123456'
     hashed_passwd = bcrypt.hashpw(passwd.encode(), salt).decode()
     query = (
-        'INSERT INTO actor (id,status,email,password,scope,roles,details) '
-        f"""VALUES (NEXTVAL('actor_id_seq'),1,'admin@example.com','{hashed_passwd}','Generic','["Admin"]'::jsonb,'{{}}'::jsonb) """ # noqa
+        'INSERT INTO actor (id,username,status,email,password,scope,roles,details,email_confirmed) '
+        f"""VALUES (NEXTVAL('actor_id_seq'),'admin',1,'admin@example.com','{hashed_passwd}','Generic','["Admin"]'::jsonb,'{{}}'::jsonb,true) """ # noqa
         'ON CONFLICT (email) DO UPDATE SET status=1'
     )
     conn.execute(query)
