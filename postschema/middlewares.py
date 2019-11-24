@@ -23,13 +23,18 @@ async def auth_middleware(request, handler):
     try:
         auth_ctxt = AuthContext(request, **handler._perm_options)
     except AttributeError:
-        # .e.g 404
+        # e.g 404
+        auth_ctxt = AuthContext(request)
+        auth_ctxt.request_type = 'public'
+        request.session = auth_ctxt
+        await auth_ctxt.set_session_context()
         return await handler(request)
     except TypeError:
         if 'roles' in handler._perm_options:
             auth_ctxt = AuthContext(request)
             auth_ctxt.request_type = 'authed'
             await auth_ctxt.set_session_context()
+            request.session = auth_ctxt
             set_logging_context(request.app,
                                 op=auth_ctxt.operation,
                                 actor_id=auth_ctxt['actor_id'],
