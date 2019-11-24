@@ -39,13 +39,11 @@ class BracketedFrozenset(frozenset):
 
 class StandaloneAuthedView:
     def authorize_standalone(self, roles, phone_verified=False, email_verified=False):
-        if not set(roles) & self.session_ctxt['roles']:
+        if '*' not in roles and not set(roles) & self.session_ctxt['roles']:
             raise web.HTTPForbidden(reason='Actor is short of required roles')
-            if phone_verified:
-                self.verified_email = [self.operation]
-            if email_verified:
-                self.verified_phone = [self.operation]
-            self.check_verification_status()
+        self.verified_email = email_verified and [self.operation] or []
+        self.verified_phone = phone_verified and [self.operation] or []
+        self.check_verification_status()
 
 
 class AuthContext(AccessBase, StandaloneAuthedView):
