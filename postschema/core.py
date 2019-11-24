@@ -3,7 +3,6 @@ import weakref
 from collections import defaultdict as dd
 from contextlib import suppress
 
-import aiohttp_jinja2
 import sqlalchemy as sql
 import ujson
 from aiohttp import web
@@ -26,10 +25,9 @@ from . import (
     validators as postschema_validators
 )
 from .auth.perms import TopSchemaPermFactory, AuxSchemaPermFactory
-from .decorators import auth
 from .schema import DefaultMetaBase
 from .spec import APISpecBuilder
-from .utils import retype_schema, json_response
+from .utils import retype_schema
 from .view import AuxViewBase, ViewsBase, ViewsTemplate
 
 Base = declarative_base()
@@ -336,15 +334,6 @@ def build_app(app, registered_schemas):
     app.info_logger.debug("* Building views...")
     router = app.router
 
-    @auth(roles=['Admin'])
-    @aiohttp_jinja2.template('redoc.html')
-    async def apidoc(request):
-        return {'appname': request.app.app_name}
-
-    @auth(roles=['Admin'])
-    async def apispec_context(request):
-        return json_response(request.app.openapi_spec)
-
     created = dd(int)
 
     for schema_name, schema_cls in registered_schemas:
@@ -384,9 +373,5 @@ def build_app(app, registered_schemas):
         created['Auxiliary views'] += len(aux_views)
         spec_builder.add_schema_spec(schema_cls, post_view, cls_view, aux_views)
 
-    spec_builder.build_spec()
-
-    router.add_get('/api/doc/', apidoc)
-    router.add_get('/api/doc/openapi.yaml', apispec_context)
-
     app.info_logger.info('System ready', created=dict(created))
+    return router, spec_builder.build_spec()

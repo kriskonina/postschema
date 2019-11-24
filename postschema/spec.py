@@ -133,8 +133,7 @@ class AuxSpecBuilder:
         swagger_ops = {k: v for k, v in swagger_ops_raw.items() if v is not None}
         self.spec.path(
             auxurl_root,
-            operations=swagger_ops,
-            description=(self.auxview.__doc__ or '').strip()
+            operations=swagger_ops
         )
 
     def _parse_authed_ops(self, public_perms, auxurl_root):
@@ -174,7 +173,6 @@ class AuxSpecBuilder:
 class APISpecBuilder(AuxSpecBuilder):
     def __init__(self, app, router):
         app.info_logger.debug("Building API specification")
-        self.app = app
         self.desc = app.app_description
         self.spec = APISpec(
             title=app.app_name,
@@ -251,7 +249,7 @@ class APISpecBuilder(AuxSpecBuilder):
         raw_spec['components']['schemas']['ActorPut']['properties']['details'] = details
         raw_spec['components']['schemas']['ActorPatch']['properties']['details'] = details
         raw_spec['info']['description'] = self.desc
-        self.app.openapi_spec = raw_spec
+        return raw_spec
 
     def build_route_spec(self, name, perm_cls, declared_fields, excluded_ops, authed=False):
         try:

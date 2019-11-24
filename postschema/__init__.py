@@ -2,8 +2,11 @@ import inspect
 import os
 import traceback
 
+from contextlib import suppress
+from copy import deepcopy
 from dataclasses import dataclass, field
-from functools import partial
+from functools import lru_cache, partial
+from hashlib import md5
 from pathlib import Path
 from typing import Callable, Optional, List
 
@@ -14,13 +17,15 @@ import aioredis
 import jinja2
 import ujson
 from aiojobs.aiohttp import setup as aiojobs_setup
+from aiohttp.web_urldispatcher import UrlDispatcher
 from cryptography.fernet import Fernet
 
 from .commons import Commons
 from .core import build_app
+from .decorators import auth
 from .logging import setup_logging
 from .schema import PostSchema, _schemas as registered_schemas # noqa
-from .utils import generate_random_word
+from .utils import generate_random_word, json_response
 
 REDIS_HOST = os.environ.get('REDIS_HOST')
 REDIS_PORT = os.environ.get('REDIS_PORT')
@@ -129,6 +134,62 @@ class ConfigBearer(dict):
         del self[key]
 
 
+@dataclass
+class PathsReturner:
+    json_spec: dict
+    router: UrlDispatcher
+    roles: tuple = ()
+
+    def __hash__(self):
+        return hash(tuple(self.roles))
+
+    @property
+    @lru_cache()
+    def paths_by_roles(self):
+        spec = deepcopy(self.json_spec)
+
+        for path, pathobj in self.json_spec['paths'].items():
+            for op, op_obj in pathobj.copy().items():
+                with suppress(KeyError, TypeError):
+                    authed = set(op_obj['security'][0]['authed'])
+                    if '*' in authed or 'Admin' in self.roles:
+                        continue
+                    if not authed & self.roles:
+                        del spec['paths'][path][op]
+
+        out = {}
+        for resource in self.router.resources():
+            info = resource.get_info()
+            try:
+                route = resource._routes[0]
+            except AttributeError:
+                # skip subapp
+                continue
+            method = route._method
+            if method in ['OPTIONS', 'HEAD', 'POST']:
+                continue
+            try:
+                url = info['path']
+            except KeyError:
+                url = info['formatter']
+
+            viewname = resource._routes[0].handler.__name__.replace('View', '')
+            viewname = viewname[0].lower() + viewname[1:]
+
+            with suppress(KeyError):
+                view_spec = spec['paths'][url]
+                for method, obj in view_spec.items():
+                    schema_key = obj['requestBody']['content']['application/json']['schema']['$ref'].rsplit('/', 1)[1]
+                    schema = spec['components']['schemas'][schema_key]
+
+                    out[f'{viewname}:{method}'] = {
+                        'url': url,
+                        'authed': 'security' in obj,
+                        'schema': schema
+                    }
+        return out
+
+
 def setup_postschema(app, appname: str, *,
                      version: str = 'unreleased',
                      template_dirs: list = [],
@@ -204,7 +265,38 @@ def setup_postschema(app, appname: str, *,
     app.schemas = registered_schemas
     app.config.roles = ROLES
     app.send_sms = partial(send_sms or default_send_sms, app)
-    build_app(app, registered_schemas)
+
+    # build the views
+    router, openapi_spec = build_app(app, registered_schemas)
+
+    # hash the spec
+    spec_hash = md5(ujson.dumps(openapi_spec).encode()).hexdigest()
+
+    paths_by_roles = PathsReturner(openapi_spec, router)
+
+    @auth(roles=['Admin'])
+    @aiohttp_jinja2.template('redoc.html')
+    async def apidoc(request):
+        return {'appname': request.app.app_name}
+
+    @auth(roles=['Admin'])
+    async def apispec_context(request):
+        return json_response(openapi_spec)
+
+    @auth(roles=['*'], email_verified=False)
+    async def actor_apispec(request):
+        '''OpenAPI JSON spec filtered to include only the public
+        and requester-specific routes.
+        '''
+        paths_by_roles.roles = set(request.session.roles)
+        return json_response(paths_by_roles.paths_by_roles)
+
+    async def apispec_metainfo(request):
+        '''Return current hashsum for the OpenAPI spec + authentication status'''
+        return json_response({
+            'spec_hashsum': spec_hash,
+            'authed': request.session.is_authed
+        })
 
     try:
         app.info_logger.debug("Provisioning DB...")
@@ -213,3 +305,8 @@ def setup_postschema(app, appname: str, *,
     except Exception:
         app.error_logger.exception("Provisioning failed", exc_info=True)
         raise
+
+    router.add_get('/api/doc/', apidoc)
+    router.add_get('/api/doc/openapi.yaml', apispec_context)
+    router.add_get('/api/doc/spec.json', actor_apispec)
+    router.add_get('/api/doc/meta/', apispec_metainfo)
