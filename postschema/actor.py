@@ -377,7 +377,7 @@ class LoginView(AuxView):
             "'roles',roles,"
             "'status',status,"
             "'password',password,"
-            "'workspaces', COALESCE(jsonb_agg(workspace.id) FILTER (WHERE workspace.id IS NOT NULL),'[]'::jsonb)) " # noqa
+            "'workspaces', COALESCE(jsonb_object_agg(workspace.id, workspace.name) FILTER (WHERE workspace.id IS NOT NULL),'{}'::jsonb)) " # noqa
         "FROM actor "
         'LEFT JOIN workspace ON actor.id=workspace.owner OR format(\'"%%s"\', actor.id)::jsonb <@ workspace.members ' # noqa
         "WHERE status=1 AND email=%s "
@@ -392,16 +392,21 @@ class LoginView(AuxView):
                 except TypeError:
                     raise web.HTTPForbidden(reason='Invalid login or password or account inactive')
 
+        workspace_ids = [int(key) for key in data['workspaces'].keys()]
+
         if data['workspaces'] and 'workspace' not in payload:
             # User logging in hasn't selected a workspace, and has only one, select it for him.
             if len(data['workspaces']) == 1:
-                payload['workspace'] = data['workspaces'][0]
+                payload['workspace'] = workspace_ids[0]
             else:
-                # User need to select explicitly which workspace to log in to
+                # User needs to select explicitly which workspace to log in to
                 raise web.HTTPConflict(
+                    content_type='application/json',
+                    body=ujson.dumps({'workspaces': data['workspaces']}),
                     reason='This account has more than one workspace. You need to select one.')
+
         workspace = payload.get('workspace')
-        if workspace and workspace not in data['workspaces']:
+        if workspace and workspace not in workspace_ids:
             raise post_exceptions.ValidationError({
                 'workspace': ['Workspace doesn\'t exist or doesn\'t belong to you']
             })
@@ -425,13 +430,13 @@ class LoginView(AuxView):
         roles = data.pop('roles', [])
 
         # cache actor details
-        workspaces = data.pop('workspaces')
+        data.pop('workspaces')
         pipe = self.request.app.redis_cli.pipeline()
         pipe.hmset_dict(account_key, data)
         if roles:
             pipe.sadd(roles_key, *roles)
-        if workspaces:
-            pipe.sadd(workspaces_key, *workspaces)
+        if workspace_ids:
+            pipe.sadd(workspaces_key, *workspace_ids)
         await pipe.execute()
 
         session_token = self.request.app.commons.encrypt(actor_id)
