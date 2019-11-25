@@ -20,7 +20,7 @@ def set_logging_context(app, **context):
 @web.middleware
 async def auth_middleware(request, handler):
     set_init_logging_context(request)
-    if request.path == '/actor/logout/':
+    if '/actor/logout/' in request.path:
         return await handler(request)
     try:
         auth_ctxt = AuthContext(request, **handler._perm_options)
