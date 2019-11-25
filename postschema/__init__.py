@@ -191,6 +191,7 @@ class PathsReturner:
 
 
 def setup_postschema(app, appname: str, *,
+                     url_prefix: str = '',
                      version: str = 'unreleased',
                      template_dirs: list = [],
                      description: str = '',
@@ -207,6 +208,11 @@ def setup_postschema(app, appname: str, *,
 
     initial_logging_context['version'] = version
     initial_logging_context['app_mode'] = app_mode = os.environ.get('APP_MODE')
+    if url_prefix and not url_prefix.startswith('/'):
+        url_prefix = '/' + url_prefix
+    if url_prefix.endswith('/'):
+        url_prefix = url_prefix[:-1]
+    app.url_prefix = url_prefix
     app.app_mode = app_mode
     app.app_name = appname
     app.app_description = description
@@ -306,7 +312,7 @@ def setup_postschema(app, appname: str, *,
         app.error_logger.exception("Provisioning failed", exc_info=True)
         raise
 
-    router.add_get('/api/doc/', apidoc)
-    router.add_get('/api/doc/openapi.yaml', apispec_context)
-    router.add_get('/api/doc/spec.json', actor_apispec)
-    router.add_get('/api/doc/meta/', apispec_metainfo)
+    router.add_get(f'{url_prefix}/doc/', apidoc)
+    router.add_get(f'{url_prefix}/doc/openapi.yaml', apispec_context)
+    router.add_get(f'{url_prefix}/doc/spec.json', actor_apispec)
+    router.add_get(f'{url_prefix}/doc/meta/', apispec_metainfo)

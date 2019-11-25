@@ -2,6 +2,7 @@
 import weakref
 from collections import defaultdict as dd
 from contextlib import suppress
+from functools import lru_cache
 
 import sqlalchemy as sql
 import ujson
@@ -109,7 +110,8 @@ def create_model(schema_cls, info_logger): # noqa
 
 
 class ViewMaker:
-    def __init__(self, schema_cls, router, registered_schemas):
+    def __init__(self, schema_cls, router, registered_schemas, url_prefix):
+        self.url_prefix = url_prefix
         self.schema_cls = schema_cls
         self.router = router
         self.registered_schemas = registered_schemas
@@ -120,6 +122,12 @@ class ViewMaker:
     @property
     def excluded_ops(self):
         return self.meta_cls.excluded_ops
+
+    @property
+    @lru_cache()
+    def base_resource_url(self):
+        route_base = self.meta_cls.route_base.replace('/', '').lower()
+        return f'{self.url_prefix}/{route_base}/'
 
     def create_views(self, joins):
         async def list_proxy(self):
@@ -153,8 +161,6 @@ class ViewMaker:
         cls_view.registered_schemas = weakref.proxy(self.registered_schemas)
         cls_view.post_init(joins)
 
-        route_base = self.meta_cls.route_base.replace('/', '').lower()
-        self.base_resource_url = f'/{route_base}/'
         self.router.add_route("*", self.base_resource_url, cls_view)
 
         # some questionable entities may scrape body payload from attempting GET requests
@@ -354,7 +360,7 @@ def build_app(app, registered_schemas):
     spec_builder = APISpecBuilder(app, router)
 
     for schema_name, schema_cls in registered_schemas:
-        post_view = ViewMaker(schema_cls, router, registered_schemas)
+        post_view = ViewMaker(schema_cls, router, registered_schemas, app.url_prefix)
         # invoke the relationship processing
         joins = post_view.process_relationships()
 
