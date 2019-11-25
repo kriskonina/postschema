@@ -234,7 +234,11 @@ class AuxViewBase(web.View, CommonViewMixin):
     def __init__(self, request):
         self._request = request
         self.path_payload = {}
-        self.request_type = request.session.request_type  # one of: public, authed, private
+        try:
+            self.request_type = request.session.request_type  # one of: public, authed, private
+        except AttributeError:
+            # logout case
+            self.request_type = 'public'
 
     async def _iter(self):
         if hasattr(self, 'path_schema'):
@@ -328,7 +332,11 @@ class ViewsClassBase(web.View):
         self._request = request
         self._orig_cleaned_payload = {}
         self._tables_to_join = None
-        self.request_type = request.session.request_type  # one of: public, authed, private
+        try:
+            self.request_type = request.session.request_type  # one of: public, authed, private
+        except AttributeError:
+            # logout case
+            self.request_type = 'public'
 
     @classmethod
     def relationize_schema(cls, joins):
