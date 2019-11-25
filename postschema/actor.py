@@ -365,12 +365,14 @@ class LoginView(AuxView):
     async def post(self):
         '''Create a session entry in Redis for the authenticated user,
         set a session cookie on the response object.
+        Return logged-in user details.
         '''
         payload = await self.validate_payload()
         get_actor_query = ('SELECT json_build_object('
             "'actor_id',actor.id,"
             "'phone',COALESCE(phone, ''),"
             "'email',email,"
+            "'username',COALESCE(username, split_part(email, '@', 1)),"
             "'email_confirmed',COALESCE(email_confirmed, False)::int,"
             "'phone_confirmed',COALESCE(phone_confirmed, False)::int,"
             "'scope',scope,"
@@ -392,7 +394,7 @@ class LoginView(AuxView):
                 except TypeError:
                     raise web.HTTPForbidden(reason='Invalid login or password or account inactive')
 
-        workspace_ids = [int(key) for key in data['workspaces'].keys()]
+        workspace_ids = [int(key) for key in data['workspaces']]
 
         if data['workspaces'] and 'workspace' not in payload:
             # User logging in hasn't selected a workspace, and has only one, select it for him.
@@ -430,7 +432,7 @@ class LoginView(AuxView):
         roles = data.pop('roles', [])
 
         # cache actor details
-        data.pop('workspaces')
+        workspaces = data.pop('workspaces')
         pipe = self.request.app.redis_cli.pipeline()
         pipe.hmset_dict(account_key, data)
         if roles:
@@ -440,7 +442,16 @@ class LoginView(AuxView):
         await pipe.execute()
 
         session_token = self.request.app.commons.encrypt(actor_id)
-        response = json_response({})
+        response = json_response({
+            'id': data['actor_id'],
+            'username': data['username'],
+            'email': data['email'],
+            'phone': data['phone'],
+            'roles': roles,
+            'scope': data['scope'],
+            'active_workspace': data['workspace'],
+            'workspaces': workspaces
+        })
         session_cookie = self.request.app.config.session_key
         response.set_cookie(session_cookie,
                             session_token,
