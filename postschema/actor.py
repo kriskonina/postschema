@@ -87,7 +87,7 @@ async def send_email_reset_link(request, checkcode, to):
 
 async def send_email_activation_link(request, data, link_path_basis=None):
     if link_path_basis is None:
-        link_path_basis = '/actor/created/activate/email/{reg_token}/'
+        link_path_basis = f'{request.app.url_prefix}/actor/created/activate/email/{{reg_token}}/'
     reg_token = generate_random_word(20)
     path = link_path_basis.format(reg_token=reg_token)
     activation_link = f'{request.scheme}://{request.host}{path}'
@@ -1007,7 +1007,7 @@ class PrincipalActorBase(RootSchema):
         data['workspaces'] = raw_workspaces
         data['password'] = bcrypt.hashpw(data['password'].encode(), salt).decode()
 
-        return '/actor/invitee/activate/email/{reg_token}/'
+        return f'{request.app.url_prefix}/actor/invitee/activate/email/{{reg_token}}/'
 
     async def process_created_actor(self, data, request, parent):
         try:
