@@ -177,6 +177,9 @@ class ViewMaker:
             class cls_view_list_copy(cls_view_get_copy):
                 pass
 
+            viewname = cls_view.__name__.replace('View', '')
+            cls_view_list_copy.viewname = viewname[0].lower() + viewname[1:]
+
             popattr(cls_view_list_copy, 'post')
             setattr(cls_view_list_copy, 'get', list_proxy)
             self.router.add_get(self.base_resource_url + 'list/', cls_view_list_copy)

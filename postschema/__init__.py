@@ -159,26 +159,31 @@ class PathsReturner:
 
         out = {}
         for resource in self.router.resources():
-            info = resource.get_info()
             try:
                 route = resource._routes[0]
             except AttributeError:
                 # skip subapp
                 continue
-            method = route._method
-            if method in ['OPTIONS', 'HEAD', 'POST']:
-                continue
-            try:
-                url = info['path']
-            except KeyError:
-                url = info['formatter']
 
-            viewname = resource._routes[0].handler.__name__.replace('View', '')
-            viewname = viewname[0].lower() + viewname[1:]
+            if route._method in ['OPTIONS', 'POST']:
+                continue
+
+            try:
+                url = resource._path
+            except AttributeError:
+                url = resource._formatter
+
+            if '/list/' in url:
+                viewname = resource._routes[0].handler.viewname
+            else:
+                viewname = resource._routes[0].handler.__name__.replace('View', '')
+                viewname = viewname[0].lower() + viewname[1:]
 
             with suppress(KeyError):
                 view_spec = spec['paths'][url]
                 for method, obj in view_spec.items():
+                    if url.endswith('/list/'):
+                        method = 'list'
                     schema_key = obj['requestBody']['content']['application/json']['schema']['$ref'].rsplit('/', 1)[1]
                     schema = spec['components']['schemas'][schema_key]
 
@@ -287,6 +292,8 @@ def setup_postschema(app, appname: str, *,
     app.spec_hash = md5(ujson.dumps(openapi_spec).encode()).hexdigest()
 
     paths_by_roles = PathsReturner(openapi_spec, router)
+
+    paths_by_roles.paths_by_roles
 
     @auth(roles=['Admin'])
     @aiohttp_jinja2.template('redoc.html')
