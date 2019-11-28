@@ -190,6 +190,14 @@ class PathsReturner:
         return out
 
 
+async def apispec_metainfo(request):
+    '''Return current hashsum for the OpenAPI spec + authentication status'''
+    return json_response({
+        'spec_hashsum': request.app.spec_hash,
+        'authed': request.session.is_authed
+    })
+
+
 def setup_postschema(app, appname: str, *,
                      url_prefix: str = '',
                      version: str = 'unreleased',
@@ -276,7 +284,7 @@ def setup_postschema(app, appname: str, *,
     router, openapi_spec = build_app(app, registered_schemas)
 
     # hash the spec
-    spec_hash = md5(ujson.dumps(openapi_spec).encode()).hexdigest()
+    app.spec_hash = md5(ujson.dumps(openapi_spec).encode()).hexdigest()
 
     paths_by_roles = PathsReturner(openapi_spec, router)
 
@@ -296,13 +304,6 @@ def setup_postschema(app, appname: str, *,
         '''
         paths_by_roles.roles = set(request.session.roles)
         return json_response(paths_by_roles.paths_by_roles)
-
-    async def apispec_metainfo(request):
-        '''Return current hashsum for the OpenAPI spec + authentication status'''
-        return json_response({
-            'spec_hashsum': spec_hash,
-            'authed': request.session.is_authed
-        })
 
     try:
         app.info_logger.debug("Provisioning DB...")

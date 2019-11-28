@@ -42,7 +42,9 @@ async def auth_middleware(request, handler):
                                 actor_id=auth_ctxt['actor_id'],
                                 workspace=auth_ctxt['workspace'])
             auth_ctxt.authorize_standalone(**handler._perm_options)
-            return await handler(request)
+            resp = await handler(request)
+            resp.headers['ETag'] = request.app.spec_hash
+            return resp
         raise
 
     auth_ctxt.set_level_permissions()
@@ -55,6 +57,7 @@ async def auth_middleware(request, handler):
     request.session = auth_ctxt
     request.auth_conditions = auth_ctxt.authorize()
     resp = await handler(request)
+    resp.headers['ETag'] = request.app.spec_hash
     if request.session.delete_session_cookie:
         request.app.info_logger.info('Deleting session cookie')
         resp.del_cookie('postsession')

@@ -736,7 +736,8 @@ class GrantRole(AuxView):
         self.request.session._session_ctxt['roles'] = set(new_roles)
         if await self.request.app.redis_cli.exists(roles_key):
             await self.request.app.redis_cli.delete(roles_key)
-            await self.request.app.redis_cli.sadd(roles_key, *new_roles)
+            if new_roles:
+                await self.request.app.redis_cli.sadd(roles_key, *new_roles)
 
         return web.HTTPOk()
 
