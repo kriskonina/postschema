@@ -52,7 +52,7 @@ class AuthContext(AccessBase, StandaloneAuthedView):
     def __init__(self, request, forced_logout=False,
                  perms={}, disallow_authed=[],
                  verified_email=[], verified_phone=[]):
-        request_method = request.method.lower()
+
         self.delete_session_cookie = False
         self.request = request
         self.error_logger = request.app.error_logger
@@ -61,11 +61,8 @@ class AuthContext(AccessBase, StandaloneAuthedView):
         self.disallow_authed = disallow_authed
         self.verified_email = verified_email
         self.verified_phone = verified_phone
-        self.operation = method = request_method.lower()
         self.is_authed = False
         self._session_ctxt = {}
-        if method == 'get' and request.path.endswith('/list/'):
-            self.operation = 'list'
 
     def __bool__(self):
         return bool(self._session_ctxt)
@@ -201,3 +198,7 @@ class AuthContext(AccessBase, StandaloneAuthedView):
     @property
     def needs_session(self):
         return self.request_type in ['private', 'authed']
+
+    @property
+    def operation(self):
+        return self.request.operation

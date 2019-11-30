@@ -130,14 +130,6 @@ class ViewMaker:
         return f'{self.url_prefix}/{route_base}/'
 
     def create_views(self, joins):
-        async def list_proxy(self):
-            self._method = 'list'
-            return await self.list()
-
-        async def get_proxy(self):
-            self._method = 'get'
-            return await self.get()
-
         # common definitions
         schema_name = self.schema_cls.__name__.title()
         view_methods = {}
@@ -163,33 +155,12 @@ class ViewMaker:
 
         self.router.add_route("*", self.base_resource_url, cls_view)
 
-        # some questionable entities may scrape body payload from attempting GET requests
-        class cls_view_get_copy(cls_view):
-            pass
-        for method in METH_ALL:
-            if method == 'get':
-                continue
-            popattr(cls_view_get_copy, method)
-        setattr(cls_view_get_copy, 'post', get_proxy)
-        self.router.add_post(self.base_resource_url + 'get/', cls_view_get_copy)
-
-        if 'list' not in self.excluded_ops:
-            class cls_view_list_copy(cls_view_get_copy):
-                pass
-
-            viewname = cls_view.__name__.replace('View', '')
-            cls_view_list_copy.viewname = viewname[0].lower() + viewname[1:]
-
-            popattr(cls_view_list_copy, 'post')
-            setattr(cls_view_list_copy, 'get', list_proxy)
-            self.router.add_get(self.base_resource_url + 'list/', cls_view_list_copy)
-
         return cls_view
 
     def create_aux_views(self, parent_cls_view, perm_builder):
         def gen():
             yield
-        all_ops = ['post', 'get', 'patch', 'put', 'delete']
+        all_ops = ['post', 'get', 'patch', 'put', 'delete', 'list']
 
         class mod_parent_base(parent_cls_view):
             pass
@@ -200,12 +171,13 @@ class ViewMaker:
                     routename = routename[1:]
                 if not routename.endswith('/'):
                     routename += '/'
-                if routename.endswith('/list/'):
-                    raise NameError(
-                        f'One of `{self.schema_cls}`\'s auxiliary routes contains illegal value (/list/)')
+                # if routename.endswith('/list/'):
+                #     raise NameError(
+                #         f'One of `{self.schema_cls}`\'s auxiliary routes contains illegal value (/list/)')
                 url = self.base_resource_url + routename
                 view_methods = dict(proto_viewcls.__dict__)
-
+                # ensure _iter is inherited from AuxViewBase, not ViewsClassBase
+                view_methods['_iter'] = AuxViewBase._iter
                 view_cls = type(
                     proto_viewcls.__qualname__,
                     (mod_parent_base, AuxViewBase),
@@ -218,7 +190,7 @@ class ViewMaker:
                 }
                 # view_cls._disallow_authed = perm_builder.disallow_authed
 
-                allowed = [op.upper() for op in all_ops if op in view_methods]
+                allowed = [op for op in all_ops if op in view_methods]
                 for op in all_ops:
                     if hasattr(view_cls, op) and op not in view_methods:
                         setattr(view_cls, op, lambda self: gen().throw(

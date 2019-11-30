@@ -82,6 +82,7 @@ def adjust_pagination_schema(pagination_schema, schema_cls, list_by_fields, pk):
     # Construct a brand new pagination class based on `pagination_schema`
     # to include `list_by_fields` as an argument to `OneOf` validator of `order_by` field.
     pagination_methods = declared_fields.copy()
+
     # Ensure that `order_by` doesn't include any nestable fields.
     for fname, fval in schema_cls._declared_fields.items():
         if isinstance(fval, NESTABLE_FIELDS):
@@ -167,7 +168,7 @@ class AuxViewMeta(type):
         if not bases:
             return super(AuxViewMeta, cls).__new__(cls, name, bases, methods)
 
-        # Aux Views can't support Private permission class, as it doesn't make sense in this context
+        # Aux views can't support Private permission class, as it doesn't make sense in this context
         if 'Private' in methods:
             raise AttributeError('Aux views don\'t support Private permission definitions')
 
@@ -246,7 +247,11 @@ class AuxViewBase(web.View, CommonViewMixin):
             cleaned = await self._validate_singular_payload(
                 payload, schema=self.path_schema, envelope_key='path')
             self.path_payload = cleaned
-        return await super()._iter()
+
+        method = getattr(self, self.request.operation, None)
+        if method is None:
+            self._raise_allowed_methods()
+        return await method()
 
     async def validate_form(self):
         form_payload = await self.form_payload
@@ -315,10 +320,6 @@ class AuxViewBase(web.View, CommonViewMixin):
         return get_query
 
     @property
-    def method(self):
-        return getattr(self, '_method', self.request.method).lower()
-
-    @property
     def body_schema(self):
         try:
             return self.body_schema
@@ -327,9 +328,9 @@ class AuxViewBase(web.View, CommonViewMixin):
 
 
 class ViewsClassBase(web.View):
-
     def __init__(self, request):
         self._request = request
+        self.operation = request.operation
         self._orig_cleaned_payload = {}
         self._tables_to_join = None
         try:
@@ -337,6 +338,12 @@ class ViewsClassBase(web.View):
         except AttributeError:
             # logout case
             self.request_type = 'public'
+
+    async def _iter(self):
+        method = getattr(self, self.request.operation, None)
+        if method is None:
+            self._raise_allowed_methods()
+        return await method()
 
     @classmethod
     def relationize_schema(cls, joins):
@@ -500,7 +507,6 @@ class ViewsClassBase(web.View):
                     use='read', joins=private_get_joins, partial=True, only=private_delete_by)
             }
         }
-
 
     @classmethod
     def _naive_fields_to_composite_stmts(cls):
@@ -828,16 +834,12 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
         return self.allowed_selectors_variants[self.request_type]['list_query_stmt']
 
     @property
-    def method(self):
-        return getattr(self, '_method', self.request.method).lower()
-
-    @property
     def request(self):
         return self._request
 
     @property
     def schema(self):
-        return getattr(self, f'{self.method}_schema')
+        return getattr(self, f'{self.operation}_schema')
 
     @property
     def tables_to_join(self):
@@ -916,6 +918,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             async with conn.cursor() as cur:
                 try:
                     await cur.execute(query, values)
+                    print(cur.query.decode())
                 except Exception:
                     self.request.app.error_logger.exception('Failed to fetch results',
                                                             query=cur.query.decode())

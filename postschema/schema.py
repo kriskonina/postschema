@@ -118,8 +118,8 @@ class PostSchemaMeta(SchemaMeta):
         new_attrs = {}
         for metaclass_name in metaclasses:
             metacls = getattr(kls, metaclass_name, None)
-            # first parent come across to have corresponding metaclass defined
-            # will be used as a base for this one
+            # first parent come across to have corresponding metaclass defined will be used
+            # as a base for this one
 
             for ancestor in kls.mro()[1:]:
                 parental_metacls = getattr(ancestor, metaclass_name, None)

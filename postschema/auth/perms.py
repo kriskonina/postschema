@@ -64,12 +64,15 @@ class SchemaFactoryBase:
             perms['private'] = dict(self.compile_private_perms())
             self._set_operations_routine('verified_email', private_cls, perms['private'])
             self._set_operations_routine('verified_phone', private_cls, perms['private'])
+
         if hasattr(authed_cls, 'permissions'):
             perms['authed'] = dict(self.compile_secure_perms())
             self._set_operations_routine('verified_email', authed_cls, perms['authed'])
             self._set_operations_routine('verified_phone', authed_cls, perms['authed'])
+
         if hasattr(public_cls, 'permissions'):
             perms['public'] = dict(self.compile_public_perms())
+
         return perms
 
     def compile_perm_type(self, perm_type, perm_name):

@@ -40,6 +40,8 @@ THIS_DIR = Path(__file__).parent
 AUTH_TEMPLATES_DIR = THIS_DIR / 'auth' / 'templates'
 ROLES = []
 
+ALLOWED_OPERATIONS = ['post', 'patch', 'put', 'delete', 'get', 'list']
+
 
 async def default_send_sms(*args):
     pass
