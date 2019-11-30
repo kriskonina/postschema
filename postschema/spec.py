@@ -268,13 +268,12 @@ class APISpecBuilder(AuxSpecBuilder):
 
         if 'list' in listed_ops:
             listed_ops.remove('list')
-            list_url = os.path.join(self.root_url, 'list/')
 
             list_swagger_op = self.build_list_route(name, declared_fields, perm_cls)
             if list_swagger_op:
                 self.spec.path(
-                    list_url, operations={
-                        'get': list_swagger_op
+                    self.root_url, operations={
+                        'options': list_swagger_op
                     }
                 )
 

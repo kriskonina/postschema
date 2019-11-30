@@ -175,16 +175,13 @@ class PathsReturner:
             except AttributeError:
                 url = resource._formatter
 
-            if '/list/' in url:
-                viewname = resource._routes[0].handler.viewname
-            else:
-                viewname = resource._routes[0].handler.__name__.replace('View', '')
-                viewname = viewname[0].lower() + viewname[1:]
+            viewname = resource._routes[0].handler.__name__.replace('View', '')
+            viewname = viewname[0].lower() + viewname[1:]
 
             with suppress(KeyError):
                 view_spec = spec['paths'][url]
                 for method, obj in view_spec.items():
-                    if url.endswith('/list/'):
+                    if method == 'options':
                         method = 'list'
                     schema_key = obj['requestBody']['content']['application/json']['schema']['$ref'].rsplit('/', 1)[1]
                     schema = spec['components']['schemas'][schema_key]
