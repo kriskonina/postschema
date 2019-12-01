@@ -208,6 +208,8 @@ def setup_postschema(app, appname: str, *,
                      template_dirs: list = [],
                      description: str = '',
                      send_sms: Optional[Callable] = None,
+                     created_email_confirmation_link: str = '{url_prefix}/actor/created/activate/email/{{reg_token}}/',
+                     invited_email_confirmation_link: str = '{url_prefix}/actor/invitee/activate/email/{{reg_token}}/',
                      info_logger_processors: Optional[list] = None,
                      error_logger_processors: Optional[list] = None,
                      initial_logging_context: Optional[dict] = {},
@@ -220,10 +222,12 @@ def setup_postschema(app, appname: str, *,
 
     initial_logging_context['version'] = version
     initial_logging_context['app_mode'] = app_mode = os.environ.get('APP_MODE')
+
     if url_prefix and not url_prefix.startswith('/'):
         url_prefix = '/' + url_prefix
     if url_prefix.endswith('/'):
         url_prefix = url_prefix[:-1]
+
     app.url_prefix = url_prefix
     app.app_mode = app_mode
     app.app_name = appname
@@ -283,6 +287,8 @@ def setup_postschema(app, appname: str, *,
     app.schemas = registered_schemas
     app.config.roles = ROLES
     app.send_sms = partial(send_sms or default_send_sms, app)
+    app.created_email_confirmation_link = created_email_confirmation_link.format(url_prefix=url_prefix)
+    app.invited_email_confirmation_link = invited_email_confirmation_link.format(url_prefix=url_prefix)
 
     # build the views
     router, openapi_spec = build_app(app, registered_schemas)

@@ -85,11 +85,9 @@ async def send_email_reset_link(request, checkcode, to):
     )
 
 
-async def send_email_activation_link(request, data, link_path_basis=None):
-    if link_path_basis is None:
-        link_path_basis = f'{request.app.url_prefix}/actor/created/activate/email/{{reg_token}}/'
+async def send_email_activation_link(request, data, link_path_base):
     reg_token = generate_random_word(20)
-    path = link_path_basis.format(reg_token=reg_token)
+    path = link_path_base.format(reg_token=reg_token)
     activation_link = f'{request.scheme}://{request.host}{path}'
     data['details'] = ujson.dumps(data.get('details', {}))
     data['status'] = 0
@@ -344,11 +342,13 @@ class SendEmailLink(AuxView):
         if self.request.session.ia_authed:
             data['workspace'] = self.request.session.workspace
 
+        link_path_base = self.request.app.created_email_confirmation_link
+
         if APP_MODE == 'dev':
-            activation_link = await send_email_activation_link(self.request, data)
+            activation_link = await send_email_activation_link(self.request, data, link_path_base)
             return web.HTTPNoContent(body=activation_link)
 
-        await spawn(self.request, send_email_activation_link(self.request, data))
+        await spawn(self.request, send_email_activation_link(self.request, data, link_path_base))
         return web.HTTPNoContent(reason='Activation link has been resent')
 
     class Public:
@@ -1024,7 +1024,7 @@ class PrincipalActorBase(RootSchema):
         data['workspaces'] = raw_workspaces
         data['password'] = bcrypt.hashpw(data['password'].encode(), salt).decode()
 
-        return f'{request.app.url_prefix}/actor/invitee/activate/email/{{reg_token}}/'
+        return request.app.invited_email_confirmation_link
 
     async def process_created_actor(self, data, request, parent):
         try:
@@ -1065,6 +1065,7 @@ class PrincipalActorBase(RootSchema):
 
         salt = bcrypt.gensalt()
         data['password'] = bcrypt.hashpw(data['password'].encode(), salt).decode()
+        return request.app.created_email_confirmation_link
 
     async def before_post(self, parent, request, data):
         query = request.query
@@ -1073,15 +1074,15 @@ class PrincipalActorBase(RootSchema):
             invitation_token = invitation_token[:-1]
 
         if invitation_token:
-            link_path_basis = await self.process_invited_actor(invitation_token, request, data, parent)
+            link_path_base = await self.process_invited_actor(invitation_token, request, data, parent)
         else:
-            link_path_basis = await self.process_created_actor(data, request, parent)
+            link_path_base = await self.process_created_actor(data, request, parent)
 
         if APP_MODE == 'dev':
-            activation_link = await send_email_activation_link(request, data, link_path_basis)
+            activation_link = await send_email_activation_link(request, data, link_path_base)
             raise web.HTTPOk(reason='Account creation pending', text=activation_link)
 
-        await spawn(request, send_email_activation_link(request, data, link_path_basis))
+        await spawn(request, send_email_activation_link(request, data, link_path_base))
         raise web.HTTPNoContent(reason='Account creation pending')
 
     class Public:
