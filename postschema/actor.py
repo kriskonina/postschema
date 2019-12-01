@@ -87,8 +87,8 @@ async def send_email_reset_link(request, checkcode, to):
 
 async def send_email_activation_link(request, data, link_path_base):
     reg_token = generate_random_word(20)
-    path = link_path_base.format(reg_token=reg_token)
-    activation_link = f'{request.scheme}://{request.host}{path}'
+    # activation_link = {path}'
+    activation_link = link_path_base.format(reg_token=reg_token, scheme=f'{request.scheme}://{request.host}')
     data['details'] = ujson.dumps(data.get('details', {}))
     data['status'] = 0
     data['email_confirmed'] = 0
