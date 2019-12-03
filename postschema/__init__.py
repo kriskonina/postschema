@@ -69,8 +69,7 @@ async def startup(app):
     app.commons = Commons(app)
 
 
-@aiohttp_jinja2.template('set_new_password.html')
-async def pass_reset_form(request):
+async def reset_form_context(request):
     checkcode = request.match_info.get('checkcode')
     if not checkcode:
         raise aiohttp.web.HTTPNotFound()
@@ -85,21 +84,55 @@ async def pass_reset_form(request):
     expire = request.app.config.reset_link_ttl
     await request.app.redis_cli.delete(key)
     await request.app.redis_cli.set(newkey, data['id'], expire=expire)
+    return swapcode
 
+
+@aiohttp_jinja2.template('set_new_password.html')
+async def pass_reset_checkcode_template(request):
+    swapcode = await reset_form_context(request)
+    return {'checkcode': swapcode}
+
+
+async def pass_reset_checkcode_raw(request):
+    swapcode = await reset_form_context(request)
     return {'checkcode': swapcode}
 
 
 @dataclass
 class AppConfig:
+    initial_logging_context: dict = field(default_factory=dict)
     roles: List[str] = field(default_factory=list)
+    template_dirs: List[str] = field(default_factory=list)
+    url_prefix: str = ''
+    version: str = 'unreleased'
+    description: str = ''
+    send_sms: Optional[Callable] = None
+    invitation_link: str = '{scheme}actor/?inv={payload}'
+    redirect_reset_password_to: str = ''
+    password_reset_form_link: str = ''
+    created_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/created/activate/email/{{reg_token}}/'
+    invited_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/invitee/activate/email/{{reg_token}}/'
+    info_logger_processors: Optional[list] = None
+    error_logger_processors: Optional[list] = None
+    default_logging_level: Optional[int] = None
+    alembic_dest = None
     session_key: str = 'postsession'
     session_ttl: int = 3600 * 24 * 30  # a month
     invitation_link_ttl: int = 3600 * 24 * 7  # a week
     reset_link_ttl: int = 60 * 10  # 10 minutes
-    redirect_reset_password_to: str = ''
     node_id: str = generate_random_word(10)
     fernet: Fernet = Fernet(os.environ.get('FERNET_KEY').encode())
     sms_sender: str = os.environ.get('DEFAULT_SMS_SENDER')
+    activation_email_subject: str = 'Activate your account'
+    invitation_email_subject: str = 'Create your new account'
+    reset_pass_email_subject: str = 'Reset your password'
+    activation_email_text: str = 'Follow this link to activate the account -> {activation_link}'
+    invitation_email_text: str = ("You were invited to join the application by {by}.\n"
+                                  "Click the link below to create your account\n{reset_link}")
+    reset_pass_email_text: str = 'Follow this link to reset your password -> {reset_link}'
+    activation_email_html: str = ''
+    reset_pass_email_html: str = ''
+    invitation_email_html: str = ''
 
     def _update(self, cls):
         for k, v in cls.__dict__.items():
@@ -203,40 +236,34 @@ async def apispec_metainfo(request):
 
 
 def setup_postschema(app, appname: str, *,
-                     url_prefix: str = '',
-                     version: str = 'unreleased',
-                     template_dirs: list = [],
-                     description: str = '',
-                     send_sms: Optional[Callable] = None,
-                     created_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/created/activate/email/{{reg_token}}/',
-                     invited_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/invitee/activate/email/{{reg_token}}/',
-                     info_logger_processors: Optional[list] = None,
-                     error_logger_processors: Optional[list] = None,
-                     initial_logging_context: Optional[dict] = {},
-                     default_logging_level: Optional[int] = None,
-                     alembic_dest=None, extra_config={}, **app_config):
+                     extra_config={},
+                     **app_config):
 
     roles = app_config.get('roles', [])
     ROLES = frozenset(role.title() for role in DEFAULT_ROLES | set(roles))
     os.environ['ROLES'] = ujson.dumps(ROLES)
 
-    initial_logging_context['version'] = version
-    initial_logging_context['app_mode'] = app_mode = os.environ.get('APP_MODE')
+    app_config = AppConfig(**app_config)
+    app_config.initial_logging_context['version'] = app_config.version
+    app_config.initial_logging_context['app_mode'] = app_config.app_mode = os.environ.get('APP_MODE')
+
+    url_prefix = app_config.url_prefix
 
     if url_prefix and not url_prefix.startswith('/'):
         url_prefix = '/' + url_prefix
     if url_prefix.endswith('/'):
         url_prefix = url_prefix[:-1]
 
-    app.url_prefix = url_prefix
-    app.app_mode = app_mode
     app.app_name = appname
-    app.app_description = description
-    app.version = version
+    app.url_prefix = url_prefix
+    app.app_mode = app_config.app_mode
+    app.app_description = app_config.description
+    app.version = app_config.version
 
     # create loggers
-    info_logger, error_logger = setup_logging(info_logger_processors, error_logger_processors,
-                                              default_logging_level)
+    info_logger, error_logger = setup_logging(app_config.info_logger_processors,
+                                              app_config.error_logger_processors,
+                                              app_config.default_logging_level)
 
     from .actor import PrincipalActor
     from .core import Base
@@ -246,37 +273,47 @@ def setup_postschema(app, appname: str, *,
 
     ScopeBase._validate_roles(ROLES)
 
-    app.info_logger = info_logger.new(**initial_logging_context)
-    app.error_logger = error_logger.new(**initial_logging_context)
+    app.info_logger = info_logger.new(**app_config.initial_logging_context)
+    app.error_logger = error_logger.new(**app_config.initial_logging_context)
 
     aiojobs_setup(app, exception_handler=exception_handler(app.error_logger))
 
     aiohttp_jinja2.setup(app, loader=jinja2.FileSystemLoader(
-        [AUTH_TEMPLATES_DIR, *template_dirs]
+        [AUTH_TEMPLATES_DIR, *app_config.template_dirs]
     ))
 
-    if 'redirect_reset_password_to' not in app_config:
-        app_config['redirect_reset_password_to'] = redirect_reset_password_to = '/passform/{checkcode}/'
+    if not app_config.redirect_reset_password_to:
+        app_config.redirect_reset_password_to = redirect_reset_password_to = '/passform/{checkcode}/'
         app.add_routes(
-            [aiohttp.web.get(redirect_reset_password_to, pass_reset_form)]
+            [aiohttp.web.get(redirect_reset_password_to, pass_reset_checkcode_template)]
         )
+    else:
+        app.add_routes(
+            [aiohttp.web.get(app_config.redirect_reset_password_to, pass_reset_checkcode_raw)]
+        )
+
+    if not app_config.password_reset_form_link:
+        app_config.password_reset_form_link = '{scheme}passform/{checkcode}/'
 
     app.on_startup.extend([startup, init_resources])
     app.on_cleanup.append(cleanup)
 
-    if alembic_dest is None:
+    if app_config.alembic_dest is None:
         stack = inspect.stack()
         stack_frame = stack[1]
         calling_module_path = Path(inspect.getmodule(stack_frame[0]).__file__).parent
         os.environ.setdefault('POSTCHEMA_INSTANCE_PATH', str(calling_module_path))
     else:
-        alembic_destination = str(alembic_dest)
+        alembic_destination = str(app_config.alembic_dest)
         assert os.path.exists(alembic_destination),\
             "`alembic_dest` argument doesn't point to an existing directory"
         os.environ.setdefault('POSTCHEMA_INSTANCE_PATH', alembic_destination)
 
+    app_config.activation_email_html = jinja2.Template(app_config.activation_email_html)
+    app_config.invitation_email_html = jinja2.Template(app_config.invitation_email_html)
+    app_config.reset_pass_email_html = jinja2.Template(app_config.reset_pass_email_html)
+
     config = ConfigBearer(extra_config)
-    app_config = AppConfig(**app_config)
 
     # extend with immutable config opts
     app_config._update(ImmutableConfig(scopes=ScopeBase._scopes))
@@ -286,9 +323,12 @@ def setup_postschema(app, appname: str, *,
     app.principal_actor_schema = PrincipalActor
     app.schemas = registered_schemas
     app.config.roles = ROLES
-    app.send_sms = partial(send_sms or default_send_sms, app)
-    app.created_email_confirmation_link = created_email_confirmation_link.format(url_prefix=url_prefix)
-    app.invited_email_confirmation_link = invited_email_confirmation_link.format(url_prefix=url_prefix)
+    app.send_sms = partial(app_config.send_sms or default_send_sms, app)
+    app.invitation_link = app_config.invitation_link
+    app.created_email_confirmation_link = app_config.created_email_confirmation_link.format(
+        url_prefix=url_prefix)
+    app.invited_email_confirmation_link = app_config.invited_email_confirmation_link.format(
+        url_prefix=url_prefix)
 
     # build the views
     router, openapi_spec = build_app(app, registered_schemas)
@@ -296,8 +336,8 @@ def setup_postschema(app, appname: str, *,
     # hash the spec
     app.spec_hash = md5(ujson.dumps(openapi_spec).encode()).hexdigest()
 
+    # map paths to roles
     paths_by_roles = PathsReturner(openapi_spec, router)
-
     paths_by_roles.paths_by_roles
 
     @auth(roles=['Admin'])
