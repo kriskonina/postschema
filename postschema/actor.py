@@ -2,6 +2,7 @@ import os
 import ujson
 import urllib.parse
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # from datetime import datetime
 
@@ -44,13 +45,25 @@ async def send_email_user_invitation(request, by, link, to):
     if APP_MODE == 'dev':
         return link
 
-    message = MIMEText(
-        (f"You were invited to join the application by {by}.\n"
-         "Click the link below to create your account\n{reset_link}")
+    html_template = request.app.config.invitation_email_html.render(
+        by=by, registration_link=link
     )
+    text_template = request.app.config.invitation_email_text.format(
+        by=by, registration_link=link
+    )
+
+    message = MIMEMultipart("alternative")
     message["From"] = os.environ.get('EMAIL_FROM')
     message["To"] = to
-    message["Subject"] = "Create your new account"
+    message["Subject"] = request.app.config.invitation_email_subject
+
+    plain_part = MIMEText(text_template, "plain")
+    message.attach(plain_part)
+
+    if html_template:
+        html_part = MIMEText(html_template, "html")
+        message.attach(html_part)
+
     await aiosmtplib.send(
         message,
         hostname=os.environ.get('EMAIL_HOSTNAME'),
@@ -61,20 +74,34 @@ async def send_email_user_invitation(request, by, link, to):
 
 
 async def send_email_reset_link(request, checkcode, to):
-    redirect_to = request.app.config.redirect_reset_password_to.format(checkcode=checkcode)
+    reset_form_url = request.app.config.password_reset_form_link
 
-    if redirect_to.startswith('/'):
-        redirect_to = redirect_to[1:]
-    if not redirect_to.endswith('/'):
-        redirect_to += '/'
-    reset_link = f'{request.scheme}://{request.host}/{redirect_to}'
-    message = MIMEText(f"Follow this link to reset your password -> {reset_link}")
-    message["From"] = os.environ.get('EMAIL_FROM')
-    message["To"] = to
-    message["Subject"] = "Reset your application password"
+    if reset_form_url.startswith('/'):
+        reset_form_url = reset_form_url[1:]
+    if not reset_form_url.endswith('/'):
+        reset_form_url += '/'
+
+    reset_form_url = reset_form_url.format(
+        scheme=f'{request.scheme}://{request.host}/',
+        checkcode=checkcode)
 
     if APP_MODE == 'dev':
-        return reset_link
+        return reset_form_url
+
+    html_template = request.app.config.reset_pass_email_html.render(reset_link=reset_form_url)
+    text_template = request.app.config.reset_pass_email_text.format(reset_link=reset_form_url)
+
+    message = MIMEMultipart("alternative")
+    message["From"] = os.environ.get('EMAIL_FROM')
+    message["To"] = to
+    message["Subject"] = request.app.config.reset_pass_email_subject
+
+    plain_part = MIMEText(text_template, "plain")
+    message.attach(plain_part)
+
+    if html_template:
+        html_part = MIMEText(html_template, "html")
+        message.attach(html_part)
 
     await aiosmtplib.send(
         message,
@@ -87,7 +114,6 @@ async def send_email_reset_link(request, checkcode, to):
 
 async def send_email_activation_link(request, data, link_path_base):
     reg_token = generate_random_word(20)
-    # activation_link = {path}'
     activation_link = link_path_base.format(reg_token=reg_token, scheme=f'{request.scheme}://{request.host}')
     data['details'] = ujson.dumps(data.get('details', {}))
     data['status'] = 0
@@ -105,10 +131,21 @@ async def send_email_activation_link(request, data, link_path_base):
     if APP_MODE == 'dev':
         return activation_link
 
-    message = MIMEText(f"Follow this link to activate the account -> {activation_link}")
+    html_template = request.app.config.activation_email_html.render(activation_link=activation_link)
+    text_template = request.app.config.activation_email_text.format(activation_link=activation_link)
+
+    message = MIMEMultipart("alternative")
     message["From"] = os.environ.get('EMAIL_FROM')
     message["To"] = data['email']
-    message["Subject"] = "Activate your account"
+    message["Subject"] = request.app.config.activation_email_subject
+
+    plain_part = MIMEText(text_template, "plain")
+    message.attach(plain_part)
+
+    if html_template:
+        html_part = MIMEText(html_template, "html")
+        message.attach(html_part)
+
     await aiosmtplib.send(
         message,
         hostname=os.environ.get('EMAIL_HOSTNAME'),
@@ -625,8 +662,12 @@ class InviteUser(AuxView):
         payload = f"{','.join(roles)}:{','.join(workspaces)}:{scope}:{email}:{workspace}"
         encrypted_payload = self.request.app.commons.encrypt(payload)
         escaped_payload = urllib.parse.quote(encrypted_payload)
-        path = f'actor/?inv={escaped_payload}'
-        invitation_link = f'{self.request.scheme}://{self.request.host}/{path}/'
+        invitation_link = self.request.app.invitation_link.format(
+            scheme=f'{self.request.scheme}://{self.request.host}/',
+            payload=escaped_payload
+        )
+        # path = f'actor/?inv={escaped_payload}'
+        # invitation_link = f'{self.request.scheme}://{self.request.host}/{path}/'
 
         # send email with invitation link
         if APP_MODE == 'dev':
