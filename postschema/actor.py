@@ -28,7 +28,8 @@ from .utils import (
     generate_random_word,
     generate_num_sequence,
     json_response,
-    parse_postgres_err
+    parse_postgres_err,
+    seconds_to_human
 )
 from .scope import ScopeBase
 from .view import AuxView
@@ -45,11 +46,17 @@ async def send_email_user_invitation(request, by, link, to):
     if APP_MODE == 'dev':
         return link
 
+    ttl_seconds = request.app.config.invitation_link_ttl
+    ttl = seconds_to_human(ttl_seconds)
+
     html_template = request.app.config.invitation_email_html.render(
-        by=by, registration_link=link
+        by=by,
+        registration_link=link,
+        ttl=ttl
     )
     text_template = request.app.config.invitation_email_text.format(
-        by=by, registration_link=link
+        by=by,
+        registration_link=link
     )
 
     message = MIMEMultipart("alternative")
@@ -88,7 +95,12 @@ async def send_email_reset_link(request, checkcode, to):
     if APP_MODE == 'dev':
         return reset_form_url
 
-    html_template = request.app.config.reset_pass_email_html.render(reset_link=reset_form_url)
+    ttl_seconds = request.app.config.reset_link_ttl
+    ttl = seconds_to_human(ttl_seconds)
+
+    html_template = request.app.config.reset_pass_email_html.render(
+        reset_link=reset_form_url,
+        ttl=ttl)
     text_template = request.app.config.reset_pass_email_text.format(reset_link=reset_form_url)
 
     message = MIMEMultipart("alternative")
@@ -112,7 +124,7 @@ async def send_email_reset_link(request, checkcode, to):
     )
 
 
-async def send_email_activation_link(request, data, link_path_base):
+async def send_email_activation_link(request, data, link_path_base, ttl_seconds):
     reg_token = generate_random_word(20)
     activation_link = link_path_base.format(reg_token=reg_token, scheme=f'{request.scheme}://{request.host}')
     data['details'] = ujson.dumps(data.get('details', {}))
@@ -122,16 +134,18 @@ async def send_email_activation_link(request, data, link_path_base):
     data['roles'] = ','.join(data['roles'])
     data['workspaces'] = data.get('workspaces', '') or ''
 
-    expire = 3600 * 6  # 6 hours
+    # expire = request.app.config.activation_link_ttl
     key = f'postschema:activate:email:{reg_token}'
 
     await request.app.redis_cli.hmset_dict(key, **data)
-    await request.app.redis_cli.expire(key, expire)
+    await request.app.redis_cli.expire(key, ttl_seconds)
 
     if APP_MODE == 'dev':
         return activation_link
 
-    html_template = request.app.config.activation_email_html.render(activation_link=activation_link)
+    ttl = seconds_to_human(ttl_seconds)
+
+    html_template = request.app.config.activation_email_html.render(activation_link=activation_link, ttl=ttl)
     text_template = request.app.config.activation_email_text.format(activation_link=activation_link)
 
     message = MIMEMultipart("alternative")
@@ -380,12 +394,13 @@ class SendEmailLink(AuxView):
             data['workspace'] = self.request.session.workspace
 
         link_path_base = self.request.app.created_email_confirmation_link
+        ttl = self.request.app.config.activation_link_ttl
 
         if APP_MODE == 'dev':
-            activation_link = await send_email_activation_link(self.request, data, link_path_base)
+            activation_link = await send_email_activation_link(self.request, data, link_path_base, ttl)
             return web.HTTPNoContent(body=activation_link)
 
-        await spawn(self.request, send_email_activation_link(self.request, data, link_path_base))
+        await spawn(self.request, send_email_activation_link(self.request, data, link_path_base, ttl))
         return web.HTTPNoContent(reason='Activation link has been resent')
 
     class Public:
@@ -1065,7 +1080,7 @@ class PrincipalActorBase(RootSchema):
         data['workspaces'] = raw_workspaces
         data['password'] = bcrypt.hashpw(data['password'].encode(), salt).decode()
 
-        return request.app.invited_email_confirmation_link
+        return request.app.invited_email_confirmation_link, ttl
 
     async def process_created_actor(self, data, request, parent):
         try:
@@ -1106,7 +1121,7 @@ class PrincipalActorBase(RootSchema):
 
         salt = bcrypt.gensalt()
         data['password'] = bcrypt.hashpw(data['password'].encode(), salt).decode()
-        return request.app.created_email_confirmation_link
+        return request.app.created_email_confirmation_link, request.app.config.activation_link_ttl
 
     async def before_post(self, parent, request, data):
         query = request.query
@@ -1115,15 +1130,15 @@ class PrincipalActorBase(RootSchema):
             invitation_token = invitation_token[:-1]
 
         if invitation_token:
-            link_path_base = await self.process_invited_actor(invitation_token, request, data, parent)
+            link_path_base, ttl = await self.process_invited_actor(invitation_token, request, data, parent)
         else:
-            link_path_base = await self.process_created_actor(data, request, parent)
+            link_path_base, ttl = await self.process_created_actor(data, request, parent)
 
         if APP_MODE == 'dev':
-            activation_link = await send_email_activation_link(request, data, link_path_base)
+            activation_link = await send_email_activation_link(request, data, link_path_base, ttl)
             raise web.HTTPOk(reason='Account creation pending', text=activation_link)
 
-        await spawn(request, send_email_activation_link(request, data, link_path_base))
+        await spawn(request, send_email_activation_link(request, data, link_path_base, ttl))
         raise web.HTTPNoContent(reason='Account creation pending')
 
     class Public:

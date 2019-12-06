@@ -48,3 +48,13 @@ def retype_schema(cls, new_methods):
         methods[k] = v
     methods.update(new_methods)
     return type(cls.__name__, cls.__bases__, methods)
+
+
+def seconds_to_human(ttl_seconds):
+    ttl_minutes = round(ttl_seconds / 60)
+    if ttl_minutes >= 1440:  # a day
+        return f'{round(ttl_minutes / 1440)} day(s)'
+    elif ttl_minutes >= 60:
+        return f'{round(ttl_minutes / 60)} hour(s)'
+    else:
+        return f'{ttl_minutes} minute(s)'

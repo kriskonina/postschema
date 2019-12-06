@@ -77,7 +77,7 @@ async def reset_form_context(request):
     key = f'postschema:pass:reset:{checkcode}'
     data = await request.app.redis_cli.hgetall(key)
     if not data:
-        raise aiohttp.web.HTTPUnauthorized(reason='Invalid checkcode')
+        raise aiohttp.web.HTTPUnauthorized(reason='Reset link expired or checkcode invalid')
 
     swapcode = data.pop('swapcode')
     newkey = f'postschema:pass:verify:{swapcode}'
@@ -119,6 +119,7 @@ class AppConfig:
     session_key: str = 'postsession'
     session_ttl: int = 3600 * 24 * 30  # a month
     invitation_link_ttl: int = 3600 * 24 * 7  # a week
+    activation_link_ttl: int = 3600 * 6  # 6 hours
     reset_link_ttl: int = 60 * 10  # 10 minutes
     node_id: str = generate_random_word(10)
     fernet: Fernet = Fernet(os.environ.get('FERNET_KEY').encode())
