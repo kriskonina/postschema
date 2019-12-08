@@ -349,6 +349,11 @@ class APISpecBuilder(AuxSpecBuilder):
                                        perm_cls, 'list', authed)
 
     def build_post_route(self, origname, declared_fields, perm_cls, authed=False):
+        # remove primary key, if present
+        pk_col = list(self._schema_cls._model.__table__.primary_key.columns._data)[0].split('.')[-1]
+        if pk_col in declared_fields:
+            declared_fields = declared_fields.copy()
+            declared_fields.pop(pk_col, None)
         schema_name = f'{origname}Post'
         schema = type(schema_name, (Schema, ), {k: v for k, v in declared_fields.items()})
         return self.build_common_route(origname, schema_name, schema, f'Create new {origname}',
