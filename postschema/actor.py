@@ -169,27 +169,27 @@ async def send_email_activation_link(request, data, link_path_base, ttl_seconds)
     )
 
 
-async def send_phone_activation_pin(request, phone_num, actor_id):
-    pin = generate_num_sequence()
-    key = f'postschema:activate:phone:{pin}'
+async def send_phone_verification_code(request, phone_num, actor_id):
+    verification_code = generate_num_sequence()
+    key = f'postschema:activate:phone:{verification_code}'
     await request.app.redis_cli.set(key, actor_id, expire=60 * 2)
-    msg = f'Enter code to confirm number: {pin}'
+    msg = request.app.config.sms_verification_cta.format(verification_code=verification_code)
     if APP_MODE == 'dev':
-        return pin
+        return verification_code
     await request.app.send_sms(request, phone_num, msg)
 
 
 class PhoneActivationView(AuxView):
-    pin = fields.String(location='path')
+    verification_code = fields.String(location='path')
 
     @summary('Verify phone number')
     async def get(self):
-        pin = self.path_payload['pin']
-        key = f'postschema:activate:phone:{pin}'
+        verification_code = self.path_payload['verification_code']
+        key = f'postschema:activate:phone:{verification_code}'
         actor_id = await self.request.app.redis_cli.get(key)
         if not actor_id:
             raise post_exceptions.ValidationError(
-                {'pin': ["Entered PIN doesn't correspond to any existing accounts"]})
+                {'verification_code': ["Entered code doesn't correspond to any existing accounts"]})
 
         await self.request.app.redis_cli.delete(key)
 
@@ -200,7 +200,7 @@ class PhoneActivationView(AuxView):
                 try:
                     phone = (await cur.fetchone())[0]
                 except TypeError:
-                    raise post_exceptions.ValidationError({'pin': ["Actor doesn't exist"]})
+                    raise post_exceptions.ValidationError({'verification_code': ["Actor doesn't exist"]})
 
         resp = json_response({'phone': [f'Verified number {phone}']})
 
@@ -359,9 +359,9 @@ class SendPhoneLink(AuxView):
                 except TypeError:
                     raise post_exceptions.ValidationError(
                         {'phone': ["Phone number doesn't exist or already confirmed"]})
-        pin = await send_phone_activation_pin(self.request, number, actor_id)
-        if pin:
-            return web.HTTPOk(text=pin)
+        verification_code = await send_phone_verification_code(self.request, number, actor_id)
+        if verification_code:
+            return web.HTTPOk(text=verification_code)
         return web.HTTPNoContent()
 
     class Public:
@@ -935,7 +935,7 @@ class PrincipalActorBase(RootSchema):
         '/created/activate/email/{reg_token}/': CreatedUserActivationView,
         '/invitee/activate/email/{reg_token}/': InvitedUserActivationView,
         '/activate/phone/send/': SendPhoneLink,
-        '/activate/phone/{pin}/': PhoneActivationView,
+        '/activate/phone/{verification_code}/': PhoneActivationView,
         '/login/': LoginView,
         '/logout/': LogoutView,
         '/pass/reset/': ResetPassword,
@@ -1148,7 +1148,8 @@ class PrincipalActorBase(RootSchema):
             post = {}
 
     class Private:
-        get_by = ['id', 'username', 'status', 'email', 'scope', 'roles', 'details']
+        get_by = ['id', 'phone', 'username', 'status', 'email', 'scope', 'roles', 'details',
+                  'phone_confirmed', 'email_confirmed']
         list_by = ['email', 'id', 'username']
 
         class permissions:
