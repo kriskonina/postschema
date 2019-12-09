@@ -124,6 +124,7 @@ class AppConfig:
     node_id: str = generate_random_word(10)
     fernet: Fernet = Fernet(os.environ.get('FERNET_KEY').encode())
     sms_sender: str = os.environ.get('DEFAULT_SMS_SENDER')
+    sms_verification_cta: str = 'Enter code to confirm number: {verification_code}'
     activation_email_subject: str = 'Activate your account'
     invitation_email_subject: str = 'Create your new account'
     reset_pass_email_subject: str = 'Reset your password'
