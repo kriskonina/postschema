@@ -130,5 +130,9 @@ Class describe private access rules to private resources, i.e. the ones with a c
 
 #
 
-## Known issues
-- Generally, there's no support for recursive nesting of resources. Although it's still possible to define them, the functionality of the system is guaranteed to fail.
+## TODO:
+- adopt/refine security measures
+- request rate throttling as a default middleware + filtering
+- configurable request rate throttling per endpoint
+- full support for nested schemas
+- confirm the most sensitive operations by 2FA/SMS + allow custom delegation of such endpoints

@@ -105,7 +105,7 @@ class PostSchemaMeta(SchemaMeta):
         second_base_name = second_base.__name__
         if second_base is not PostSchemaBase and name != "RootSchema" and second_base_name != 'RootSchema':
             if '__tablename__' not in methods and '__tablename__' not in second_base.__dict__:
-                raise AttributeError(f'PostSchema `{name}` needs to define `__tablename__`')
+                raise AttributeError(f'PostSchema `{name}` needs to define a `__tablename__` attribute')
             cls._conflate_meta_classes(kls)
             setattr(_schemas, name, kls)
             return kls

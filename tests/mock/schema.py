@@ -601,6 +601,43 @@ class VerifiedResource(PostSchema):
             post = '*'
 
 
+class AutoPKResource(PostSchema):
+    __tablename__ = 'autopk'
+    actor = AutoSessionOwner(unique=True, required=True, primary_key=True)
+    var = fields.String(sqlfield=sql.String(200))
+
+    class Meta:
+        route_base = 'autopk'
+
+    class Authed:
+        get_by = ['actor', 'var']
+
+        class permissions:
+            post = ['*']
+            update = ['*']
+            get = ['*']
+            list = ['*']
+            delete = ['*']
+
+
+class AutoWorkspacePK(PostSchema):
+    __tablename__ = 'autoworkspacepk'
+    workspace = AutoSessionSelectedWorkspace(unique=True, required=True, primary_key=True)
+    var = fields.String(sqlfield=sql.String(200))
+
+    class Meta:
+        route_base = 'autoworkspacepk'
+
+    class Authed:
+        list_by = ['workspace', 'var']
+
+        class permissions:
+            post = ['*']
+            update = ['*']
+            get = ['*']
+            list = ['*']
+
+
 class Doctor(ScopeBase):
     spec = fields.String(sqlfield=sql.String(150), required=True)
     ward_id = fields.Int(sqlfield=sql.Integer)

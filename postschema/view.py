@@ -364,6 +364,7 @@ class ViewsClassBase(web.View):
     @classmethod
     def post_init(cls, joins):
         from .contrib import Pagination
+        cls.has_autopk = False
         cls.schemas = import_module('postschema.schema')._schemas
         table = cls.model.__table__
         declared_fields = cls.schema_cls._declared_fields.items()
@@ -692,13 +693,22 @@ class ViewsClassBase(web.View):
 
         values = deque(f"%({colname})s" for colname in insert_cols)
 
-        # ensure the pk ends up as a last col
-        insert_cols.append(cls.pk_column_name)
+        is_autopk = isinstance(cls.schema_cls._declared_fields[cls.pk_column_name], AutoSessionField)
+
+        if not is_autopk:
+            # ensure the pk ends up as a last col, but only if it's not of AutoSession type
+            insert_cols.append(cls.pk_column_name)
 
         if cls.pk_autoicr:
             values.append(f"NEXTVAL('{cls.pk_col.default.name}')")
         else:
-            values.append(f'%({cls.pk_column_name})')
+            # if PK isn't set to auto-increment, and it's of AutoSession type, 
+            # don't include it in a pre-rendered query
+            if not is_autopk:
+                values.append(f'%({cls.pk_column_name})')
+            else:
+                cls.has_autopk = True
+
         valnames = ','.join(values)
 
         # handle the AutoImpliedFK columns by first grouping
@@ -711,7 +721,6 @@ class ViewsClassBase(web.View):
         cte_autoimplied = dd(list)
 
         for k, v in declared_fields.items():
-
             if isinstance(v, AutoSessionForeignResource):
                 target_table = v.target_table['name']
                 target_schema = cls.registered_schemas._cont(target_table)
@@ -865,7 +874,6 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                     "Invalid input type."
                 ]
             })
-
         # ensure `payload` contains `select` and `payload` keys
         REQ = ['This field is required']
         EMPTY = ['This field cannot be empty']
@@ -884,7 +892,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             errs['payload'] = REQ
         if errs:
             raise post_exceptions.ValidationError(errs)
-
+        
         # clear both sets
         cleaned_select = await self._validate_singular_payload(
             payload=select, schema=self.get_schema, envelope_key='select')
@@ -918,7 +926,6 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             async with conn.cursor() as cur:
                 try:
                     await cur.execute(query, values)
-                    print(cur.query.decode())
                 except Exception:
                     self.request.app.error_logger.exception('Failed to fetch results',
                                                             query=cur.query.decode())
@@ -947,10 +954,10 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
     def _render_insert_query(self, payload, on_conflict=''):
         vals = ','.join(f"%({colname})s" for colname in payload)
         cols = ','.join(payload)
-        if vals:
+        if vals and not self.has_autopk:
             vals = ',' + vals
             cols = ',' + cols
-        return self.insert_query_stmt.format(cols=cols, vals=vals, on_conflict=on_conflict, 
+        return self.insert_query_stmt.format(cols=cols, vals=vals, on_conflict=on_conflict,
                                              session=self.request.session)
 
     def _whereize_query(self, cleaned_payload, query): # noqa

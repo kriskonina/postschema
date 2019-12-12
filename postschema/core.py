@@ -68,6 +68,13 @@ def create_model(schema_cls, info_logger): # noqa
 
     for fieldname, field_attrs in declared_fields.items():
         if isinstance(field_attrs, fields.Field):
+            if isinstance(field_attrs, postschema_fields.AutoSessionField):
+                perms = getattr(methods.get('Public'), 'permissions', None)
+                if perms and hasattr(perms, 'post') and 'primary_key' in field_attrs.metadata:
+                    # auto-injected primary key is based on the session context, 
+                    # so we can't allow public posts.
+                    raise AttributeError(f"{name} can't include 'post' as a public permission attribute")
+
             metadata = field_attrs.metadata
             try:
                 field_instance = metadata.pop('sqlfield', None) or metadata['fk']
@@ -171,11 +178,9 @@ class ViewMaker:
                     routename = routename[1:]
                 if not routename.endswith('/'):
                     routename += '/'
-                # if routename.endswith('/list/'):
-                #     raise NameError(
-                #         f'One of `{self.schema_cls}`\'s auxiliary routes contains illegal value (/list/)')
                 url = self.base_resource_url + routename
                 view_methods = dict(proto_viewcls.__dict__)
+
                 # ensure _iter is inherited from AuxViewBase, not ViewsClassBase
                 view_methods['_iter'] = AuxViewBase._iter
                 view_cls = type(
@@ -232,6 +237,9 @@ class ViewMaker:
 
         for fieldname, fieldval in self.schema_cls._declared_fields.items():
             if isinstance(fieldval, postschema_fields.Relationship):
+                if isinstance(fieldval, postschema_fields.AutoSessionField) and 'primary_key' in fieldval.metadata:
+                    # omit session-based auto-injected pks
+                    continue
                 this_target = (fieldname, this_table, this_pk)
                 foreign_target = fieldval.target_table
                 linked_table = foreign_target['name']
