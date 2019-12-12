@@ -112,6 +112,7 @@ class AppConfig:
     password_reset_form_link: str = ''
     created_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/created/activate/email/{{reg_token}}/'
     invited_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/invitee/activate/email/{{reg_token}}/'
+    email_verification_link: str = '{{scheme}}{url_prefix}/actor/verify/email/{{verif_token}}/'
     info_logger_processors: Optional[list] = None
     error_logger_processors: Optional[list] = None
     default_logging_level: Optional[int] = None
@@ -120,6 +121,7 @@ class AppConfig:
     session_ttl: int = 3600 * 24 * 30  # a month
     invitation_link_ttl: int = 3600 * 24 * 7  # a week
     activation_link_ttl: int = 3600 * 6  # 6 hours
+    sms_verification_ttl: int = 60  # 1 minute
     reset_link_ttl: int = 60 * 10  # 10 minutes
     node_id: str = generate_random_word(10)
     fernet: Fernet = Fernet(os.environ.get('FERNET_KEY').encode())
@@ -128,13 +130,16 @@ class AppConfig:
     activation_email_subject: str = 'Activate your account'
     invitation_email_subject: str = 'Create your new account'
     reset_pass_email_subject: str = 'Reset your password'
+    verification_email_subject: str = 'Verify your new email address'
     activation_email_text: str = 'Follow this link to activate the account -> {activation_link}'
     invitation_email_text: str = ("You were invited to join the application by {by}.\n"
                                   "Click the link below to create your account\n{reset_link}")
     reset_pass_email_text: str = 'Follow this link to reset your password -> {reset_link}'
+    verification_email_text: str = 'Follow this link to verify your new email address -> {verif_link}'
     activation_email_html: str = ''
     reset_pass_email_html: str = ''
     invitation_email_html: str = ''
+    verification_email_html: str = ''
 
     def _update(self, cls):
         for k, v in cls.__dict__.items():
@@ -152,7 +157,9 @@ class ImmutableConfig:
 def exception_handler(logger):
     def wrapped(scheduler, context):
         exc = context['exception']
-        logger.error('Aiojob exception', exception=traceback.print_tb(exc.__traceback__))
+        tb = exc.__traceback__
+        stack = '\n'.join(traceback.format_exception(None, exc, tb))
+        logger.error('Aiojob exception', exception=stack)
     return wrapped
 
 
@@ -314,6 +321,7 @@ def setup_postschema(app, appname: str, *,
     app_config.activation_email_html = jinja2.Template(app_config.activation_email_html)
     app_config.invitation_email_html = jinja2.Template(app_config.invitation_email_html)
     app_config.reset_pass_email_html = jinja2.Template(app_config.reset_pass_email_html)
+    app_config.verification_email_html = jinja2.Template(app_config.verification_email_html)
 
     config = ConfigBearer(extra_config)
 
@@ -325,7 +333,7 @@ def setup_postschema(app, appname: str, *,
     app.principal_actor_schema = PrincipalActor
     app.schemas = registered_schemas
     app.config.roles = ROLES
-    app.send_sms = partial(app_config.send_sms or default_send_sms, app)
+    app.send_sms = app_config.send_sms or default_send_sms
     app.invitation_link = app_config.invitation_link
     app.created_email_confirmation_link = app_config.created_email_confirmation_link.format(
         url_prefix=url_prefix)

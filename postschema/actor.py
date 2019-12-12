@@ -124,6 +124,47 @@ async def send_email_reset_link(request, checkcode, to):
     )
 
 
+async def send_email_verification_link(request, to):
+    verif_token = generate_random_word(20)
+    ttl_seconds = request.app.config.activation_link_ttl
+    email_verification_link = request.app.config.email_verification_link
+    verif_link = email_verification_link.format(scheme=f'{request.scheme}://{request.host}', 
+        verif_token=verif_token)
+    actor_id = request.session.actor_id
+
+    key = f'postschema:verify:email:{verif_token}'
+    await request.app.redis_cli.set(key, actor_id)
+    await request.app.redis_cli.expire(key, ttl_seconds)
+
+    if APP_MODE == 'dev':
+        return verif_link
+
+    ttl = seconds_to_human(ttl_seconds)
+
+    html_template = request.app.config.verification_email_html.render(verif_link=verif_link, ttl=ttl)
+    text_template = request.app.config.verification_email_text.format(verif_link=verif_link)
+
+    message = MIMEMultipart("alternative")
+    message["From"] = os.environ.get('EMAIL_FROM')
+    message["To"] = to
+    message["Subject"] = request.app.config.verification_email_subject
+
+    plain_part = MIMEText(text_template, "plain")
+    message.attach(plain_part)
+
+    if html_template:
+        html_part = MIMEText(html_template, "html")
+        message.attach(html_part)
+
+    await aiosmtplib.send(
+        message,
+        hostname=os.environ.get('EMAIL_HOSTNAME'),
+        use_tls=True,
+        username=os.environ.get('EMAIL_USERNAME'),
+        password=os.environ.get('EMAIL_PASSWORD')
+    )
+
+
 async def send_email_activation_link(request, data, link_path_base, ttl_seconds):
     reg_token = generate_random_word(20)
     activation_link = link_path_base.format(reg_token=reg_token, scheme=f'{request.scheme}://{request.host}')
@@ -134,7 +175,6 @@ async def send_email_activation_link(request, data, link_path_base, ttl_seconds)
     data['roles'] = ','.join(data['roles'])
     data['workspaces'] = data.get('workspaces', '') or ''
 
-    # expire = request.app.config.activation_link_ttl
     key = f'postschema:activate:email:{reg_token}'
 
     await request.app.redis_cli.hmset_dict(key, **data)
@@ -172,7 +212,7 @@ async def send_email_activation_link(request, data, link_path_base, ttl_seconds)
 async def send_phone_verification_code(request, phone_num, actor_id):
     verification_code = generate_num_sequence()
     key = f'postschema:activate:phone:{verification_code}'
-    await request.app.redis_cli.set(key, actor_id, expire=60 * 2)
+    await request.app.redis_cli.set(key, actor_id, expire=request.app.config.sms_verification_ttl)
     msg = request.app.config.sms_verification_cta.format(verification_code=verification_code)
     if APP_MODE == 'dev':
         return verification_code
@@ -189,7 +229,7 @@ class PhoneActivationView(AuxView):
         actor_id = await self.request.app.redis_cli.get(key)
         if not actor_id:
             raise post_exceptions.ValidationError(
-                {'verification_code': ["Entered code doesn't correspond to any existing accounts"]})
+                {'verification_code': ["Entered code invalid or expired"]})
 
         await self.request.app.redis_cli.delete(key)
 
@@ -219,6 +259,55 @@ class PhoneActivationView(AuxView):
     class Public:
         class permissions:
             get = {}
+
+
+class VerfiyEmailAddress(AuxView):
+    verif_code = fields.String(location='path')
+
+    @summary('Verify email address')
+    async def get(self):
+        verif_code = self.path_payload['verif_code']
+        key = f'postschema:verify:email:{verif_code}'
+        actor_id = await self.request.app.redis_cli.get(key)
+        if not actor_id:
+            raise post_exceptions.ValidationError(
+                {'verif_code': ["Verification code invalid or expired"]})
+
+        await self.request.app.redis_cli.delete(key)
+
+        query = 'UPDATE actor SET email_confirmed = true WHERE id = %s RETURNING email'
+        async with self.request.app.db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, [actor_id])
+                try:
+                    email = (await cur.fetchone())[0]
+                except TypeError:
+                    raise post_exceptions.ValidationError({'verif_code': ["Actor doesn't exist"]})
+
+        resp = json_response({'email': [f'Verified email address {email}']})
+
+        # in case this is an authed request, also update the cache entry
+        try:
+            actor_id = self.request.session.actor_id
+        except KeyError:
+            return resp
+        account_key = self.request.app.config.account_details_key.format(actor_id)
+        self.request.app.redis_cli.hset(account_key, 'email_confirmed', 1)
+        await self.request.session.set_session_context()
+        self.request.app.info_logger.info("Session context updated",
+                                          actor_id=actor_id, changes={'email_confirmed': 1})
+        return resp
+    
+
+    class Public:
+        class permissions:
+            get = {}
+            post = {}
+
+    class Authed:
+        class permissions:
+            get = ['*']
+            post = ['*']
 
 
 class InvitedUserActivationView(AuxView):
@@ -498,6 +587,8 @@ class LoginView(AuxView):
             'id': data['actor_id'],
             'username': data['username'],
             'email': data['email'],
+            'email_confirmed': data['email_confirmed'],
+            'phone_confirmed': data['phone_confirmed'],
             'phone': data['phone'],
             'roles': roles,
             'scope': data['scope'],
@@ -936,6 +1027,7 @@ class PrincipalActorBase(RootSchema):
         '/invitee/activate/email/{reg_token}/': InvitedUserActivationView,
         '/activate/phone/send/': SendPhoneLink,
         '/activate/phone/{verification_code}/': PhoneActivationView,
+        '/verify/email/{verif_code}/': VerfiyEmailAddress,
         '/login/': LoginView,
         '/logout/': LogoutView,
         '/pass/reset/': ResetPassword,
@@ -1006,6 +1098,10 @@ class PrincipalActorBase(RootSchema):
                 res = await cur.fetchone()
                 if not res or not res[0]:
                     raise post_exceptions.UpdateFailed()
+
+        if 'email' in payload:
+            # send an email to verify the new email address
+            await spawn(request, send_email_verification_link(request, payload['email']))
 
         # cache the new session context
         account_key = request.app.config.account_details_key.format(actor_id)
