@@ -133,7 +133,7 @@ class AppConfig:
     verification_email_subject: str = 'Verify your new email address'
     activation_email_text: str = 'Follow this link to activate the account -> {activation_link}'
     invitation_email_text: str = ("You were invited to join the application by {by}.\n"
-                                  "Click the link below to create your account\n{reset_link}")
+                                  "Click the link below to create your account\n{registration_link}")
     reset_pass_email_text: str = 'Follow this link to reset your password -> {reset_link}'
     verification_email_text: str = 'Follow this link to verify your new email address -> {verif_link}'
     activation_email_html: str = ''
@@ -239,6 +239,7 @@ class PathsReturner:
 async def apispec_metainfo(request):
     '''Return current hashsum for the OpenAPI spec + authentication status'''
     return json_response({
+        'scopes': request.app.scopes,
         'spec_hashsum': request.app.spec_hash,
         'authed': request.session.is_authed
     })
@@ -329,6 +330,7 @@ def setup_postschema(app, appname: str, *,
     app_config._update(ImmutableConfig(scopes=ScopeBase._scopes))
     config.update(app_config.__dict__)
     app.config = config
+    app.scopes = list(ScopeBase._scopes)
 
     app.principal_actor_schema = PrincipalActor
     app.schemas = registered_schemas

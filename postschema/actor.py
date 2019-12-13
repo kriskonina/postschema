@@ -1121,6 +1121,11 @@ class PrincipalActorBase(RootSchema):
     async def after_patch(self, *args):
         return await self.after_update(*args)
 
+    async def procure_payload(self, request, payload):
+        if request.query.get('inv'):
+            payload['email'] = 'dummy@example.com'
+        return payload
+
     async def process_invited_actor(self, invitation_token, request, data, parent):
         ttl = request.app.config.invitation_link_ttl
         try:
@@ -1136,13 +1141,13 @@ class PrincipalActorBase(RootSchema):
                 }
             })
 
-        if email != data['email']:
-            raise post_exceptions.ValidationError({
-                'email': [
-                    'Provided value is different from the one for which this invitation was created'
-                ]
-            })
-
+        # if email != data['email']:
+        #     raise post_exceptions.ValidationError({
+        #         'email': [
+        #             'Provided value is different from the one for which this invitation was created'
+        #         ]
+        #     })
+        data['email'] = email
         data['roles'] = raw_roles.split(',')
         data['scope'] = scope
         data['workspace'] = workspace

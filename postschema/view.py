@@ -1097,9 +1097,14 @@ class ViewsTemplate:
 
         return await self._fetch(cleaned_payload, query)
 
-    async def post(self, external_payload=None):
-        # validate the payload
-        cleaned_payload = external_payload or await self._validate_singular_payload()
+    async def post(self):
+        # get the payload
+        payload = await self.payload
+        with suppress(AttributeError):
+            # allow custom schema method to modify the payload before validation
+            payload = await self.schema.procure_payload(self.request, payload)
+
+        cleaned_payload = await self._validate_singular_payload(payload=payload)
         cleaned_payload = self._clean_write_payload(cleaned_payload)
 
         if hasattr(self.schema, 'before_post'):
