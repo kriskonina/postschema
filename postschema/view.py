@@ -429,7 +429,9 @@ class ViewsClassBase(web.View):
         excluded = getattr(schema_metacls, 'exclude_from_updates', [])
         update_excluded = [*excluded, *read_only_fields]
 
-        cls.insert_query_stmt = cls._prepare_insert_query()
+        cls.insert_query_stmt = insrt = cls._prepare_insert_query()
+        cls.schema_cls.insert_query_stmt = insrt
+
         cls.allowed_selectors_variants = {
             'public': {
                 'get_query_stmt': cls._prepare_get_query(public_get_by_select, request_type='public'),
@@ -973,7 +975,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
         values = {}
 
         # inject authorization condition
-        with suppress(KeyError):
+        with suppress(KeyError, TypeError):
             wheres.append(self.request.auth_conditions['stmt'])
 
         for nested_field, nested_trans in nested_where_stmts.items():

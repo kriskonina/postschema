@@ -310,62 +310,62 @@ class VerfiyEmailAddress(AuxView):
             post = ['*']
 
 
-class InvitedUserActivationView(AuxView):
-    reg_token = fields.String(location='path')
+# class InvitedUserActivationView(AuxView):
+#     reg_token = fields.String(location='path')
 
-    @summary('Activate user')
-    async def post(self):
-        '''Flag user as active by providing a valid registration token'''
-        reg_token = self.path_payload['reg_token']
+#     @summary('Activate user')
+#     async def post(self):
+#         '''Flag user as active by providing a valid registration token'''
+#         reg_token = self.path_payload['reg_token']
 
-        account_key = f'postschema:activate:email:{reg_token}'
-        account_data = await self.request.app.redis_cli.hgetall(account_key)
-        if not account_data:
-            raise web.HTTPNotFound(reason='Link expired or invalid')
-        await self.request.app.redis_cli.delete(account_key)
+#         account_key = f'postschema:activate:email:{reg_token}'
+#         account_data = await self.request.app.redis_cli.hgetall(account_key)
+#         if not account_data:
+#             raise web.HTTPNotFound(reason='Link expired or invalid')
+#         await self.request.app.redis_cli.delete(account_key)
 
-        workspaces = account_data.pop('workspaces', '')
-        account_data['email_confirmed'] = True
-        account_data['status'] = 1
-        account_data['roles'] = Json(account_data['roles'].split(','))
-        account_data['details'] = Json(ujson.loads(account_data['details']))
-        account_data.pop('workspace', None)
+#         workspaces = account_data.pop('workspaces', '')
+#         account_data['email_confirmed'] = True
+#         account_data['status'] = 1
+#         account_data['roles'] = Json(account_data['roles'].split(','))
+#         account_data['details'] = Json(ujson.loads(account_data['details']))
+#         account_data.pop('workspace', None)
 
-        on_conflict = 'ON CONFLICT (email) DO UPDATE SET email_confirmed=true'
-        insert_query = self._render_insert_query(account_data, on_conflict=on_conflict)
+#         on_conflict = 'ON CONFLICT (email) DO UPDATE SET email_confirmed=true'
+#         insert_query = self._render_insert_query(account_data, on_conflict=on_conflict)
 
-        async with self.request.app.db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                async with cur.begin():
+#         async with self.request.app.db_pool.acquire() as conn:
+#             async with conn.cursor() as cur:
+#                 async with cur.begin():
 
-                    await cur.execute(insert_query, account_data)
-                    actor_id = (await cur.fetchone())[0]
+#                     await cur.execute(insert_query, account_data)
+#                     actor_id = (await cur.fetchone())[0]
 
-                    workspaces_query = (
-                        f'''UPDATE workspace SET members=members || '["{actor_id}"]'::jsonb '''
-                        f"WHERE id=ANY('{{{workspaces}}}') "
-                        "RETURNING id"
-                    )
-                    async with self.request.app.db_pool.acquire() as conn:
-                        async with conn.cursor() as cur:
-                            await cur.execute(workspaces_query)
-                            if not await cur.fetchone():
-                                self.request.app.error_logger.error(
-                                    'Failed to add workspace for invited user',
-                                    actor_id=actor_id,
-                                    query=cur.query.decode())
-                                raise post_exceptions.WorkspaceAdditionFailed()
+#                     workspaces_query = (
+#                         f'''UPDATE workspace SET members=members || '["{actor_id}"]'::jsonb '''
+#                         f"WHERE id=ANY('{{{workspaces}}}') "
+#                         "RETURNING id"
+#                     )
+#                     async with self.request.app.db_pool.acquire() as conn:
+#                         async with conn.cursor() as cur:
+#                             await cur.execute(workspaces_query)
+#                             if not await cur.fetchone():
+#                                 self.request.app.error_logger.error(
+#                                     'Failed to add workspace for invited user',
+#                                     actor_id=actor_id,
+#                                     query=cur.query.decode())
+#                                 raise post_exceptions.WorkspaceAdditionFailed()
 
-        return json_response({
-            'actor_id': actor_id
-        })
+#         return json_response({
+#             'actor_id': actor_id
+#         })
 
-    class Public:
-        disallow_authed = ['post']
-        forced_logout = True
+#     class Public:
+#         disallow_authed = ['post']
+#         forced_logout = True
 
-        class permissions:
-            post = {}
+#         class permissions:
+#             post = {}
 
 
 class CreatedUserActivationView(AuxView):
@@ -1019,12 +1019,38 @@ class GrantWorkspace(AuxView):
             delete = ['Owner']
 
 
+class ListMembers(AuxView):
+    @summary('List all members belonging the requester\'s workspaces')
+    async def get(self):
+        workspaces = f"{{ {','.join(self.request.session.workspaces)} }}"
+
+        get_actors_ids_query = f'''WITH u AS (select jsonb_agg(t.mems) AS tt FROM (
+            SELECT distinct jsonb_array_elements(members) AS mems FROM workspace WHERE id = ANY('{workspaces}')
+            ) t)
+            SELECT json_agg(actor_row.act) FROM (
+                SELECT json_build_object('id', id, 'email', email, 'scope', scope, 'roles', roles) AS act 
+                FROM actor, u WHERE u.tt @> actor.id::text::jsonb
+            ) actor_row'''
+        
+        async with self.request.app.db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(get_actors_ids_query)
+                res = await cur.fetchone()
+
+        return json_response(res[0])
+
+    class Authed:
+        class permissions:
+            get = ['Owner']
+
+
+
 class PrincipalActorBase(RootSchema):
     __tablename__ = 'actor'
     __aux_routes__ = {
         '/activate/email/send/': SendEmailLink,
         '/created/activate/email/{reg_token}/': CreatedUserActivationView,
-        '/invitee/activate/email/{reg_token}/': InvitedUserActivationView,
+        # '/invitee/activate/email/{reg_token}/': InvitedUserActivationView,
         '/activate/phone/send/': SendPhoneLink,
         '/activate/phone/{verification_code}/': PhoneActivationView,
         '/verify/email/{verif_code}/': VerfiyEmailAddress,
@@ -1034,7 +1060,8 @@ class PrincipalActorBase(RootSchema):
         '/pass/change/{checkcode}/': ChangePassword,
         '/invite/': InviteUser,
         '/grant/{actor_id}/roles/': GrantRole,
-        '/grant/{actor_id}/workspaces/': GrantWorkspace
+        '/grant/{actor_id}/workspaces/': GrantWorkspace,
+        '/list/members/': ListMembers
     }
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('actor_id_seq'),
                         read_only=True, primary_key=True)
@@ -1141,16 +1168,9 @@ class PrincipalActorBase(RootSchema):
                 }
             })
 
-        # if email != data['email']:
-        #     raise post_exceptions.ValidationError({
-        #         'email': [
-        #             'Provided value is different from the one for which this invitation was created'
-        #         ]
-        #     })
         data['email'] = email
-        data['roles'] = raw_roles.split(',')
+        data['roles'] = Json(raw_roles.split(','))
         data['scope'] = scope
-        data['workspace'] = workspace
         workspaces_invited_to = raw_workspaces.split(',')
 
         scope_inst = ScopeBase._scopes[scope]
@@ -1175,13 +1195,42 @@ class PrincipalActorBase(RootSchema):
                     details = data.get('details', {})
                     details_payload = await parent._validate_singular_payload(
                         details, schema=scope_inst(), envelope_key='details')
-                    data['details'] = details_payload
+                    data['details'] = Json(details_payload)
 
         salt = bcrypt.gensalt()
-        data['workspaces'] = raw_workspaces
         data['password'] = bcrypt.hashpw(data['password'].encode(), salt).decode()
+        data['email_confirmed'] = True
+        data['status'] = 1
 
-        return request.app.invited_email_confirmation_link, ttl
+        on_conflict = 'ON CONFLICT (email) DO UPDATE SET email_confirmed=true'
+        insert_query_stmt = self.insert_query_stmt
+        vals = ',' + ','.join(f"%({colname})s" for colname in data)
+        cols = ',' + ','.join(data)
+        insert_query = insert_query_stmt.format(cols=cols, vals=vals, on_conflict=on_conflict,
+                                                session=request.session)
+
+        async with request.app.db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                async with cur.begin():
+                    await cur.execute(insert_query, data)
+                    actor_id = (await cur.fetchone())[0]
+
+                    workspaces_query = (
+                        f'''UPDATE workspace SET members=members || '["{actor_id}"]'::jsonb '''
+                        f"WHERE id=ANY('{{{raw_workspaces}}}') "
+                        "RETURNING id"
+                    )
+                    async with request.app.db_pool.acquire() as conn:
+                        async with conn.cursor() as cur:
+                            await cur.execute(workspaces_query)
+                            if not await cur.fetchone():
+                                request.app.error_logger.error(
+                                    'Failed to add workspace for invited user',
+                                    actor_id=actor_id,
+                                    query=cur.query.decode())
+                                raise post_exceptions.WorkspaceAdditionFailed()
+
+        raise web.HTTPOk(body=ujson.dumps({'actor_id': actor_id}), content_type='application/json')
 
     async def process_created_actor(self, data, request, parent):
         try:
@@ -1231,7 +1280,7 @@ class PrincipalActorBase(RootSchema):
             invitation_token = invitation_token[:-1]
 
         if invitation_token:
-            link_path_base, ttl = await self.process_invited_actor(invitation_token, request, data, parent)
+            await self.process_invited_actor(invitation_token, request, data, parent)
         else:
             link_path_base, ttl = await self.process_created_actor(data, request, parent)
 

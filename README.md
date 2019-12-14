@@ -136,3 +136,4 @@ Class describe private access rules to private resources, i.e. the ones with a c
 - configurable request rate throttling per endpoint
 - full support for nested schemas
 - confirm the most sensitive operations by 2FA/SMS + allow custom delegation of such endpoints
+- list/get ops should accept arrays as filter arguments
