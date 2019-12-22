@@ -22,6 +22,7 @@ from . import (
     exceptions as post_exceptions,
     validators
 )
+from .contrib import Pagination, ListMembersFilter
 from .decorators import summary
 from .schema import RootSchema
 from .utils import (
@@ -34,12 +35,17 @@ from .utils import (
 from .scope import ScopeBase
 from .view import AuxView
 
+
 APP_MODE = os.environ.get('APP_MODE', 'dev')
 INALIENABLE_ROLES = ['*', 'Admin', 'Owner']
 # we don't allow any actor to have a wildcard and Admin role
 ROLES = sorted(
     role for role in ujson.loads(os.environ.get('ROLES', '[]'))
     if role not in INALIENABLE_ROLES)
+
+pagination_fields = Pagination._declared_fields.copy()
+for k, v in pagination_fields.items():
+    pagination_fields[k].metadata['location'] = 'body'
 
 
 async def send_email_user_invitation(request, by, link, to):
@@ -297,7 +303,6 @@ class VerfiyEmailAddress(AuxView):
         self.request.app.info_logger.info("Session context updated",
                                           actor_id=actor_id, changes={'email_confirmed': 1})
         return resp
-    
 
     class Public:
         class permissions:
@@ -308,64 +313,6 @@ class VerfiyEmailAddress(AuxView):
         class permissions:
             get = ['*']
             post = ['*']
-
-
-# class InvitedUserActivationView(AuxView):
-#     reg_token = fields.String(location='path')
-
-#     @summary('Activate user')
-#     async def post(self):
-#         '''Flag user as active by providing a valid registration token'''
-#         reg_token = self.path_payload['reg_token']
-
-#         account_key = f'postschema:activate:email:{reg_token}'
-#         account_data = await self.request.app.redis_cli.hgetall(account_key)
-#         if not account_data:
-#             raise web.HTTPNotFound(reason='Link expired or invalid')
-#         await self.request.app.redis_cli.delete(account_key)
-
-#         workspaces = account_data.pop('workspaces', '')
-#         account_data['email_confirmed'] = True
-#         account_data['status'] = 1
-#         account_data['roles'] = Json(account_data['roles'].split(','))
-#         account_data['details'] = Json(ujson.loads(account_data['details']))
-#         account_data.pop('workspace', None)
-
-#         on_conflict = 'ON CONFLICT (email) DO UPDATE SET email_confirmed=true'
-#         insert_query = self._render_insert_query(account_data, on_conflict=on_conflict)
-
-#         async with self.request.app.db_pool.acquire() as conn:
-#             async with conn.cursor() as cur:
-#                 async with cur.begin():
-
-#                     await cur.execute(insert_query, account_data)
-#                     actor_id = (await cur.fetchone())[0]
-
-#                     workspaces_query = (
-#                         f'''UPDATE workspace SET members=members || '["{actor_id}"]'::jsonb '''
-#                         f"WHERE id=ANY('{{{workspaces}}}') "
-#                         "RETURNING id"
-#                     )
-#                     async with self.request.app.db_pool.acquire() as conn:
-#                         async with conn.cursor() as cur:
-#                             await cur.execute(workspaces_query)
-#                             if not await cur.fetchone():
-#                                 self.request.app.error_logger.error(
-#                                     'Failed to add workspace for invited user',
-#                                     actor_id=actor_id,
-#                                     query=cur.query.decode())
-#                                 raise post_exceptions.WorkspaceAdditionFailed()
-
-#         return json_response({
-#             'actor_id': actor_id
-#         })
-
-#     class Public:
-#         disallow_authed = ['post']
-#         forced_logout = True
-
-#         class permissions:
-#             post = {}
 
 
 class CreatedUserActivationView(AuxView):
@@ -795,7 +742,6 @@ class GrantRole(AuxView):
             validate=[validate.OneOf(ROLES)]
         ),
         location='body',
-        validate=[validators.must_not_be_empty],
         sqlfield=JSONB,
         required=True
     )
@@ -837,18 +783,41 @@ class GrantRole(AuxView):
         payload = await self.validate_payload()
         roles = payload['roles']
 
-        query = 'UPDATE actor SET roles=%s WHERE id=%s RETURNING roles'
-        async with self.request.app.db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(query, [Json(roles), actor_id])
-                ret = await cur.fetchone()
-                if not ret:
-                    raise post_exceptions.ValidationError({
-                        'path': {
-                            'actor_id': ['Actor ID doesn\'t not exist']
-                        }
-                    })
-                new_roles = ret[0]
+        if 'Owner' in self.request.session.roles:
+            # ensure that actor_id requested for is the member of the requester's workspaces
+            workspaces = f"{{{','.join(self.request.session.workspaces)}}}"
+            async with self.request.app.db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(f'''WITH workspace_cte AS (
+                        SELECT jsonb_agg(t.mems) AS mems FROM (
+                            SELECT distinct jsonb_array_elements(members) AS mems
+                            FROM workspace
+                            WHERE id = ANY('{workspaces}')
+                        ) t
+                    )
+                    UPDATE actor SET roles = %s
+                    FROM workspace_cte
+                    WHERE actor.id=%s AND '%s' <@ workspace_cte.mems
+                    RETURNING roles''', [Json(roles), actor_id, actor_id])
+
+                    ret = await cur.fetchone()
+                    if not ret:
+                        raise web.HTTPForbidden(reason="Requested actor ID doesn't exist or you don't have permission to execute this operation")
+                    new_roles = ret[0]
+
+        elif 'Admin' in self.request.session.roles:
+            query = 'UPDATE actor SET roles=%s WHERE id=%s RETURNING roles'
+            async with self.request.app.db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute(query, [Json(roles), actor_id])
+                    ret = await cur.fetchone()
+                    if not ret:
+                        raise post_exceptions.ValidationError({
+                            'path': {
+                                'actor_id': ['Actor ID doesn\'t not exist']
+                            }
+                        })
+                    new_roles = ret[0]
 
         roles_key = self.request.app.config.roles_key.format(actor_id)
         self.request.session._session_ctxt['roles'] = set(new_roles)
@@ -890,7 +859,7 @@ class GrantRole(AuxView):
 
     class Authed:
         class permissions:
-            post = ['Admin']
+            post = ['Admin', 'Owner']
             patch = ['Admin']
             delete = ['Admin']
 
@@ -1020,29 +989,87 @@ class GrantWorkspace(AuxView):
 
 
 class ListMembers(AuxView):
-    @summary('List all members belonging the requester\'s workspaces')
-    async def get(self):
-        workspaces = f"{{ {','.join(self.request.session.workspaces)} }}"
+    page = pagination_fields['page']
+    limit = pagination_fields['limit']
+    order_by = pagination_fields['order_by']
+    order_dir = pagination_fields['order_dir']
+    select = fields.List(fields.String(), location='body')
+    filter = fields.Dict(location='body')
+    workspace = fields.Int(location='path')
 
-        get_actors_ids_query = f'''WITH u AS (select jsonb_agg(t.mems) AS tt FROM (
-            SELECT distinct jsonb_array_elements(members) AS mems FROM workspace WHERE id = ANY('{workspaces}')
-            ) t)
-            SELECT json_agg(actor_row.act) FROM (
-                SELECT json_build_object('id', id, 'email', email, 'scope', scope, 'roles', roles) AS act 
-                FROM actor, u WHERE u.tt @> actor.id::text::jsonb
-            ) actor_row'''
+    @summary('List all members belonging the requester\'s workspace')
+    async def get(self):
+        payload = await self.validate_payload()
+
+        workspace = str(self.path_payload['workspace'])
+        if workspace not in self.request.session.workspaces:
+            raise post_exceptions.ValidationError({
+                'path': {'workspace': ['Workspace does not exist or you do not have rights to access it']}
+            })
+
+        # validate filter, if present
+        filter_payload = payload.get('filter', {})
+        filter_cleaned = await self._validate_singular_payload(
+            payload=filter_payload,
+            schema=ListMembersFilter(partial=True),
+            envelope_key='filter')
+
+        allowed_order_by = set(self.schema_cls.Meta.order_by)
+        allowed_select_by = set(self.schema_cls.Private.get_by)
+
+        errors = {}
+        invalid_order_by = set(payload.get('order_by', [])) - allowed_order_by
+        invalid_selects = set(payload.get('select', [])) - allowed_select_by
         
+        if invalid_order_by:
+            errors['order_by'] = [f'The following fields are invalid: {", ".join(invalid_order_by)}']
+        if invalid_selects:
+            errors['select'] = [f'The following fields are invalid: {", ".join(invalid_selects)}']
+        if errors:
+            raise post_exceptions.ValidationError(errors)
+        
+        limit = payload['limit']
+        page = payload['page'] - 1
+        offset = page * limit
+
+        selects_list = payload.get('select', self.schema_cls.Private.list_by)
+        selects = ','.join(f"'{sel}',{sel}" for sel in selects_list)
+        orderby = ','.join(payload.get('order_by', ['id']))
+        orderhow = payload['order_dir'].upper()
+
+        where = ['1=1']
+
+        for fieldname, val in filter_cleaned.items():
+            if isinstance(val, list):
+                where.append(f'{fieldname}::jsonb ?| %({fieldname})s')
+                filter_cleaned[fieldname] = val
+            else:
+                where.append(f'{fieldname} ILIKE %({fieldname})s')
+                filter_cleaned[fieldname] = "%" + val + "%"
+
+        get_actors_ids_query = self.request.app.queries['list_members'].format(
+            workspace=workspace,
+            where=' AND '.join(where),
+            selects=selects,
+            orderby=orderby,
+            orderhow=orderhow,
+            limit=limit,
+            offset=offset
+        )
+
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(get_actors_ids_query)
+                try:
+                    await cur.execute(get_actors_ids_query, filter_cleaned)
+                except:
+                    raise
                 res = await cur.fetchone()
 
-        return json_response(res[0])
+        return json_response(res and res[0] or {})
 
     class Authed:
         class permissions:
             get = ['Owner']
-
 
 
 class PrincipalActorBase(RootSchema):
@@ -1050,7 +1077,6 @@ class PrincipalActorBase(RootSchema):
     __aux_routes__ = {
         '/activate/email/send/': SendEmailLink,
         '/created/activate/email/{reg_token}/': CreatedUserActivationView,
-        # '/invitee/activate/email/{reg_token}/': InvitedUserActivationView,
         '/activate/phone/send/': SendPhoneLink,
         '/activate/phone/{verification_code}/': PhoneActivationView,
         '/verify/email/{verif_code}/': VerfiyEmailAddress,
@@ -1061,13 +1087,13 @@ class PrincipalActorBase(RootSchema):
         '/invite/': InviteUser,
         '/grant/{actor_id}/roles/': GrantRole,
         '/grant/{actor_id}/workspaces/': GrantWorkspace,
-        '/list/members/': ListMembers
+        '/list/members/{workspace}/': ListMembers
     }
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('actor_id_seq'),
                         read_only=True, primary_key=True)
-    username = fields.String(sqlfield=sql.String(255))
+    username = fields.String(sqlfield=sql.String(255), unique=True)
     status = fields.Integer(sqlfield=sql.Integer, default='0', missing=0)
-    phone = fields.String(sqlfield=sql.String(255))
+    phone = fields.String(sqlfield=sql.String(255), unique=True)
     phone_confirmed = fields.Boolean(sqlfield=sql.Boolean, read_only=True)
     email = fields.Email(sqlfield=sql.String(255), required=True, unique=True)
     email_confirmed = fields.Boolean(sqlfield=sql.Boolean, read_only=True)
@@ -1301,10 +1327,14 @@ class PrincipalActorBase(RootSchema):
         get_by = ['id', 'phone', 'username', 'status', 'email', 'scope', 'roles', 'details',
                   'phone_confirmed', 'email_confirmed']
         list_by = ['email', 'id', 'username']
+        order_by = ['id', 'username', 'email']
 
         class permissions:
             get = {
                 '*': 'self.id = session.actor_id'
+            }
+            list = {
+                'Admin': 'self.status = session.status'
             }
             update = {
                 '*': 'self.id = session.actor_id'
@@ -1314,6 +1344,7 @@ class PrincipalActorBase(RootSchema):
         exclude_from_updates = ['id', 'status', 'password', 'scope',
                                 'roles', 'email_confirmed', 'phone_confirmed']
         route_base = 'actor'
+        order_by = ['id', 'username', 'email', 'scope']
 
         def default_get_critera(request):
             return {'id': request.session.actor_id}

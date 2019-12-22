@@ -13,3 +13,13 @@ class Pagination(Schema):
     limit = fields.Integer(missing=50, validate=[Range(min=1, max=10000)])
     order_by = fields.List(fields.String())
     order_dir = fields.String(missing="asc", validate=[OneOf(['desc', 'asc'])])
+
+
+class ListMembersFilter(Schema):
+    username = fields.String()
+    status = fields.Integer(default='0', missing=0)
+    phone = fields.String()
+    email = fields.String()
+    roles = fields.List(fields.String())
+    scope = fields.String()
+    details = fields.Dict()

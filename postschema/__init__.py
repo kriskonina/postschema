@@ -5,7 +5,8 @@ import traceback
 from contextlib import suppress
 from copy import deepcopy
 from dataclasses import dataclass, field
-from functools import lru_cache, partial
+from functools import lru_cache
+from glob import glob
 from hashlib import md5
 from pathlib import Path
 from typing import Callable, Optional, List
@@ -26,6 +27,10 @@ from .decorators import auth
 from .logging import setup_logging
 from .schema import PostSchema, _schemas as registered_schemas # noqa
 from .utils import generate_random_word, json_response
+
+THIS_DIR = Path(__file__).parent
+BASE_DIR = THIS_DIR  # / "postschema"
+Q_PATTERN = BASE_DIR / "sql" / "queries" / "*.sql"
 
 REDIS_HOST = os.environ.get('REDIS_HOST')
 REDIS_PORT = os.environ.get('REDIS_PORT')
@@ -249,6 +254,7 @@ def setup_postschema(app, appname: str, *,
                      extra_config={},
                      **app_config):
 
+
     roles = app_config.get('roles', [])
     ROLES = frozenset(role.title() for role in DEFAULT_ROLES | set(roles))
     os.environ['ROLES'] = ujson.dumps(ROLES)
@@ -269,6 +275,10 @@ def setup_postschema(app, appname: str, *,
     app.app_mode = app_config.app_mode
     app.app_description = app_config.description
     app.version = app_config.version
+    app.queries = {
+        filename.split('.')[0]: open(filename).read().strip()
+        for filename in glob(str(Q_PATTERN))
+    }
 
     # create loggers
     info_logger, error_logger = setup_logging(app_config.info_logger_processors,
@@ -277,9 +287,15 @@ def setup_postschema(app, appname: str, *,
 
     from .actor import PrincipalActor
     from .core import Base
+    from .middlewares import session_middleware, switch_workspace_middleware
     from .provision_db import setup_db
     from .scope import ScopeBase
     from .workspace import Workspace  # noqa
+
+    # setup middlewares
+    app.middlewares.extend([
+        session_middleware, switch_workspace_middleware
+    ])
 
     ScopeBase._validate_roles(ROLES)
 

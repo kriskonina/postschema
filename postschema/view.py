@@ -386,6 +386,7 @@ class ViewsClassBase(web.View):
 
         schema_metacls = getattr(cls.schema_cls, 'Meta', object)
 
+        meta_cls = cls.schema_cls.Meta
         public_meta = cls.schema_cls.Public
         private_meta = getattr(cls.schema_cls, 'Private', None)
         authed_meta = getattr(cls.schema_cls, 'Authed', None)
@@ -397,6 +398,8 @@ class ViewsClassBase(web.View):
             selects_nested_map = cls.schema_cls._nested_select_stmts
         except AttributeError:
             selects_nested_map = {}
+
+        common_order_by = getattr(meta_cls, 'order_by', None) or [cls.pk_column_name]
 
         public_get_by = getattr(public_meta, 'get_by', None) or [cls.pk_column_name]
         public_get_by_select = {field: selects_nested_map.get(field, field) for field in public_get_by}
@@ -422,7 +425,7 @@ class ViewsClassBase(web.View):
         pagination_schema_raw = getattr(schema_metacls, 'pagination_schema', Pagination)
 
         cls.pagination_schema = adjust_pagination_schema(pagination_schema_raw,
-                                                         cls.schema_cls, public_list_by.copy(),
+                                                         cls.schema_cls, common_order_by,
                                                          cls.pk_column_name)()
         cls.select_schema = make_select_fields_schema(cls.schema_cls)()
 
