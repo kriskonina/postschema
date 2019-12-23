@@ -1,5 +1,6 @@
-from aiohttp import web
+from contextlib import asynccontextmanager, suppress
 
+from aiohttp import web
 from . import ALLOWED_OPERATIONS
 from .auth.context import AuthContext
 
@@ -18,14 +19,41 @@ def set_logging_context(app, **context):
     app.error_logger = app.error_logger.bind(**context)
 
 
+@asynccontextmanager
+async def switch_workspace(request):
+    overwrite_to = request.headers.get('Overwrite', '')
+    all_workspaces = [overwrite_to]
+
+    try:
+        calling_workspace = None
+        if overwrite_to:
+            with suppress(AttributeError):
+                all_workspaces = request.session.workspaces
+
+            if overwrite_to not in all_workspaces:
+                raise web.HTTPPreconditionFailed(reason='Workspace not found or outside of scope')
+
+            with suppress(AttributeError):
+                calling_workspace = request.session.workspace
+                request.session._session_ctxt['workspace'] = overwrite_to
+
+        yield request
+
+    finally:
+        if calling_workspace:
+            # session exists AND Overwrite header has been used
+            request.session._session_ctxt['workspace'] = calling_workspace
+
+
 @web.middleware
-async def postschema_middleware(request, handler):
+async def session_middleware(request, handler):
 
     set_init_logging_context(request)
 
     if '/actor/logout/' in request.path:
         request.operation = request.method.lower()
         return await handler(request)
+
     try:
         auth_ctxt = AuthContext(request, **handler._perm_options)
     except AttributeError:
@@ -48,7 +76,10 @@ async def postschema_middleware(request, handler):
                                 actor_id=auth_ctxt['actor_id'],
                                 workspace=auth_ctxt['workspace'])
             auth_ctxt.authorize_standalone(**handler._perm_options)
-            resp = await handler(request)
+
+            async with switch_workspace(request):
+                resp = await handler(request)
+
             resp.headers['ETag'] = request.app.spec_hash
             return resp
         raise
@@ -74,8 +105,11 @@ async def postschema_middleware(request, handler):
     } if auth_ctxt.session_ctxt else {}
     set_logging_context(request.app, op=auth_ctxt.operation, **extra_ctxt)
     request.session = auth_ctxt
-    request.auth_conditions = auth_ctxt.authorize()
-    resp = await handler(request)
+
+    async with switch_workspace(request):
+        request.auth_conditions = auth_ctxt.authorize()
+        resp = await handler(request)
+
     resp.headers['ETag'] = request.app.spec_hash
     if request.session.delete_session_cookie:
         request.app.info_logger.info('Deleting session cookie')

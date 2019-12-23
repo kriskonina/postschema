@@ -14,8 +14,7 @@ roles = ['patient', 'doctor', 'operator']
 
 
 def create_app():
-    from postschema.middlewares import postschema_middleware
-    app = web.Application(middlewares=[postschema_middleware])
+    app = web.Application()
     config = {
         'roles': roles
     }

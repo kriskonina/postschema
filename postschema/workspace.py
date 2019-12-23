@@ -13,10 +13,9 @@ class GetMembersCount(AuxView):
     @summary('Returns member count for each owned workspace')
     async def get(self):
         query = ('SELECT json_agg(t.t) FROM ('
-            "SELECT json_build_object('id', id, 'count', jsonb_array_length(members)) "
-            "AS t FROM workspace WHERE owner=%s GROUP BY id"
-            ') t'
-        )
+                 "SELECT json_build_object('id', id, 'count', jsonb_array_length(members)) "
+                 "AS t FROM workspace WHERE owner=%s GROUP BY id"
+                 ') t')
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, [self.request.session.actor_id])

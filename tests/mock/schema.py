@@ -165,6 +165,7 @@ class Operator(ActorRoot):
 
     class Meta:
         excluded_ops = ['delete']
+        order_by = ['id', 'email', 'phone']
 
     class Public:
         get_by = ['name', 'id', 'phone', 'city', 'badges']
@@ -636,6 +637,29 @@ class AutoWorkspacePK(PostSchema):
             update = ['*']
             get = ['*']
             list = ['*']
+
+
+class AlterWorkspace(PostSchema):
+    __tablename__ = 'alterworkspace'
+    workspace = AutoSessionSelectedWorkspace(unique=True, required=True, primary_key=True)
+    var = fields.String(sqlfield=sql.String(200))
+
+    class Meta:
+        route_base = 'alterworkspace'
+
+    class Authed:
+        list_by = ['workspace', 'var']
+
+        class permissions:
+            post = ['*']
+            update = ['*']
+            get = ['*']
+
+    class Private:
+        class permissions:
+            list = {
+                'Owner': 'self.workspace = session.workspace'
+            }
 
 
 class Doctor(ScopeBase):
