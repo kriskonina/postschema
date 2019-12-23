@@ -243,17 +243,23 @@ class PathsReturner:
 
 async def apispec_metainfo(request):
     '''Return current hashsum for the OpenAPI spec + authentication status'''
+    is_authed = request.session.is_authed
+    base_ctxt = {
+        'spec_hashsum': request.app.spec_hash,
+        'authed': is_authed
+    }
+    if not is_authed:
+        return json_response(base_ctxt)
     return json_response({
         'scopes': request.app.scopes,
-        'spec_hashsum': request.app.spec_hash,
-        'authed': request.session.is_authed
+        'roles': request.app.roles,
+        **base_ctxt
     })
 
 
 def setup_postschema(app, appname: str, *,
                      extra_config={},
                      **app_config):
-
 
     roles = app_config.get('roles', [])
     ROLES = frozenset(role.title() for role in DEFAULT_ROLES | set(roles))
@@ -276,7 +282,7 @@ def setup_postschema(app, appname: str, *,
     app.app_description = app_config.description
     app.version = app_config.version
     app.queries = {
-        filename.split('.')[0]: open(filename).read().strip()
+        os.path.split(filename)[1].rsplit('.', 1)[0]: open(filename).read().strip()
         for filename in glob(str(Q_PATTERN))
     }
 
@@ -287,14 +293,14 @@ def setup_postschema(app, appname: str, *,
 
     from .actor import PrincipalActor
     from .core import Base
-    from .middlewares import session_middleware, switch_workspace_middleware
+    from .middlewares import session_middleware
     from .provision_db import setup_db
     from .scope import ScopeBase
     from .workspace import Workspace  # noqa
 
     # setup middlewares
     app.middlewares.extend([
-        session_middleware, switch_workspace_middleware
+        session_middleware
     ])
 
     ScopeBase._validate_roles(ROLES)
@@ -346,7 +352,8 @@ def setup_postschema(app, appname: str, *,
     app_config._update(ImmutableConfig(scopes=ScopeBase._scopes))
     config.update(app_config.__dict__)
     app.config = config
-    app.scopes = list(ScopeBase._scopes)
+    app.scopes = frozenset(ScopeBase._scopes)
+    app.roles = frozenset(roles)
 
     app.principal_actor_schema = PrincipalActor
     app.schemas = registered_schemas
