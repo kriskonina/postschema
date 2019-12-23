@@ -132,9 +132,11 @@ class CommonViewMixin:
                                          raise_orig=False):
         ref_schema = schema if schema is not None else self.schema
         payload_used = payload if payload is not None else await self.payload
+
         if ref_schema == self.schema and self.schema is None:
             warnings.warn("Can't validate payload without body schema")
             return {}
+
         ref_schema.session = weakref.proxy(self.request.session)
         ref_schema.app = weakref.proxy(self.request.app)
 
@@ -142,6 +144,7 @@ class CommonViewMixin:
             autosession_fields = ref_schema._autosession_fields
         except AttributeError:
             autosession_fields = {}
+
         self.extend_payload_with_session(payload_used, autosession_fields)
 
         err_msg = None
@@ -526,7 +529,7 @@ class ViewsClassBase(web.View):
             if isinstance(aval, fields.List):
                 frmt = f' @> to_jsonb(%({attr_name})s)'
             # elif isinstance(aval, fields.Dict):
-            #     frmt = f' ? %({attr_name})s' 
+            #     frmt = f' ? %({attr_name})s'
                 nested_fields_to_json_query[aname] = f'"{tablename}".{aname}{frmt}'
 
             # nested_fields_to_json_query[aname] = f"{extends_on}->'{aname}'{frmt}"
@@ -707,7 +710,7 @@ class ViewsClassBase(web.View):
         if cls.pk_autoicr:
             values.append(f"NEXTVAL('{cls.pk_col.default.name}')")
         else:
-            # if PK isn't set to auto-increment, and it's of AutoSession type, 
+            # if PK isn't set to auto-increment, and it's of AutoSession type,
             # don't include it in a pre-rendered query
             if not is_autopk:
                 values.append(f'%({cls.pk_column_name})')
@@ -897,7 +900,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             errs['payload'] = REQ
         if errs:
             raise post_exceptions.ValidationError(errs)
-        
+
         # clear both sets
         cleaned_select = await self._validate_singular_payload(
             payload=select, schema=self.get_schema, envelope_key='select')
@@ -1134,7 +1137,8 @@ class ViewsTemplate:
                         # Most likely a cross workspace insert
                         self.request.app.error_logger.warn('Cross workspace insert')
                         raise web.HTTPConflict(reason='Illegal cross workspace insert')
-                    self.request.app.error_logger.error("Failed to create a resource", query=cur.query.decode())
+                    self.request.app.error_logger.error("Failed to create a resource",
+                                                        query=cur.query.decode())
                     raise post_exceptions.CreateFailed()
 
         if hasattr(self.schema, 'after_post'):
@@ -1172,7 +1176,8 @@ class ViewsTemplate:
                     raise
                 res = await cur.fetchone()
                 if not res or not res[0]:
-                    self.request.app.error_logger.error("Failed to update a resource", query=cur.query.decode())
+                    self.request.app.error_logger.error("Failed to update a resource",
+                                                        query=cur.query.decode())
                     raise post_exceptions.UpdateFailed()
 
         if hasattr(self.schema, 'after_put'):
@@ -1217,7 +1222,8 @@ class ViewsTemplate:
                     raise
                 res = await cur.fetchone()
                 if not res or not res[0]:
-                    self.request.app.error_logger.error('Failed to update a resource', query=cur.query.decode())
+                    self.request.app.error_logger.error('Failed to update a resource',
+                                                        query=cur.query.decode())
                     raise post_exceptions.UpdateFailed()
 
         if hasattr(self.schema, 'after_patch'):

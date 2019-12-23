@@ -47,7 +47,7 @@ class FRBase(Relationship, fields.List):
         super().__init__(fields.String(), *args, **kwargs)
 
     def _deserialize(self, *args, **kwargs):
-        return list(set(super()._deserialize(*args, **kwargs)))
+        return list(map(int, set(super()._deserialize(*args, **kwargs))))
 
 
 class ForeignResources(FRBase):

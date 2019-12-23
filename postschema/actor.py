@@ -134,8 +134,8 @@ async def send_email_verification_link(request, to):
     verif_token = generate_random_word(20)
     ttl_seconds = request.app.config.activation_link_ttl
     email_verification_link = request.app.config.email_verification_link
-    verif_link = email_verification_link.format(scheme=f'{request.scheme}://{request.host}', 
-        verif_token=verif_token)
+    verif_link = email_verification_link.format(scheme=f'{request.scheme}://{request.host}',
+                                                verif_token=verif_token)
     actor_id = request.session.actor_id
 
     key = f'postschema:verify:email:{verif_token}'
@@ -469,7 +469,7 @@ class LoginView(AuxView):
             "'password',password,"
             "'workspaces', COALESCE(jsonb_object_agg(workspace.id, workspace.name) FILTER (WHERE workspace.id IS NOT NULL),'{}'::jsonb)) " # noqa
         "FROM actor "
-        'LEFT JOIN workspace ON actor.id=workspace.owner OR format(\'"%%s"\', actor.id)::jsonb <@ workspace.members ' # noqa
+        'LEFT JOIN workspace ON actor.id=workspace.owner OR format(\'%%s\', actor.id)::jsonb <@ workspace.members ' # noqa
         "WHERE status=1 AND email=%s "
         "GROUP BY actor.id"
         ) # noqa
@@ -802,7 +802,8 @@ class GrantRole(AuxView):
 
                     ret = await cur.fetchone()
                     if not ret:
-                        raise web.HTTPForbidden(reason="Requested actor ID doesn't exist or you don't have permission to execute this operation")
+                        raise web.HTTPForbidden(reason=("Requested actor ID doesn't exist or you don't "
+                                                        "have permission to execute this operation"))
                     new_roles = ret[0]
 
         elif 'Admin' in self.request.session.roles:
@@ -823,7 +824,8 @@ class GrantRole(AuxView):
         self.request.session._session_ctxt['roles'] = set(new_roles)
         if await self.request.app.redis_cli.exists(roles_key):
             await self.request.app.redis_cli.delete(roles_key)
-            await self.request.app.redis_cli.sadd(roles_key, *new_roles)
+            if new_roles:
+                await self.request.app.redis_cli.sadd(roles_key, *new_roles)
 
         return web.HTTPOk()
 
@@ -895,7 +897,7 @@ class GrantWorkspace(AuxView):
 
         workspaces_joined = ','.join(workspaces)
 
-        member = f''''["{actor_id}"]'::jsonb'''
+        member = f''''[{actor_id}]'::jsonb'''
 
         query = (
             'WITH update_workspace_cte as ('
@@ -959,7 +961,9 @@ class GrantWorkspace(AuxView):
 
         query = (
             'WITH delete_from_workspace_cte as ('
-            f'UPDATE workspace SET members = members-%s::text '
+            f"UPDATE workspace SET members = ("
+            "SELECT COALESCE(jsonb_agg(j.i), '[]'::jsonb) FROM "
+            "(SELECT jsonb_array_elements(members) AS i) j WHERE j.i <> '%s') "
             f"WHERE owner=%s AND id=ANY('{{{workspaces_joined}}}')  RETURNING id)"
             'SELECT json_agg(id) FROM delete_from_workspace_cte'
         )
@@ -1020,14 +1024,14 @@ class ListMembers(AuxView):
         errors = {}
         invalid_order_by = set(payload.get('order_by', [])) - allowed_order_by
         invalid_selects = set(payload.get('select', [])) - allowed_select_by
-        
+
         if invalid_order_by:
             errors['order_by'] = [f'The following fields are invalid: {", ".join(invalid_order_by)}']
         if invalid_selects:
             errors['select'] = [f'The following fields are invalid: {", ".join(invalid_selects)}']
         if errors:
             raise post_exceptions.ValidationError(errors)
-        
+
         limit = payload['limit']
         page = payload['page'] - 1
         offset = page * limit
@@ -1059,10 +1063,7 @@ class ListMembers(AuxView):
 
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                try:
-                    await cur.execute(get_actors_ids_query, filter_cleaned)
-                except:
-                    raise
+                await cur.execute(get_actors_ids_query, filter_cleaned)
                 res = await cur.fetchone()
 
         return json_response(res and res[0] or {})
@@ -1242,7 +1243,7 @@ class PrincipalActorBase(RootSchema):
                     actor_id = (await cur.fetchone())[0]
 
                     workspaces_query = (
-                        f'''UPDATE workspace SET members=members || '["{actor_id}"]'::jsonb '''
+                        f'''UPDATE workspace SET members=members || '[{actor_id}]'::jsonb '''
                         f"WHERE id=ANY('{{{raw_workspaces}}}') "
                         "RETURNING id"
                     )
