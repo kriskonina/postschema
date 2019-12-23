@@ -55,7 +55,7 @@ Postschema allows for the following attributes to be defined on top of it:
     * limit (must be of `fields.Integer` type)
     * order_dir (must be of `fields.String` type, values either `ASC` or `DESC`)
     * order_by (must be of `Array` type)
-- `default_get_critera`: Function or callable taking one positional argument - an aiohttp Request object. Expected to return a dictionary including query criteria
+- `default_get_critera`: A callable taking one positional argument - an aiohttp Request object. Expected to return a dictionary including query criteria
 for the GET operation if no query payload is provided.
 
 - `__table_args__`: Passed to SQLAlchemy model's Meta class
@@ -136,4 +136,6 @@ Class describe private access rules to private resources, i.e. the ones with a c
 - configurable request rate throttling per endpoint
 - full support for nested schemas
 - confirm the most sensitive operations by 2FA/SMS + allow custom delegation of such endpoints
-- list/get ops should accept arrays as filter arguments
+- list/get ops should accept arrays as filter arguments (inclusion checkup)
+- auto insert/update date(time) field
+- extend session context with arbitrary fields
