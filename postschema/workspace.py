@@ -62,8 +62,8 @@ class Workspace(PostSchema):
             post = ['Owner']
 
     class Private:
-        get_by = ['id', 'name', 'members']
-        list_by = ['id', 'name', 'members']
+        get_by = ['id', 'name']
+        list_by = ['id', 'name']
 
         class permissions:
             get = {

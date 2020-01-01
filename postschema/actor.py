@@ -225,6 +225,150 @@ async def send_phone_verification_code(request, phone_num, actor_id):
     await request.app.send_sms(request, phone_num, msg)
 
 
+async def login(request, payload, is_trusted=False):
+    get_actor_query = ('SELECT json_build_object('
+            "'actor_id',actor.id,"
+            "'phone',COALESCE(phone, ''),"
+            "'email',email,"
+            "'username',COALESCE(username, split_part(email, '@', 1)),"
+            "'email_confirmed',COALESCE(email_confirmed, False)::int,"
+            "'phone_confirmed',COALESCE(phone_confirmed, False)::int,"
+            "'scope',scope,"
+            "'roles',roles,"
+            "'status',status,"
+            "'password',password,"
+            "'workspaces', COALESCE(jsonb_object_agg(workspace.id, workspace.name) FILTER (WHERE workspace.id IS NOT NULL),'{}'::jsonb)) " # noqa
+        "FROM actor "
+        'LEFT JOIN workspace ON actor.id=workspace.owner OR format(\'%%s\', actor.id)::jsonb <@ workspace.members ' # noqa
+        "WHERE status=1 AND email=%s "
+        "GROUP BY actor.id"
+        ) # noqa
+
+    async with request.app.db_pool.acquire() as conn:
+        async with conn.cursor() as cur:
+            await cur.execute(get_actor_query, [payload['email']])
+            try:
+                data = (await cur.fetchone())[0]
+            except TypeError:
+                raise web.HTTPForbidden(reason='Invalid login or password or account inactive')
+
+    workspace_ids = [int(key) for key in data['workspaces']]
+
+    if data['workspaces'] and 'workspace' not in payload:
+        # User logging in hasn't selected a workspace, and has only one, select it for him.
+        if len(data['workspaces']) == 1:
+            payload['workspace'] = workspace_ids[0]
+        else:
+            # User needs to select explicitly which workspace to log in to
+            raise web.HTTPConflict(
+                content_type='application/json',
+                body=ujson.dumps({'workspaces': data['workspaces']}),
+                reason='This account has more than one workspace. You need to select one.')
+
+    workspace = payload.get('workspace')
+    if workspace and workspace not in workspace_ids:
+        raise post_exceptions.ValidationError({
+            'workspace': ['Workspace doesn\'t exist or doesn\'t belong to you']
+        })
+
+    # put selected workspace on future session context
+    data['workspace'] = workspace or -1
+    data['scope'] = data['scope'] or 'Generic'
+
+    if not is_trusted:
+        try:
+            if not bcrypt.checkpw(payload['password'].encode(), data['password'].encode()):
+                raise web.HTTPForbidden(reason='Invalid login or password')
+        except ValueError:
+            # invalid salt
+            raise web.HTTPForbidden(reason='Invalid salt')
+
+    payload.pop('password', None)
+    actor_id = data.get('actor_id')
+    account_key = request.app.config.account_details_key.format(actor_id)
+    roles_key = request.app.config.roles_key.format(actor_id)
+    workspaces_key = request.app.config.workspaces_key.format(actor_id)
+    roles = data.pop('roles', [])
+
+    # cache actor details
+    workspaces = data.pop('workspaces')
+    pipe = request.app.redis_cli.pipeline()
+    pipe.hmset_dict(account_key, data)
+    if roles:
+        pipe.sadd(roles_key, *roles)
+    if workspace_ids:
+        pipe.sadd(workspaces_key, *workspace_ids)
+    await pipe.execute()
+
+    session_token = request.app.commons.encrypt(actor_id)
+    response = json_response({
+        'id': data['actor_id'],
+        'username': data['username'],
+        'email': data['email'],
+        'email_confirmed': data['email_confirmed'],
+        'phone_confirmed': data['phone_confirmed'],
+        'phone': data['phone'],
+        'roles': roles,
+        'scope': data['scope'],
+        'active_workspace': data['workspace'],
+        'workspaces': workspaces
+    })
+    session_cookie = request.app.config.session_key
+    response.set_cookie(session_cookie,
+                        session_token,
+                        httponly=True,
+                        max_age=request.app.config.session_ttl)
+    request.app.info_logger.info("User logged in", actor_id=actor_id)
+    return response
+
+
+class LoginView(AuxView):
+    email = fields.Email(required=True, location='body')
+    password = fields.String(required=True, location='body')
+    workspace = fields.Int(location='body')
+
+    @summary('Log in a user') # noqa
+    async def post(self):
+        '''Create a session entry in Redis for the authenticated user,
+        set a session cookie on the response object.
+        Return logged-in user details.
+        '''
+        payload = await self.validate_payload()
+        return await login(self.request, payload)
+
+    class Public:
+        class permissions:
+            post = {}
+
+
+class LogoutView(AuxView):
+    @summary('Log out a user')
+    async def get(self):
+        session_cookie_name = self.request.app.config.session_key
+        session_cookie = self.request.cookies.get(session_cookie_name, None)
+        if not session_cookie:
+            raise web.HTTPNoContent(reason='No session found')
+
+        # Also get rid off session context
+        try:
+            actor_id = self.request.session['actor_id']
+            account_key = self.request.app.config.account_details_key.format(actor_id)
+            roles_key = self.request.app.config.roles_key.format(actor_id)
+            await self.request.app.redis_cli.delete(account_key, roles_key)
+        except (AttributeError, KeyError):
+            # session cookie doesn't point to any actor Ids nor session caches
+            actor_id = 'unrecognized'
+
+        response = web.HTTPOk()
+        response.del_cookie('postsession')
+        self.request.app.info_logger.info("User logged out", actor_id=actor_id)
+        return response
+
+    class Authed:
+        class permissions:
+            get = ['*']
+
+
 class PhoneActivationView(AuxView):
     verification_code = fields.String(location='path')
 
@@ -364,11 +508,16 @@ class CreatedUserActivationView(AuxView):
 
                     workspace_id = (await cur.fetchone())[0]
 
-        return json_response({
-            'actor_id': actor_id,
-            'workspace_id': workspace_id,
-            'workspace_name': name
-        })
+        return await login(
+            self.request,
+            {'email': account_data['email'], 'workspace': workspace_id, 'password': ''},
+            is_trusted=True
+        )
+        # return json_response({
+        #     'actor_id': actor_id,
+        #     'workspace_id': workspace_id,
+        #     'workspace_name': name
+        # })
 
     class Public:
         disallow_authed = ['post']
@@ -442,145 +591,6 @@ class SendEmailLink(AuxView):
     class Public:
         class permissions:
             post = {}
-
-
-class LoginView(AuxView):
-    email = fields.Email(required=True, location='body')
-    password = fields.String(required=True, location='body')
-    workspace = fields.Int(location='body')
-
-    @summary('Log in a user') # noqa
-    async def post(self):
-        '''Create a session entry in Redis for the authenticated user,
-        set a session cookie on the response object.
-        Return logged-in user details.
-        '''
-        payload = await self.validate_payload()
-        get_actor_query = ('SELECT json_build_object('
-            "'actor_id',actor.id,"
-            "'phone',COALESCE(phone, ''),"
-            "'email',email,"
-            "'username',COALESCE(username, split_part(email, '@', 1)),"
-            "'email_confirmed',COALESCE(email_confirmed, False)::int,"
-            "'phone_confirmed',COALESCE(phone_confirmed, False)::int,"
-            "'scope',scope,"
-            "'roles',roles,"
-            "'status',status,"
-            "'password',password,"
-            "'workspaces', COALESCE(jsonb_object_agg(workspace.id, workspace.name) FILTER (WHERE workspace.id IS NOT NULL),'{}'::jsonb)) " # noqa
-        "FROM actor "
-        'LEFT JOIN workspace ON actor.id=workspace.owner OR format(\'%%s\', actor.id)::jsonb <@ workspace.members ' # noqa
-        "WHERE status=1 AND email=%s "
-        "GROUP BY actor.id"
-        ) # noqa
-
-        async with self.request.app.db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(get_actor_query, [payload.pop('email')])
-                try:
-                    data = (await cur.fetchone())[0]
-                except TypeError:
-                    raise web.HTTPForbidden(reason='Invalid login or password or account inactive')
-
-        workspace_ids = [int(key) for key in data['workspaces']]
-
-        if data['workspaces'] and 'workspace' not in payload:
-            # User logging in hasn't selected a workspace, and has only one, select it for him.
-            if len(data['workspaces']) == 1:
-                payload['workspace'] = workspace_ids[0]
-            else:
-                # User needs to select explicitly which workspace to log in to
-                raise web.HTTPConflict(
-                    content_type='application/json',
-                    body=ujson.dumps({'workspaces': data['workspaces']}),
-                    reason='This account has more than one workspace. You need to select one.')
-
-        workspace = payload.get('workspace')
-        if workspace and workspace not in workspace_ids:
-            raise post_exceptions.ValidationError({
-                'workspace': ['Workspace doesn\'t exist or doesn\'t belong to you']
-            })
-
-        # put selected workspace on future session context
-        data['workspace'] = workspace or -1
-        data['scope'] = data['scope'] or 'Generic'
-
-        try:
-            if not bcrypt.checkpw(payload['password'].encode(), data['password'].encode()):
-                raise web.HTTPForbidden(reason='Invalid login or password')
-        except ValueError:
-            # invalid salt
-            raise web.HTTPForbidden(reason='Invalid salt')
-
-        payload.pop('password')
-        actor_id = data.get('actor_id')
-        account_key = self.request.app.config.account_details_key.format(actor_id)
-        roles_key = self.request.app.config.roles_key.format(actor_id)
-        workspaces_key = self.request.app.config.workspaces_key.format(actor_id)
-        roles = data.pop('roles', [])
-
-        # cache actor details
-        workspaces = data.pop('workspaces')
-        pipe = self.request.app.redis_cli.pipeline()
-        pipe.hmset_dict(account_key, data)
-        if roles:
-            pipe.sadd(roles_key, *roles)
-        if workspace_ids:
-            pipe.sadd(workspaces_key, *workspace_ids)
-        await pipe.execute()
-
-        session_token = self.request.app.commons.encrypt(actor_id)
-        response = json_response({
-            'id': data['actor_id'],
-            'username': data['username'],
-            'email': data['email'],
-            'email_confirmed': data['email_confirmed'],
-            'phone_confirmed': data['phone_confirmed'],
-            'phone': data['phone'],
-            'roles': roles,
-            'scope': data['scope'],
-            'active_workspace': data['workspace'],
-            'workspaces': workspaces
-        })
-        session_cookie = self.request.app.config.session_key
-        response.set_cookie(session_cookie,
-                            session_token,
-                            httponly=True,
-                            max_age=self.request.app.config.session_ttl)
-        self.request.app.info_logger.info("User logged in", actor_id=actor_id)
-        return response
-
-    class Public:
-        class permissions:
-            post = {}
-
-
-class LogoutView(AuxView):
-    @summary('Log out a user')
-    async def get(self):
-        session_cookie_name = self.request.app.config.session_key
-        session_cookie = self.request.cookies.get(session_cookie_name, None)
-        if not session_cookie:
-            raise web.HTTPNoContent(reason='No session found')
-
-        # Also get rid off session context
-        try:
-            actor_id = self.request.session['actor_id']
-            account_key = self.request.app.config.account_details_key.format(actor_id)
-            roles_key = self.request.app.config.roles_key.format(actor_id)
-            await self.request.app.redis_cli.delete(account_key, roles_key)
-        except (AttributeError, KeyError):
-            # session cookie doesn't point to any actor Ids nor session caches
-            actor_id = 'unrecognized'
-
-        response = web.HTTPOk()
-        response.del_cookie('postsession')
-        self.request.app.info_logger.info("User logged out", actor_id=actor_id)
-        return response
-
-    class Authed:
-        class permissions:
-            get = ['*']
 
 
 class ChangePassword(AuxView):
