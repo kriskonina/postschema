@@ -75,3 +75,6 @@ class Workspace(PostSchema):
             update = {
                 'Owner': 'self.owner = session.actor_id'
             }
+            delete = {
+                'Owner': 'self.id -> session.workspaces'
+            }
