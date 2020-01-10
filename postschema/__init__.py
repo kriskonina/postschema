@@ -100,38 +100,52 @@ async def pass_reset_checkcode_template(request):
 
 async def pass_reset_checkcode_raw(request):
     swapcode = await reset_form_context(request)
-    return {'checkcode': swapcode}
+    return json_response({'checkcode': swapcode})
 
 
 @dataclass
 class AppConfig:
-    initial_logging_context: dict = field(default_factory=dict)
-    roles: List[str] = field(default_factory=list)
+    # general
+    alembic_dest = None
+    description: str = ''
+    node_id: str = generate_random_word(10)
+    session_key: str = 'postsession'
     template_dirs: List[str] = field(default_factory=list)
     url_prefix: str = ''
     version: str = 'unreleased'
-    description: str = ''
-    send_sms: Optional[Callable] = None
-    invitation_link: str = '{scheme}actor/?inv={payload}'
+
+    # auth
+    activate_invited_user_with_sms: bool = False
+    fernet: Fernet = Fernet(os.environ.get('FERNET_KEY').encode())
     redirect_reset_password_to: str = ''
+    roles: List[str] = field(default_factory=list)
     password_reset_form_link: str = ''
+
+    # links
     created_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/created/activate/email/{{reg_token}}/'
-    invited_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/invitee/activate/email/{{reg_token}}/'
     email_verification_link: str = '{{scheme}}{url_prefix}/actor/verify/email/{{verif_token}}/'
+    invitation_link: str = '{scheme}actor/?inv={payload}'
+    invited_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/invitee/activate/email/{{reg_token}}/'
+
+    # logging
+    initial_logging_context: dict = field(default_factory=dict)
     info_logger_processors: Optional[list] = None
     error_logger_processors: Optional[list] = None
     default_logging_level: Optional[int] = None
-    alembic_dest = None
-    session_key: str = 'postsession'
+
+    # TTLs
     session_ttl: int = 3600 * 24 * 30  # a month
     invitation_link_ttl: int = 3600 * 24 * 7  # a week
     activation_link_ttl: int = 3600 * 6  # 6 hours
     sms_verification_ttl: int = 60  # 1 minute
     reset_link_ttl: int = 60 * 10  # 10 minutes
-    node_id: str = generate_random_word(10)
-    fernet: Fernet = Fernet(os.environ.get('FERNET_KEY').encode())
+
+    # sms
+    send_sms: Optional[Callable] = None
     sms_sender: str = os.environ.get('DEFAULT_SMS_SENDER')
     sms_verification_cta: str = 'Enter code to confirm number: {verification_code}'
+
+    # email templating
     activation_email_subject: str = 'Activate your account'
     invitation_email_subject: str = 'Create your new account'
     reset_pass_email_subject: str = 'Reset your password'
