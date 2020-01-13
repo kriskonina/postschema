@@ -128,14 +128,11 @@ Class describe private access rules to private resources, i.e. the ones with a c
             }
 
 
-#
-
 ## TODO:
 - adopt/refine security measures
 - request rate throttling as a default middleware + filtering
 - configurable request rate throttling per endpoint
 - full support for nested schemas
-- confirm the most sensitive operations by 2FA/SMS + allow custom delegation of such endpoints
 - list/get ops should accept arrays as filter arguments (inclusion checkup)
 - auto insert/update date(time) field
 - extend session context with arbitrary fields

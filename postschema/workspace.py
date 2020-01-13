@@ -1,6 +1,8 @@
 import sqlalchemy as sql
+from aiohttp import web
 from marshmallow import fields
 
+from .auth.context import BracketedFrozenset
 from .decorators import summary
 from .fields import ForeignResources, AutoSessionOwner
 from .schema import PostSchema
@@ -44,10 +46,33 @@ class Workspace(PostSchema):
         "Cache the new workspace on the requester's session object"
         actor_id = actor_id or request.session.actor_id
         workspaces_key = request.app.config.workspaces_key.format(actor_id)
-        request.session._session_ctxt['workspaces'] = {workspace_id}
+
+        new_workspaces = list(request.session._session_ctxt['workspaces']) + [workspace_id]
+        request.session._session_ctxt['workspaces'] = BracketedFrozenset(new_workspaces)
+
         if await request.app.redis_cli.exists(workspaces_key):
             await request.app.redis_cli.delete(workspaces_key)
-            await request.app.redis_cli.sadd(workspaces_key, workspace_id)
+            await request.app.redis_cli.sadd(workspaces_key, *new_workspaces)
+
+    async def before_delete(self, request, payload):
+        '''This is to prevent two scenarios:
+        - there's only one workspace left
+        - the active workspace is also the workspace whose deletion if being requested
+        '''
+
+        if str(payload['id']) == str(request.session.workspace) and not request.is_overwritten:
+            raise web.HTTPBadRequest(reason="Can't remove the active workspace")
+
+        query = 'SELECT COUNT(id) FROM workspace WHERE owner = %s'
+        async with request.app.db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, [request.session.actor_id])
+                ret = await cur.fetchone()
+                if ret[0] == 1:
+                    request.app.error_logger.error('Attempted removal of the last standing workspace')
+                    raise web.HTTPBadRequest(reason="Can't remove the last workspace")
+
+        return payload
 
     class Meta:
         # changing members redelegated for readibility to auxiliary route defined under Actor
@@ -76,5 +101,5 @@ class Workspace(PostSchema):
                 'Owner': 'self.owner = session.actor_id'
             }
             delete = {
-                'Owner': 'self.id -> session.workspaces'
+                'Owner': 'self.id = session.workspace'
             }

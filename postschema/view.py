@@ -461,9 +461,11 @@ class ViewsClassBase(web.View):
                 RETURNING 1
             )
             SELECT count(*) FROM rows""")
+
         cls.delete_query_stmt = FallbackString(f"""
             WITH rows AS (
                 DELETE FROM "{cls.schema_cls.__tablename__}"
+                {{using}}
                 WHERE {{where}}
                 RETURNING 1
             )
@@ -968,7 +970,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
         return self.insert_query_stmt.format(cols=cols, vals=vals, on_conflict=on_conflict,
                                              session=self.request.session)
 
-    def _whereize_query(self, cleaned_payload, query): # noqa
+    def _whereize_query(self, cleaned_payload, query, in_delete=False): # noqa
         try:
             nested_where_stmts = self.schema._nested_where_stmts
         except AttributeError:
@@ -977,6 +979,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
 
         tablename = self.schema.__tablename__
         joins = []
+        usings = []
         wheres = deque()
         values = {}
 
@@ -999,6 +1002,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
         for fk_field, (linked_schema, where_stmt) in self.schema._join_to_schema_where_stmt.items():
             if fk_field in self.tables_to_join:
                 joins.append(self.schema._joins[fk_field])
+                usings.append(fk_field)
             fk_in_payload = cleaned_payload.pop(fk_field, None)
             if fk_in_payload:
                 with suppress(AttributeError):
@@ -1008,6 +1012,8 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                         trans_key = f'{fk_field}_{key}'
                         values.update({trans_key: val})
                         wheres.append(where_stmt.format(subkey=key, fill=trans_key))
+                        if in_delete:
+                            wheres.append(f'"{tablename}".{fk_field}={fk_field}.{key}')
 
         for key in cleaned_payload.copy():
             wheres.appendleft(f'"{tablename}".{key}=%(w_{key})s')
@@ -1016,8 +1022,11 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
 
         wheres_q = ' AND '.join(wheres) or ' 1=1 '
         joins = ' '.join(joins)
+        using = ','.join(usings)
+        if using:
+            using = f'USING {using}'
 
-        return query.format(where=wheres_q, joins=joins), values
+        return query.format(where=wheres_q, joins=joins, using=using), values
 
 
 class ViewsTemplate:
@@ -1261,7 +1270,7 @@ class ViewsTemplate:
         if deep_delete or self.schema._m2m_cherrypicks:
             delete_query = self.delete_deep_query_stmt
 
-        query, query_values = self._whereize_query(cleaned_payload, delete_query)
+        query, query_values = self._whereize_query(cleaned_payload, delete_query, in_delete=True)
 
         deleted_resource_instances = 0
         deleted_m2m_refs = 0
@@ -1271,6 +1280,7 @@ class ViewsTemplate:
                 async with cur.begin():
                     try:
                         await cur.execute(query, query_values)
+                        print(cur.query.decode())
                     except Exception:
                         self.request.app.error_logger.exception('Failed to execute a delete query',
                                                                 query=cur.query.decode())

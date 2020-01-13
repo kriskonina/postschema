@@ -1,8 +1,18 @@
+import os
+
+import pyotp
 from contextlib import asynccontextmanager, suppress
 
 from aiohttp import web
+from cryptography.fernet import InvalidToken
+
 from . import ALLOWED_OPERATIONS
 from .auth.context import AuthContext
+from .exceptions import HTTPShieldedResource
+from .utils import generate_num_sequence
+from .view import AuxViewBase
+
+APP_MODE = os.environ.get('APP_MODE', 'dev')
 
 
 def set_init_logging_context(request):
@@ -22,6 +32,7 @@ def set_logging_context(app, **context):
 @asynccontextmanager
 async def switch_workspace(request):
     overwrite_to = request.headers.get('Overwrite', '')
+    request.is_overwritten = False
     all_workspaces = [overwrite_to]
 
     try:
@@ -35,6 +46,7 @@ async def switch_workspace(request):
 
             with suppress(AttributeError):
                 calling_workspace = request.session.workspace
+                request.is_overwritten = True
                 request.session._session_ctxt['workspace'] = overwrite_to
 
         yield request
@@ -45,12 +57,86 @@ async def switch_workspace(request):
             request.session._session_ctxt['workspace'] = calling_workspace
 
 
-@web.middleware
-async def session_middleware(request, handler):
+async def prepare_shielded_response(request, handler):
+    if 'shield' not in request.app.installed_plugins:
+        return await handler(request)
 
+    async def make_shielded_response(cause, shield_method):
+        # TODO rate limiting
+        code = generate_num_sequence(6)
+        payload = f'{request.path}:{request.session.actor_id}:{code}'
+        shield_token = request.app.commons.encrypt(payload)
+        context = {'method': shield_method, 'cause': cause}
+
+        if shield_method == 'sms':
+            if APP_MODE == 'dev':
+                context['code'] = code
+            else:
+                msg = request.app.config.sms_shield_msg.format(code=code)
+                await request.app.send_sms(request, request.session.phone, msg)
+        elif shield_method == 'otp' and APP_MODE == 'dev':
+            totp = pyotp.TOTP(request.session.otp_secret)
+            context['code'] = totp.now()
+
+        resp = HTTPShieldedResource(context)
+        resp.set_cookie(request.app.config.shield_cookie,
+                        shield_token,
+                        httponly=True,
+                        max_age=180)
+        return resp
+
+    shields = {}
+    with suppress(AttributeError, TypeError):
+        if issubclass(handler, AuxViewBase):
+            shields = handler.shields
+        else:
+            shields = handler.schema_cls.shields
+
+    if request.session and request.session.is_authed and shields:
+        shieldcode = request.query.get('shieldcode')
+        shield_method = None
+        with suppress(AttributeError, KeyError):
+            shield_method = shields[request.operation]
+            cookie_name = request.app.config.shield_cookie
+            shield_cookie = request.cookies.get(cookie_name, None)
+
+        if shield_method:
+            if shield_cookie and shieldcode:
+                try:
+                    decrypted_payload = request.app.commons.decrypt(shield_cookie, ttl=200)
+                except InvalidToken:
+                    raise await make_shielded_response('Shield token invalid or expired', shield_method)
+                try:
+                    path, actor_id, submitted_code = decrypted_payload.split(":")
+                except ValueError:
+                    raise web.HTTPForbidden(reason='Shield token misconstructed')
+
+                if path == request.path and actor_id == request.session.actor_id:
+                    if shield_method == 'otp':
+                        totp = pyotp.TOTP(request.session.otp_secret)
+                        if totp.now() == shieldcode:
+                            resp = await handler(request)
+                            resp.del_cookie(cookie_name)
+                            return resp
+
+                    if shield_method == 'sms' and submitted_code == shieldcode:
+                        resp = await handler(request)
+                        resp.del_cookie(cookie_name)
+                        return resp
+
+                raise await make_shielded_response('Shield token invalid', shield_method)
+
+            raise await make_shielded_response('Shield token not supplied or invalid', shield_method)
+
+    return await handler(request)
+
+
+@web.middleware
+async def postschema_middleware(request, handler):
     set_init_logging_context(request)
 
     if '/actor/logout/' in request.path:
+        request.middleware_mode = 'public'
         request.operation = request.method.lower()
         return await handler(request)
 
@@ -70,6 +156,8 @@ async def session_middleware(request, handler):
             auth_ctxt = AuthContext(request)
             auth_ctxt.request_type = 'authed'
             await auth_ctxt.set_session_context()
+            if str(auth_ctxt.status) != '1':
+                raise web.HTTPForbidden(reason='Account inactive')
             request.session = auth_ctxt
             set_logging_context(request.app,
                                 op=auth_ctxt.operation,
@@ -78,7 +166,7 @@ async def session_middleware(request, handler):
             auth_ctxt.authorize_standalone(**handler._perm_options)
 
             async with switch_workspace(request):
-                resp = await handler(request)
+                resp = await prepare_shielded_response(request, handler)
 
             resp.headers['ETag'] = request.app.spec_hash
             return resp
@@ -99,16 +187,21 @@ async def session_middleware(request, handler):
 
     auth_ctxt.set_level_permissions()
     await auth_ctxt.set_session_context()
+
+    if auth_ctxt and str(auth_ctxt.status) != '1':
+        raise web.HTTPForbidden(reason='Account inactive')
+
     extra_ctxt = {
         'actor_id': auth_ctxt['actor_id'],
         'workspace': auth_ctxt['workspace']
     } if auth_ctxt.session_ctxt else {}
+
     set_logging_context(request.app, op=auth_ctxt.operation, **extra_ctxt)
     request.session = auth_ctxt
 
     async with switch_workspace(request):
         request.auth_conditions = auth_ctxt.authorize()
-        resp = await handler(request)
+        resp = await prepare_shielded_response(request, handler)
 
     resp.headers['ETag'] = request.app.spec_hash
     if request.session.delete_session_cookie:

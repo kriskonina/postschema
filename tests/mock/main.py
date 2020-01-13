@@ -16,9 +16,17 @@ roles = ['patient', 'doctor', 'operator']
 def create_app():
     app = web.Application()
     config = {
-        'roles': roles
+        'roles': roles,
+        'email_verification_link': '{{scheme}}/actor/verify/email/{{verif_token}}/',
+        'plugins': [
+            'shield'
+        ]
     }
-    setup_postschema(app, 'test_app', version='0.5.0', description='My New API Server', **config)
+    setup_postschema(
+        app, 'test_app',
+        version='0.5.0',
+        description='My New API Server',
+        **config)
     return app
 
 

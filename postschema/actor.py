@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 
 import aiosmtplib
 import bcrypt
+import pyotp
 import sqlalchemy as sql
 from aiojobs.aiohttp import spawn
 from aiohttp import web
@@ -236,11 +237,12 @@ async def login(request, payload, is_trusted=False):
             "'scope',scope,"
             "'roles',roles,"
             "'status',status,"
+            "'otp_secret',otp_secret,"
             "'password',password,"
             "'workspaces', COALESCE(jsonb_object_agg(workspace.id, workspace.name) FILTER (WHERE workspace.id IS NOT NULL),'{}'::jsonb)) " # noqa
         "FROM actor "
         'LEFT JOIN workspace ON actor.id=workspace.owner OR format(\'%%s\', actor.id)::jsonb <@ workspace.members ' # noqa
-        "WHERE status=1 AND email=%s "
+        "WHERE email=%s "
         "GROUP BY actor.id"
         ) # noqa
 
@@ -250,7 +252,7 @@ async def login(request, payload, is_trusted=False):
             try:
                 data = (await cur.fetchone())[0]
             except TypeError:
-                raise web.HTTPForbidden(reason='Invalid login or password or account inactive')
+                raise web.HTTPForbidden(reason='Invalid login or password')
 
     workspace_ids = [int(key) for key in data['workspaces']]
 
@@ -383,7 +385,7 @@ class PhoneActivationView(AuxView):
 
         await self.request.app.redis_cli.delete(key)
 
-        query = 'UPDATE actor SET phone_confirmed = true WHERE id = %s RETURNING phone'
+        query = 'UPDATE actor SET phone_confirmed = true, status = 1 WHERE id = %s RETURNING phone'
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, [actor_id])
@@ -419,13 +421,14 @@ class VerfiyEmailAddress(AuxView):
         verif_code = self.path_payload['verif_code']
         key = f'postschema:verify:email:{verif_code}'
         actor_id = await self.request.app.redis_cli.get(key)
+
         if not actor_id:
             raise post_exceptions.ValidationError(
                 {'verif_code': ["Verification code invalid or expired"]})
 
         await self.request.app.redis_cli.delete(key)
 
-        query = 'UPDATE actor SET email_confirmed = true WHERE id = %s RETURNING email'
+        query = f'UPDATE actor SET email_confirmed=true WHERE id=%s RETURNING email'
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, [actor_id])
@@ -510,7 +513,9 @@ class CreatedUserActivationView(AuxView):
 
         return await login(
             self.request,
-            {'email': account_data['email'], 'workspace': workspace_id, 'password': ''},
+            {'email': account_data['email'],
+             'workspace': workspace_id,
+             'password': ''},
             is_trusted=True
         )
         # return json_response({
@@ -534,8 +539,9 @@ class SendPhoneLink(AuxView):
     async def post(self):
         payload = await self.validate_payload()
         number = payload['phone']
+
         # first check if this phone number exists in our database
-        query = 'SELECT id FROM actor WHERE phone = %s AND phone_confirmed = False'
+        query = 'SELECT id FROM actor WHERE phone=%s AND phone_confirmed=False OR status=0'
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, [number])
@@ -1083,6 +1089,25 @@ class ListMembers(AuxView):
             get = ['Owner']
 
 
+class GetOtpSecret(AuxView):
+    @summary('Get the logged-in\'s actor otp secret')
+    async def get(self):
+        async with self.request.app.db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute('SELECT otp_secret FROM actor WHERE id=%s', [self.request.session.actor_id])
+                res = await cur.fetchone()
+        return json_response({
+            'otp_secret': res[0]
+        })
+
+    class Authed:
+        class permissions:
+            get = ['*']
+
+    class Shield:
+        get = 'sms'
+
+
 class PrincipalActorBase(RootSchema):
     __tablename__ = 'actor'
     __aux_routes__ = {
@@ -1098,7 +1123,8 @@ class PrincipalActorBase(RootSchema):
         '/invite/': InviteUser,
         '/grant/{actor_id}/roles/': GrantRole,
         '/grant/{actor_id}/workspaces/': GrantWorkspace,
-        '/list/members/{workspace}/': ListMembers
+        '/list/members/{workspace}/': ListMembers,
+        '/otp/secret/': GetOtpSecret
     }
     id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('actor_id_seq'),
                         read_only=True, primary_key=True)
@@ -1117,6 +1143,7 @@ class PrincipalActorBase(RootSchema):
         sqlfield=JSONB
     )
     scope = fields.String(sqlfield=sql.String(255))
+    otp_secret = fields.String(sqlfield=sql.String(24))
     details = fields.Dict(sqlfield=JSONB)
 
     async def before_update(self, parent, request, payload):
@@ -1237,7 +1264,21 @@ class PrincipalActorBase(RootSchema):
         salt = bcrypt.gensalt()
         data['password'] = bcrypt.hashpw(data['password'].encode(), salt).decode()
         data['email_confirmed'] = True
-        data['status'] = 1
+
+        if request.app.config.activate_invited_user_with_sms:
+            # demand the presence of phone field in the payload
+            try:
+                payload = await request.json()
+            except Exception:
+                raise web.HTTPBadRequest(reason='cannot read payload')
+
+            if 'phone' not in payload or not payload['phone']:
+                raise post_exceptions.ValidationError({
+                    'phone': ['This field is required']
+                })
+            data['status'] = 0
+        else:
+            data['status'] = 1
 
         on_conflict = 'ON CONFLICT (email) DO UPDATE SET email_confirmed=true'
         insert_query_stmt = self.insert_query_stmt
@@ -1311,6 +1352,7 @@ class PrincipalActorBase(RootSchema):
         return request.app.created_email_confirmation_link, request.app.config.activation_link_ttl
 
     async def before_post(self, parent, request, data):
+        data['otp_secret'] = pyotp.random_base32(24)
         query = request.query
         invitation_token = query.get('inv')
         if invitation_token is not None and invitation_token.endswith('/'):

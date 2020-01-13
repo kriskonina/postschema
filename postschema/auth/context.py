@@ -8,6 +8,9 @@ ILLEGAL_XROLE = 'Illegal cross-role request'
 
 
 class AccessBase:
+    def __bool__(self):
+        return bool(self.session_ctxt)
+
     def __contains__(self, key):
         return key in self.session_ctxt
 

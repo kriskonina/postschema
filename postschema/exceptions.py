@@ -12,6 +12,17 @@ failed_del_json = ujson.dumps({
 })
 
 
+class HTTPShieldedResource(web.HTTPClientError):
+    status_code = 423
+
+    def __init__(self, json, *args, **kwargs):
+        super().__init__(
+            body=ujson.dumps(json),
+            reason='Resource locked',
+            content_type='application/json',
+            *args, **kwargs)
+
+
 class ValidationError(web.HTTPError):
     status_code = 422
 

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from glob import glob
 from hashlib import md5
+from importlib import import_module
 from pathlib import Path
 from typing import Callable, Optional, List
 
@@ -121,6 +122,10 @@ class AppConfig:
     roles: List[str] = field(default_factory=list)
     password_reset_form_link: str = ''
 
+    # shield
+    shield_cookie: str = 'postshield'
+    sms_shield_msg: str = 'Your postschema confirmation number: {code}'
+
     # links
     created_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/created/activate/email/{{reg_token}}/'
     email_verification_link: str = '{{scheme}}{url_prefix}/actor/verify/email/{{verif_token}}/'
@@ -159,6 +164,8 @@ class AppConfig:
     reset_pass_email_html: str = ''
     invitation_email_html: str = ''
     verification_email_html: str = ''
+
+    plugins: List[str] = field(default_factory=list)
 
     def _update(self, cls):
         for k, v in cls.__dict__.items():
@@ -305,17 +312,25 @@ def setup_postschema(app, appname: str, *,
                                               app_config.error_logger_processors,
                                               app_config.default_logging_level)
 
+    from . import middlewares
     from .actor import PrincipalActor
     from .core import Base
-    from .middlewares import session_middleware
     from .provision_db import setup_db
     from .scope import ScopeBase
     from .workspace import Workspace  # noqa
 
+    # parse plugins
+    installed_plugins = {}
+    for plugin in app_config.plugins:
+        assert plugin in ['shield'], f'Plugin `{plugin}` is not recognized'
+        installed_plugins[plugin] = plugin_module = import_module(f'.{plugin}', 'postschema')
+        with suppress(AttributeError, TypeError):
+            plugin_module.parse_schemas(registered_schemas)
+
+    app.installed_plugins = installed_plugins.keys()
+
     # setup middlewares
-    app.middlewares.extend([
-        session_middleware
-    ])
+    app.middlewares.append(middlewares.postschema_middleware)
 
     ScopeBase._validate_roles(ROLES)
 
@@ -418,3 +433,6 @@ def setup_postschema(app, appname: str, *,
     router.add_get(f'{url_prefix}/doc/openapi.yaml', apispec_context)
     router.add_get(f'{url_prefix}/doc/spec.json', actor_apispec)
     router.add_get(f'{url_prefix}/doc/meta/', apispec_metainfo)
+
+    # if 'shield' in installed_plugins:
+    #     router.add_get('')

@@ -22,6 +22,15 @@ class DefaultOperations:
 class _schemascls:
     _name = 'registered schemas'
 
+    @property
+    def full_iter(self):
+        'Iterate over all schemas and their aux views'
+        for schema_name, schema in self:
+            if hasattr(schema, '__aux_routes__'):
+                for _, aux_schema in schema.__aux_routes__.items():
+                    yield aux_schema.__name__, aux_schema
+            yield schema_name, schema
+
     def __iter__(self):
         for k, v in self.__dict__.copy().items():
             if not k.startswith('_'):

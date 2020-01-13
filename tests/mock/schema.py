@@ -662,6 +662,21 @@ class AlterWorkspace(PostSchema):
             }
 
 
+class OtpShieldedResource(PostSchema):
+    __tablename__ = 'optshield'
+    id = AutoSessionOwner(unique=True, required=True, primary_key=True)
+
+    class Meta:
+        route_base = 'optshield'
+
+    class Authed:
+        class permissions:
+            post = '*'
+
+    class Shield:
+        post = 'otp'
+
+
 class Doctor(ScopeBase):
     spec = fields.String(sqlfield=sql.String(150), required=True)
     ward_id = fields.Int(sqlfield=sql.Integer)
