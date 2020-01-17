@@ -273,7 +273,11 @@ class AuxViewBase(web.View, CommonViewMixin):
 
     async def validate_payload(self):
         try:
-            return await self._validate_singular_payload(schema=self.body_schema)
+            body_schema = self.body_schema
+        except AttributeError:
+            body_schema = None
+        try:
+            return await self._validate_singular_payload(schema=body_schema)
         except ValidationError as vexc:
             raise post_exceptions.ValidationError(vexc.messages)
 
@@ -321,13 +325,6 @@ class AuxViewBase(web.View, CommonViewMixin):
                     unified_order_field = unified_order_field[0].split(',')
                 get_query[fieldname] = unified_order_field
         return get_query
-
-    @property
-    def body_schema(self):
-        try:
-            return self.body_schema
-        except AttributeError:
-            return None
 
 
 class ViewsClassBase(web.View):
