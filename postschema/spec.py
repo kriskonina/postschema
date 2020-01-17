@@ -293,8 +293,8 @@ class APISpecBuilder(AuxSpecBuilder):
             'tags': [tagname]
         }
 
-        if authed:
-            perm_ops = getattr(perm_cls.permissions, op)
+        perm_ops = getattr(perm_cls.permissions, op, None)
+        if authed and perm_ops:
             try:
                 roles = list(perm_ops.keys())[0]
             except AttributeError:

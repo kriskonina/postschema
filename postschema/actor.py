@@ -49,6 +49,10 @@ for k, v in pagination_fields.items():
     pagination_fields[k].metadata['location'] = 'body'
 
 
+def clean_phone_number(phoneno):
+    return phoneno.replace('(', '').replace(')', '').replace(' ', '')
+
+
 async def send_email_user_invitation(request, by, link, to):
     if APP_MODE == 'dev':
         return link
@@ -254,6 +258,14 @@ async def login(request, payload, is_trusted=False):
             except TypeError:
                 raise web.HTTPForbidden(reason='Invalid login or password')
 
+    if not is_trusted:
+        try:
+            if not bcrypt.checkpw(payload['password'].encode(), data['password'].encode()):
+                raise web.HTTPForbidden(reason='Invalid login or password')
+        except ValueError:
+            # invalid salt
+            raise web.HTTPForbidden(reason='Invalid salt')
+
     workspace_ids = [int(key) for key in data['workspaces']]
 
     if data['workspaces'] and 'workspace' not in payload:
@@ -276,14 +288,6 @@ async def login(request, payload, is_trusted=False):
     # put selected workspace on future session context
     data['workspace'] = workspace or -1
     data['scope'] = data['scope'] or 'Generic'
-
-    if not is_trusted:
-        try:
-            if not bcrypt.checkpw(payload['password'].encode(), data['password'].encode()):
-                raise web.HTTPForbidden(reason='Invalid login or password')
-        except ValueError:
-            # invalid salt
-            raise web.HTTPForbidden(reason='Invalid salt')
 
     payload.pop('password', None)
     actor_id = data.get('actor_id')
@@ -1147,6 +1151,8 @@ class PrincipalActorBase(RootSchema):
     details = fields.Dict(sqlfield=JSONB)
 
     async def before_update(self, parent, request, payload):
+        if 'phone' in payload:
+            payload['phone'] = clean_phone_number(payload['phone'])
         if 'details' in payload:
             scope = request.session.scope
             scope_inst = request.app.config.scopes[scope]
@@ -1366,6 +1372,9 @@ class PrincipalActorBase(RootSchema):
         if APP_MODE == 'dev':
             activation_link = await send_email_activation_link(request, data, link_path_base, ttl)
             raise web.HTTPOk(reason='Account creation pending', text=activation_link)
+
+        if 'phone' in data:
+            data['phone'] = clean_phone_number(data['phone'])
 
         await spawn(request, send_email_activation_link(request, data, link_path_base, ttl))
         raise web.HTTPNoContent(reason='Account creation pending')

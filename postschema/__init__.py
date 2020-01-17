@@ -246,19 +246,26 @@ class PathsReturner:
             viewname = resource._routes[0].handler.__name__.replace('View', '')
             viewname = viewname[0].lower() + viewname[1:]
 
-            with suppress(KeyError):
-                view_spec = spec['paths'][url]
-                for method, obj in view_spec.items():
-                    if method == 'options':
-                        method = 'list'
+            # with suppress(KeyError):
+            view_spec = spec['paths'].get(url)
+            if not view_spec:
+                continue
+
+            for method, obj in view_spec.items():
+                if method == 'options':
+                    method = 'list'
+
+                try:
                     schema_key = obj['requestBody']['content']['application/json']['schema']['$ref'].rsplit('/', 1)[1]
                     schema = spec['components']['schemas'][schema_key]
+                except KeyError:
+                    schema = {}
 
-                    out[f'{viewname}:{method}'] = {
-                        'url': url,
-                        'authed': 'security' in obj,
-                        'schema': schema
-                    }
+                out[f'{viewname}:{method}'] = {
+                    'url': url,
+                    'authed': 'security' in obj,
+                    'schema': schema
+                }
         return out
 
 
