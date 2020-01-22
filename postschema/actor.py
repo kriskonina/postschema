@@ -1388,7 +1388,8 @@ class PrincipalActorBase(RootSchema):
     class Private:
         get_by = ['id', 'phone', 'username', 'status', 'email', 'scope', 'roles', 'details',
                   'phone_confirmed', 'email_confirmed']
-        list_by = ['email', 'id', 'username']
+        list_by = ['id', 'phone', 'username', 'status', 'email', 'scope', 'roles', 'details',
+                  'phone_confirmed', 'email_confirmed']
         order_by = ['id', 'username', 'email']
 
         class permissions:
