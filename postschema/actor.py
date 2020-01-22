@@ -1026,7 +1026,8 @@ class ListMembers(AuxView):
         payload = await self.validate_payload()
 
         workspace = str(self.path_payload['workspace'])
-        if workspace not in self.request.session.workspaces:
+
+        if workspace not in self.request.session.workspaces and self.request.session.username != 'admin':
             raise post_exceptions.ValidationError({
                 'path': {'workspace': ['Workspace does not exist or you do not have rights to access it']}
             })
