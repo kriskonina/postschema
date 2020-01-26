@@ -1,5 +1,5 @@
 from marshmallow import ValidationError
-from psycopg2.extras import Json
+from .utils import Json
 
 
 def must_not_be_empty(val):

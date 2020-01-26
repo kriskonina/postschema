@@ -5,7 +5,7 @@ from contextlib import suppress
 from functools import lru_cache
 
 import sqlalchemy as sql
-import ujson
+import orjson
 from aiohttp import web
 from aiohttp.hdrs import METH_ALL
 
@@ -217,7 +217,7 @@ class ViewMaker:
 
         # force-set common meta attrs
         meta_methods.setdefault('route_base', self.schema_cls.__name__.lower())
-        meta_methods['render_module'] = ujson
+        meta_methods['render_module'] = orjson
 
         new_meta = type('Meta', (DefaultMetaBase, ), meta_methods)
         self.schema_cls.Meta = new_meta

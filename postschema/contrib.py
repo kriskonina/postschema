@@ -1,6 +1,5 @@
 import os
 
-# import ujson
 from marshmallow import Schema, fields
 from marshmallow.validate import Range, OneOf
 

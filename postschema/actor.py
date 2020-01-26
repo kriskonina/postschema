@@ -1,5 +1,5 @@
 import os
-import ujson
+import orjson
 import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -15,7 +15,6 @@ from aiohttp import web
 from cryptography.fernet import InvalidToken
 from marshmallow import fields, validate
 from psycopg2 import errors as postgres_errors
-from psycopg2.extras import Json
 from sqlalchemy.dialects.postgresql import JSONB
 
 from . import (
@@ -31,7 +30,9 @@ from .utils import (
     generate_num_sequence,
     json_response,
     parse_postgres_err,
-    seconds_to_human
+    seconds_to_human,
+    Json,
+    dumps
 )
 from .scope import ScopeBase
 from .view import AuxView
@@ -41,7 +42,7 @@ APP_MODE = os.environ.get('APP_MODE', 'dev')
 INALIENABLE_ROLES = ['*', 'Admin', 'Owner']
 # we don't allow any actor to have a wildcard and Admin role
 ROLES = sorted(
-    role for role in ujson.loads(os.environ.get('ROLES', '[]'))
+    role for role in orjson.loads(os.environ.get('ROLES', '[]'))
     if role not in INALIENABLE_ROLES)
 
 pagination_fields = Pagination._declared_fields.copy()
@@ -179,7 +180,7 @@ async def send_email_verification_link(request, to):
 async def send_email_activation_link(request, data, link_path_base, ttl_seconds):
     reg_token = generate_random_word(20)
     activation_link = link_path_base.format(reg_token=reg_token, scheme=f'{request.scheme}://{request.host}')
-    data['details'] = ujson.dumps(data.get('details', {}))
+    data['details'] = dumps(data.get('details', {}))
     data['status'] = 0
     data['email_confirmed'] = 0
     data['phone_confirmed'] = 0
@@ -276,7 +277,7 @@ async def login(request, payload, is_trusted=False):
             # User needs to select explicitly which workspace to log in to
             raise web.HTTPConflict(
                 content_type='application/json',
-                body=ujson.dumps({'workspaces': data['workspaces']}),
+                body=dumps({'workspaces': data['workspaces']}),
                 reason='This account has more than one workspace. You need to select one.')
 
     workspace = payload.get('workspace')
@@ -485,7 +486,7 @@ class CreatedUserActivationView(AuxView):
         account_data['status'] = 1
         account_data['roles'] = Json(account_data['roles'].split(','))
         # account_data['workspaces'] = Json(account_data['workspaces'].split(','))
-        account_data['details'] = Json(ujson.loads(account_data['details']))
+        account_data['details'] = Json(orjson.loads(account_data['details']))
         account_data.pop('workspaces', None)
 
         on_conflict = 'ON CONFLICT (email) DO UPDATE SET email_confirmed=true'
@@ -1315,7 +1316,7 @@ class PrincipalActorBase(RootSchema):
                                     query=cur.query.decode())
                                 raise post_exceptions.WorkspaceAdditionFailed()
 
-        raise web.HTTPOk(body=ujson.dumps({'actor_id': actor_id}), content_type='application/json')
+        raise web.HTTPOk(body=dumps({'actor_id': actor_id}), content_type='application/json')
 
     async def process_created_actor(self, data, request, parent):
         try:

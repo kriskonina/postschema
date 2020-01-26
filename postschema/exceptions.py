@@ -1,13 +1,13 @@
-import ujson
 from aiohttp import web
+from .utils import dumps
 
-failed_create_json = ujson.dumps({
+failed_create_json = dumps({
     "error": "Resource create not complete"
 })
-failed_update_json = ujson.dumps({
+failed_update_json = dumps({
     "error": "Resource update not complete"
 })
-failed_del_json = ujson.dumps({
+failed_del_json = dumps({
     "error": "Resource deletion not complete"
 })
 
@@ -17,7 +17,7 @@ class HTTPShieldedResource(web.HTTPClientError):
 
     def __init__(self, json, *args, **kwargs):
         super().__init__(
-            body=ujson.dumps(json),
+            body=dumps(json),
             reason='Resource locked',
             content_type='application/json',
             *args, **kwargs)
@@ -28,7 +28,7 @@ class ValidationError(web.HTTPError):
 
     def __init__(self, json, *args, **kwargs):
         super().__init__(
-            body=ujson.dumps(json),
+            body=dumps(json),
             reason='Request payload invalid',
             content_type='application/json',
             *args, **kwargs)
@@ -61,7 +61,7 @@ class DeleteFailed(web.HTTPError):
 
     def __init__(self, *args, **kwargs):
         body = kwargs.pop('body', None)
-        payload = ujson.dumps({
+        payload = dumps({
             'error': body
         }) if body else failed_del_json
         super().__init__(

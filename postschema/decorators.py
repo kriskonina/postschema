@@ -1,5 +1,5 @@
 import os
-import ujson
+import orjson
 
 DEFINED_ROLES_CACHE = []
 
@@ -18,7 +18,7 @@ def auth(roles: list, phone_verified=False, email_verified=True):
     actor is a holder of certain roles.
     """
     global DEFINED_ROLES_CACHE
-    DEFINED_ROLES = DEFINED_ROLES_CACHE or set(ujson.loads(os.environ.get('ROLES')))
+    DEFINED_ROLES = DEFINED_ROLES_CACHE or set(orjson.loads(os.environ.get('ROLES')))
     if not DEFINED_ROLES_CACHE:
         DEFINED_ROLES_CACHE = DEFINED_ROLES
 

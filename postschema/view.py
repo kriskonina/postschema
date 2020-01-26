@@ -7,7 +7,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from importlib import import_module
 
-import ujson
+import orjson
 from aiohttp import web
 from aiojobs.aiohttp import spawn
 from cached_property import cached_property
@@ -292,7 +292,7 @@ class AuxViewBase(web.View, CommonViewMixin):
     async def payload(self):
         '''Refers to JSON payload transmitted in body'''
         try:
-            return await self.request.json(loads=ujson.loads)
+            return await self.request.json(loads=orjson.loads)
         except Exception:
             raise web.HTTPBadRequest(reason='cannot read payload')
 
@@ -825,7 +825,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
     @cached_property
     async def payload(self):
         try:
-            return await self.request.json(loads=ujson.loads)
+            return await self.request.json(loads=orjson.loads)
         except Exception:
             raise web.HTTPBadRequest(reason='cannot read payload')
 

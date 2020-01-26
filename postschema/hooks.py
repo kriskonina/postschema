@@ -1,5 +1,5 @@
 from contextlib import suppress
-from psycopg2.extras import Json
+from .utils import Json
 
 
 def translate_naive_nested(schema_cls, extraction_field):

@@ -17,7 +17,6 @@ import aiohttp_jinja2
 import aiopg
 import aioredis
 import jinja2
-import ujson
 from aiojobs.aiohttp import setup as aiojobs_setup
 from aiohttp.web_urldispatcher import UrlDispatcher
 from cryptography.fernet import Fernet
@@ -27,7 +26,7 @@ from .core import build_app
 from .decorators import auth
 from .logging import setup_logging
 from .schema import PostSchema, _schemas as registered_schemas # noqa
-from .utils import generate_random_word, json_response
+from .utils import generate_random_word, json_response, dumps
 
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR  # / "postschema"
@@ -291,7 +290,7 @@ def setup_postschema(app, appname: str, *,
 
     roles = app_config.get('roles', [])
     ROLES = frozenset(role.title() for role in DEFAULT_ROLES | set(roles))
-    os.environ['ROLES'] = ujson.dumps(ROLES)
+    os.environ['ROLES'] = dumps(ROLES)
 
     app_config = AppConfig(**app_config)
     app_config.initial_logging_context['version'] = app_config.version
@@ -405,7 +404,7 @@ def setup_postschema(app, appname: str, *,
     router, openapi_spec = build_app(app, registered_schemas)
 
     # hash the spec
-    app.spec_hash = md5(ujson.dumps(openapi_spec).encode()).hexdigest()
+    app.spec_hash = md5(dumps(openapi_spec).encode()).hexdigest()
 
     # map paths to roles
     paths_by_roles = PathsReturner(openapi_spec, router)

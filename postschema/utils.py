@@ -1,18 +1,41 @@
+import json
 import string
 import re
 import random
 import secrets
 from functools import partial
 
-import ujson
+import orjson
 from aiohttp import web
+from psycopg2.extras import Json as PsycopJson
 
-dumps = partial(ujson.dumps, ensure_ascii=False, escape_forward_slashes=False)
+
 NUMSET = list(string.digits)
 random.shuffle(NUMSET)
 PG_ERR_PAT = re.compile(
     r'(?P<prefix>([\s\w]|_)+)\((?P<name>.*?)\)\=\((?P<val>.*?)\)(?P<reason>.*)'
 )
+ORJSON_FLAGS = orjson.OPT_OMIT_MICROSECONDS | orjson.OPT_SERIALIZE_UUID | orjson.OPT_UTC_Z
+
+
+def def_dump(val):
+    if isinstance(val, (set, frozenset)):
+        return list(val)
+    return orjson.dumps(str(val))
+
+
+def dumps(val):
+    try:
+        return orjson.dumps(val, option=ORJSON_FLAGS).decode()
+    except orjson.JSONEncodeError:
+        # try for set/frozenset first
+        if isinstance(val, (set, frozenset)):
+            return orjson.dumps(list(val)).decode()
+        return json.dumps(val, default=def_dump)
+
+
+def Json(val):
+    return PsycopJson(val, dumps=dumps)
 
 
 def generate_random_word(ln=10):
