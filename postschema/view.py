@@ -19,11 +19,12 @@ from . import exceptions as post_exceptions
 from .auth.perms import SessionContext
 from .fields import (
     Set, Relationship, AutoImpliedForeignResource,
-    AutoSessionField, AutoSessionForeignResource
+    AutoSessionField, AutoSessionForeignResource,
+    RangeDTField
 )
 from .hooks import translate_naive_nested, translate_naive_nested_to_dict
 from .schema import DefaultMetaBase
-from .utils import json_response, retype_schema, parse_postgres_err
+from .utils import json_response, retype_schema
 from .validators import must_not_be_empty, adjust_children_field
 
 __all__ = ['ViewsBase']
@@ -381,7 +382,8 @@ class ViewsClassBase(web.View):
         cls.mergeable_fields = cls.iterable_fields[:]
 
         cls.pk_col = table.primary_key.columns_autoinc_first[0]
-        cls.pk_column_name = cls.pk_col.name
+        cls.pk_column_name = pk_name = cls.pk_col.name
+        cls.schema_cls.pk_column_name = pk_name
         cls.pk_autoicr = isinstance(cls.pk_col.default, Sequence)
 
         schema_metacls = getattr(cls.schema_cls, 'Meta', object)
@@ -392,6 +394,7 @@ class ViewsClassBase(web.View):
         authed_meta = getattr(cls.schema_cls, 'Authed', None)
 
         cls._naive_fields_to_composite_stmts()
+        cls.schema_cls._special_output_processing = cls._find_special_output_fields()
         cls.schema_cls._join_to_schema_where_stmt = joins
 
         try:
@@ -454,6 +457,7 @@ class ViewsClassBase(web.View):
             WITH rows AS (
                 UPDATE "{cls.schema_cls.__tablename__}"
                 SET {{updates}}
+                {{froms}}
                 WHERE {{where}}
                 RETURNING 1
             )
@@ -515,6 +519,17 @@ class ViewsClassBase(web.View):
                     use='read', joins=private_get_joins, partial=True, only=private_delete_by)
             }
         }
+
+    @classmethod
+    def _find_special_output_fields(cls):
+        schema = cls.schema_cls
+        tablename = schema.__tablename__
+        out = {}
+        for aname, aval in schema._declared_fields.items():
+            attr_name = aval.attribute or aname
+            if isinstance(aval, RangeDTField):
+                out[aname] = f'json_build_array(lower("{tablename}".{attr_name}), upper("{tablename}".{attr_name}))'
+        return out
 
     @classmethod
     def _naive_fields_to_composite_stmts(cls):
@@ -585,10 +600,13 @@ class ViewsClassBase(web.View):
             )
         tablename = cls.schema_cls.__tablename__
         tablename_cte = f'{tablename}_cte'
-
         joined_fields = dd(dict)
+        extra_fields = {}
+
+        joins_to_schemas = cls.schema_cls._join_to_schema_where_stmt
+        special_output_processing = cls.schema_cls._special_output_processing
+
         for getter_field in list_by.copy():
-            joins_to_schemas = cls.schema_cls._join_to_schema_where_stmt
             if getter_field in joins_to_schemas:
                 linked_schema = joins_to_schemas[getter_field][0]
                 popped_field = list_by.pop(getter_field, None)
@@ -613,10 +631,15 @@ class ViewsClassBase(web.View):
                     if compile_selects else linked_list_by_select
                 joined_fields[getter_field].update(linked_selects)
 
+            elif getter_field in special_output_processing:
+                extra_fields[getter_field] = special_output_processing[getter_field]
+
         main_selects = cls._prepare_selects(list_by) if compile_selects else list_by
         main_selects.update(joined_fields)
 
         select_stmt = _join_selects(main_selects, tablename)
+        if extra_fields:
+            select_stmt += ',' + ','.join(f"'{k}',{v}" for k, v in extra_fields.items())
 
         # selects = cls._prepare_selects(list_by) if compile_selects else list_by
         # select = ','.join(f"'{k}',{tablename}.{v}" for k, v in selects.items())
@@ -655,6 +678,9 @@ class ViewsClassBase(web.View):
 
         joined_fields = dd(dict)
         joins_to_schemas = cls.schema_cls._join_to_schema_where_stmt
+        special_output_processing = cls.schema_cls._special_output_processing
+        extra_fields = {}
+
         for getter_field in get_by.copy():
             if getter_field in joins_to_schemas:
                 linked_schema = joins_to_schemas[getter_field][0]
@@ -679,11 +705,17 @@ class ViewsClassBase(web.View):
                     if compile_selects else linked_get_by_select
                 joined_fields[getter_field].update(linked_selects)
 
+            elif getter_field in special_output_processing:
+                extra_fields[getter_field] = special_output_processing[getter_field]
+
         tablename = cls.schema_cls.__tablename__
         main_selects = cls._prepare_selects(get_by) if compile_selects else get_by
         main_selects.update(joined_fields)
 
         select_stmt = _join_selects(main_selects, tablename)
+        if extra_fields:
+            select_stmt += ',' + ','.join(f"'{k}',{v}" for k, v in extra_fields.items())
+
         return f'''SELECT json_build_object({select_stmt}) AS "inner"
                FROM "{tablename}" {{joins}} WHERE {{where}}'''
 
@@ -968,6 +1000,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                                              session=self.request.session)
 
     def _whereize_query(self, cleaned_payload, query, in_delete=False): # noqa
+        in_update = 'UPDATE' in query
         try:
             nested_where_stmts = self.schema._nested_where_stmts
         except AttributeError:
@@ -977,6 +1010,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
         tablename = self.schema.__tablename__
         joins = []
         usings = []
+        froms = [] # for updates only
         wheres = deque()
         values = {}
 
@@ -996,6 +1030,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                 values.update({m2m_field: relation_in_payload})
                 wheres.append(m2m_field_translated)
 
+
         for fk_field, (linked_schema, where_stmt) in self.schema._join_to_schema_where_stmt.items():
             if fk_field in self.tables_to_join:
                 joins.append(self.schema._joins[fk_field])
@@ -1003,6 +1038,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             fk_in_payload = cleaned_payload.pop(fk_field, None)
             if fk_in_payload:
                 with suppress(AttributeError):
+                    # concerns 
                     # if <schema>.Meta defines a `default_get_critera` function
                     # which in turn returns an expected FK value, we can ignore this
                     for key, val in fk_in_payload.items():
@@ -1011,19 +1047,27 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                         wheres.append(where_stmt.format(subkey=key, fill=trans_key))
                         if in_delete:
                             wheres.append(f'"{tablename}".{fk_field}={fk_field}.{key}')
+                if in_update:
+                    froms.append(fk_field)
+                    linked_tb_name = linked_schema.__tablename__
+                    pk = linked_schema.pk_column_name
+                    wheres.appendleft(f'"{linked_tb_name}".{pk}="{tablename}".{fk_field}')
 
         for key in cleaned_payload.copy():
-            wheres.appendleft(f'"{tablename}".{key}=%(w_{key})s')
+            wheres.append(f'"{tablename}".{key}=%(w_{key})s')
 
         values.update({f'w_{k}': v for k, v in cleaned_payload.items()})
 
         wheres_q = ' AND '.join(wheres) or ' 1=1 '
         joins = ' '.join(joins)
         using = ','.join(usings)
+        froms = ','.join(froms)
         if using:
             using = f'USING {using}'
+        if froms:
+            froms = f'FROM "{froms}"'
 
-        return query.format(where=wheres_q, joins=joins, using=using), values
+        return query.format(where=wheres_q, joins=joins, using=using, froms=froms), values
 
 
 class ViewsTemplate:
@@ -1129,14 +1173,7 @@ class ViewsTemplate:
 
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                try:
-                    await cur.execute(insert_query, cleaned_payload)
-                except postgres_errors.IntegrityError as ierr:
-                    raise post_exceptions.ValidationError(parse_postgres_err(ierr))
-                except Exception:
-                    self.request.app.error_logger.exception('Failed to execute insert query',
-                                                            query=cur.query.decode())
-                    raise
+                await self.request.app.commons.execute(cur, insert_query, cleaned_payload)
                 res = await cur.fetchone()
                 if res is None:
                     if self.request.session:
@@ -1157,9 +1194,9 @@ class ViewsTemplate:
         cleaned_payload = self._clean_write_payload(cleaned_payload)
 
         if hasattr(self.schema, 'before_update'):
-            cleaned_payload = await self.schema.before_update(weakref.proxy(self), self.request, cleaned_payload) \
+            cleaned_payload = await self.schema.before_update(weakref.proxy(self), self.request, cleaned_payload, cleaned_select) \
                 or cleaned_payload
-
+        
         query_raw = self.update_query_stmt
         query_with_where, query_values = self._whereize_query(cleaned_select, query_raw)
         updates = []
@@ -1172,14 +1209,7 @@ class ViewsTemplate:
 
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                try:
-                    await cur.execute(query, query_values)
-                except postgres_errors.IntegrityError as ierr:
-                    raise post_exceptions.ValidationError({"payload": parse_postgres_err(ierr)})
-                except Exception:
-                    self.request.app.error_logger.exception('Failed to execute an update query',
-                                                            query=cur.query.decode())
-                    raise
+                await self.request.app.commons.execute(cur, query, query_values, envelope='payload')
                 res = await cur.fetchone()
                 if not res or not res[0]:
                     self.request.app.error_logger.error("Failed to update a resource",
@@ -1201,7 +1231,7 @@ class ViewsTemplate:
 
         if hasattr(self.schema, 'before_update'):
             cleaned_payload = await self.schema.before_update(
-                weakref.proxy(self), self.request, cleaned_payload) or cleaned_payload
+                weakref.proxy(self), self.request, cleaned_payload, cleaned_select) or cleaned_payload
 
         query_raw = self.update_query_stmt
         query_with_where, query_values = self._whereize_query(cleaned_select, query_raw)
@@ -1218,14 +1248,7 @@ class ViewsTemplate:
 
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                try:
-                    await cur.execute(query, query_values)
-                except postgres_errors.IntegrityError as ierr:
-                    raise post_exceptions.ValidationError({"payload": parse_postgres_err(ierr)})
-                except Exception:
-                    self.request.app.error_logger.exception('Failed to execute an update query',
-                                                            query=cur.query.decode())
-                    raise
+                await self.request.app.commons.execute(cur, query, query_values, envelope='payload')
                 res = await cur.fetchone()
                 if not res or not res[0]:
                     self.request.app.error_logger.error('Failed to update a resource',
@@ -1276,12 +1299,11 @@ class ViewsTemplate:
             async with conn.cursor() as cur:
                 async with cur.begin():
                     try:
-                        await cur.execute(query, query_values)
-                        print(cur.query.decode())
-                    except Exception:
+                        await self.request.app.commons.execute(cur, query, query_values)
+                    except Exception as exc:
                         self.request.app.error_logger.exception('Failed to execute a delete query',
                                                                 query=cur.query.decode())
-                        raise
+                        raise exc
 
                     # fetch the query result under the same transaction, before commiting
                     res = await cur.fetchone()
@@ -1300,12 +1322,12 @@ class ViewsTemplate:
                     if self.schema._m2m_cherrypicks:
                         m2m_query = self.cherrypick_m2m_stmts.format(deleted_pks=f'array{deleted_ids}')
                         try:
-                            await cur.execute(m2m_query)
-                        except Exception:
+                            await self.request.app.commons.execute(cur, m2m_query)
+                        except Exception as exc:
                             self.request.app.error_logger.exception(
                                 'Failed to execute the deletion of M2M dependencies', query=m2m_query)
                             await cur.execute('rollback;')
-                            raise post_exceptions.DeleteFailed()
+                            raise exc
 
                         res = await cur.fetchone()
                         if not res or not res[0]:

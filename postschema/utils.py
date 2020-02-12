@@ -15,6 +15,9 @@ random.shuffle(NUMSET)
 PG_ERR_PAT = re.compile(
     r'(?P<prefix>([\s\w]|_)+)\((?P<name>.*?)\)\=\((?P<val>.*?)\)(?P<reason>.*)'
 )
+PG_CONSTR_PAT = re.compile(
+    r'constraint \"(?P<constraint>\w+)\"'
+)
 ORJSON_FLAGS = orjson.OPT_OMIT_MICROSECONDS | orjson.OPT_SERIALIZE_UUID | orjson.OPT_UTC_Z
 
 
@@ -62,7 +65,13 @@ def parse_postgres_err(perr):
         reason = parsed['reason'].strip()
         for key, val in zip(names, vals):
             errs[key] = [f'{prefix}({val}) ' + reason]
-    return errs or perr.diag.message_detail
+    return errs or {'error': perr.diag.message_detail}
+
+
+def parse_postgres_constraint_err(perr):
+    res = PG_CONSTR_PAT.search(str(perr))
+    if res:
+        return res.groupdict()['constraint']
 
 
 def retype_schema(cls, new_methods):

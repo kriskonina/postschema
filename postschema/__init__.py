@@ -107,6 +107,7 @@ async def pass_reset_checkcode_raw(request):
 class AppConfig:
     # general
     alembic_dest = None
+    constraint_to_error_map: dict = field(default_factory=dict)
     description: str = ''
     node_id: str = generate_random_word(10)
     session_key: str = 'postsession'
@@ -325,20 +326,20 @@ def setup_postschema(app, appname: str, *,
     from .scope import ScopeBase
     from .workspace import Workspace  # noqa
 
+    ScopeBase._validate_roles(ROLES)
+
     # parse plugins
     installed_plugins = {}
     for plugin in app_config.plugins:
         assert plugin in ['shield'], f'Plugin `{plugin}` is not recognized'
         installed_plugins[plugin] = plugin_module = import_module(f'.{plugin}', 'postschema')
         with suppress(AttributeError, TypeError):
-            plugin_module.parse_schemas(registered_schemas)
+            plugin_module.parse_schemas(registered_schemas, ROLES)
 
     app.installed_plugins = installed_plugins.keys()
 
     # setup middlewares
     app.middlewares.append(middlewares.postschema_middleware)
-
-    ScopeBase._validate_roles(ROLES)
 
     app.info_logger = info_logger.new(**app_config.initial_logging_context)
     app.error_logger = error_logger.new(**app_config.initial_logging_context)
