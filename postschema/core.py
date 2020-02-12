@@ -291,6 +291,7 @@ class ViewMaker:
 def adjust_fields(schema_cls):
     declared_fields = dict(schema_cls._declared_fields)
     iterables = []
+    rangeables = []
     for coln, colv in declared_fields.items():
         meta = colv.metadata
         if not colv.required or meta.get('primary_key', False):
@@ -306,6 +307,8 @@ def adjust_fields(schema_cls):
                     # sqlalchemy field in use could be inheriting from `String` class
                     validator = validate.Length(max=sqlfield.length)
                     colv.validators.append(validator)
+        elif isinstance(colv, postschema_fields.RangeField):
+            rangeables.append(coln)
         elif isinstance(colv, ITERABLE_FIELDS):
             # ensure relation fields are not included
             if not isinstance(colv, postschema_fields.Relationship):
@@ -313,9 +316,13 @@ def adjust_fields(schema_cls):
 
     schema_meta = schema_cls.Meta
     omit_me = not getattr(schema_meta, 'create_views', True)
-    if not omit_me and iterables:
-        hook = hooks.escape_iterable(iterables)
-        schema_cls._post_validation_write_cleaners.append(hook)
+    if not omit_me:
+        pv_hooks = []
+        if rangeables:
+            pv_hooks.append(hooks.escape_rangeable(rangeables))
+        if iterables:
+            pv_hooks.append(hooks.escape_iterable(iterables))
+        schema_cls._post_validation_write_cleaners.extend(pv_hooks)
     return schema_cls
 
 

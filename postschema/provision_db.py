@@ -92,6 +92,7 @@ def setup_db(Base):
     uri += POSTGRES_DB
     engine = create_engine(uri, pool_recycle=3600)
     conn = engine.connect()
+    conn.execute("CREATE EXTENSION IF NOT EXISTS btree_gist;")
     conn.execute("COMMIT")
 
     from sqlalchemy import event

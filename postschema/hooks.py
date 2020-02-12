@@ -1,4 +1,5 @@
 from contextlib import suppress
+from psycopg2.extras import DateTimeRange
 from .utils import Json
 
 
@@ -31,5 +32,14 @@ def escape_iterable(fieldnames):
         for fieldname in fieldnames:
             with suppress(KeyError):
                 payload[fieldname] = Json(payload[fieldname])
+        return payload
+    return wrapped
+
+
+def escape_rangeable(fieldnames):
+    def wrapped(payload, view_instance, **kwargs):
+        for fieldname in fieldnames:
+            with suppress(KeyError):
+                payload[fieldname] = DateTimeRange(*payload[fieldname])
         return payload
     return wrapped

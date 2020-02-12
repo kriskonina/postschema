@@ -1,10 +1,34 @@
 import sqlalchemy as sql
+from sqlalchemy_utils import DateTimeRangeType
 
-# from postschema.bases.schemas import _schemas
-from marshmallow import fields
+from marshmallow import fields, ValidationError
 from sqlalchemy.dialects.postgresql import JSONB
 
 from . import validators
+
+
+def len_validator(val):
+    if len(val) != 3:
+        raise ValidationError('Length must be 2.')
+
+
+class RangeField(fields.List):
+    pass
+
+
+class RangeDTField(RangeField):
+    def __init__(self, **kwargs):
+        self.bounds = kwargs.pop('bounds', '(]')
+        kwargs.update({
+            'sqlfield': DateTimeRangeType,
+            'validate': len_validator
+        })
+        super().__init__(fields.DateTime(), **kwargs)
+
+    def _deserialize(self, *args, **kwargs):
+        val = super()._deserialize(*args, **kwargs)
+        val.append(self.bounds)
+        return val
 
 
 class Set(fields.List):
@@ -48,7 +72,6 @@ class FRBase(Relationship, fields.List):
 
     def _deserialize(self, *args, **kwargs):
         return list(map(int, set(super()._deserialize(*args, **kwargs))))
-
 
 class ForeignResources(FRBase):
     pass
