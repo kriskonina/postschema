@@ -32,6 +32,7 @@ setup(
         'apispec==3.1.0',
         'cached-property==1.5.1',
         'pyotp==2.3.0',
-        'orjson==2.2.0'
+        'orjson==2.2.0',
+        'sqlalchemy_utils==0.36.1'
     ]
 )
