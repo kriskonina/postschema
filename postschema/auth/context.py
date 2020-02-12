@@ -84,10 +84,9 @@ class AuthContext(AccessBase, StandaloneAuthedView):
                         if arole in held_roles:
                             selected_role = allowed_role
                             break
-                else:
-                    if allowed_role in held_roles:
-                        selected_role = allowed_role
-                        break
+                elif allowed_role in held_roles:
+                    selected_role = allowed_role
+                    break
 
         if selected_role is None:
             self.error_logger.error('Illegal cross role request attempted')

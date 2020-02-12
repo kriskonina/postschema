@@ -1111,7 +1111,9 @@ class GetOtpSecret(AuxView):
             get = ['*']
 
     class Shield:
-        get = 'sms'
+        get = {
+            '*': 'sms'
+        }
 
 
 class PrincipalActorBase(RootSchema):
@@ -1152,7 +1154,7 @@ class PrincipalActorBase(RootSchema):
     otp_secret = fields.String(sqlfield=sql.String(24))
     details = fields.Dict(sqlfield=JSONB)
 
-    async def before_update(self, parent, request, payload):
+    async def before_update(self, parent, request, payload, selector):
         if 'phone' in payload:
             payload['phone'] = clean_phone_number(payload['phone'])
         if 'details' in payload:

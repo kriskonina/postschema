@@ -94,13 +94,20 @@ async def prepare_shielded_response(request, handler):
 
     if request.session and request.session.is_authed and shields:
         shieldcode = request.query.get('shieldcode')
+        shield_context = None
         shield_method = None
         with suppress(AttributeError, KeyError):
-            shield_method = shields[request.operation]
+            shield_context = shields[request.operation]
             cookie_name = request.app.config.shield_cookie
             shield_cookie = request.cookies.get(cookie_name, None)
 
-        if shield_method:
+        if shield_context:
+            held_roles = set(request.session.roles)
+            shielded_roles, shield_method = shield_context
+            if not shielded_roles & held_roles:
+                # The role on this op isn't shield, skip
+                return await handler(request)
+
             if shield_cookie and shieldcode:
                 try:
                     decrypted_payload = request.app.commons.decrypt(shield_cookie, ttl=200)

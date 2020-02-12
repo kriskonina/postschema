@@ -270,7 +270,7 @@ class CustomOpsResource(PostSchema):
         if not re.search(r'\d+', item):
             raise ValidationError("This field needs to contain numbers")
 
-    async def before_post(self, parent, request, data):
+    async def before_post(self, parent, request, data, *args):
         data['read_only_field'] = 'initial_val'
         addr = data.get('address', '')
         if 'Washington' in addr:
@@ -674,7 +674,43 @@ class OtpShieldedResource(PostSchema):
             post = '*'
 
     class Shield:
-        post = 'otp'
+        post = {
+            '*': 'otp'
+        }
+
+
+class OtpShieldedResourceOneRole(PostSchema):
+    __tablename__ = 'optshield_onerole'
+    id = AutoSessionOwner(unique=True, required=True, primary_key=True)
+
+    class Meta:
+        route_base = 'optshield_onerole'
+
+    class Authed:
+        class permissions:
+            post = '*'
+
+    class Shield:
+        post = {
+            'Staff': 'otp'
+        }
+
+
+class OtpShieldedResourceMutliRoles(PostSchema):
+    __tablename__ = 'optshield_multiroles'
+    id = AutoSessionOwner(unique=True, required=True, primary_key=True)
+
+    class Meta:
+        route_base = 'optshield_multiroles'
+
+    class Authed:
+        class permissions:
+            post = '*'
+
+    class Shield:
+        post = {
+            ('Staff', 'Operator'): 'otp'
+        }
 
 
 class Doctor(ScopeBase):
