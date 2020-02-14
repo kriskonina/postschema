@@ -4,7 +4,7 @@ from marshmallow import Schema, fields
 from marshmallow.validate import Range, OneOf
 
 
-APP_MODE = os.environ.get('APP_MODE', 'dev')
+APP_MODE = os.environ.get('APP_MODE', 'test')
 
 
 class Pagination(Schema):

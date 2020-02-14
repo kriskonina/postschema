@@ -12,7 +12,7 @@ from .exceptions import HTTPShieldedResource
 from .utils import generate_num_sequence
 from .view import AuxViewBase
 
-APP_MODE = os.environ.get('APP_MODE', 'dev')
+APP_MODE = os.environ.get('APP_MODE', 'test')
 
 
 def set_init_logging_context(request):
@@ -69,12 +69,12 @@ async def prepare_shielded_response(request, handler):
         context = {'method': shield_method, 'cause': cause}
 
         if shield_method == 'sms':
-            if APP_MODE == 'dev':
+            if APP_MODE == 'test':
                 context['code'] = code
             else:
                 msg = request.app.config.sms_shield_msg.format(code=code)
                 await request.app.send_sms(request, request.session.phone, msg)
-        elif shield_method == 'otp' and APP_MODE == 'dev':
+        elif shield_method == 'otp' and APP_MODE == 'test':
             totp = pyotp.TOTP(request.session.otp_secret)
             context['code'] = totp.now()
 

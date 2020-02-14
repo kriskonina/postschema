@@ -38,7 +38,7 @@ from .scope import ScopeBase
 from .view import AuxView
 
 
-APP_MODE = os.environ.get('APP_MODE', 'dev')
+APP_MODE = os.environ.get('APP_MODE', 'test')
 INALIENABLE_ROLES = ['*', 'Admin', 'Owner']
 # we don't allow any actor to have a wildcard and Admin role
 ROLES = sorted(
@@ -55,7 +55,7 @@ def clean_phone_number(phoneno):
 
 
 async def send_email_user_invitation(request, by, link, to):
-    if APP_MODE == 'dev':
+    if APP_MODE == 'test':
         return link
 
     ttl_seconds = request.app.config.invitation_link_ttl
@@ -104,7 +104,7 @@ async def send_email_reset_link(request, checkcode, to):
         scheme=f'{request.scheme}://{request.host}/',
         checkcode=checkcode)
 
-    if APP_MODE == 'dev':
+    if APP_MODE == 'test':
         return reset_form_url
 
     ttl_seconds = request.app.config.reset_link_ttl
@@ -148,7 +148,7 @@ async def send_email_verification_link(request, to):
     await request.app.redis_cli.set(key, actor_id)
     await request.app.redis_cli.expire(key, ttl_seconds)
 
-    if APP_MODE == 'dev':
+    if APP_MODE == 'test':
         return verif_link
 
     ttl = seconds_to_human(ttl_seconds)
@@ -192,7 +192,7 @@ async def send_email_activation_link(request, data, link_path_base, ttl_seconds)
     await request.app.redis_cli.hmset_dict(key, **data)
     await request.app.redis_cli.expire(key, ttl_seconds)
 
-    if APP_MODE == 'dev':
+    if APP_MODE == 'test':
         return activation_link
 
     ttl = seconds_to_human(ttl_seconds)
@@ -226,7 +226,7 @@ async def send_phone_verification_code(request, phone_num, actor_id):
     key = f'postschema:activate:phone:{verification_code}'
     await request.app.redis_cli.set(key, actor_id, expire=request.app.config.sms_verification_ttl)
     msg = request.app.config.sms_verification_cta.format(verification_code=verification_code)
-    if APP_MODE == 'dev':
+    if APP_MODE == 'test':
         return verification_code
     await request.app.send_sms(request, phone_num, msg)
 
@@ -592,7 +592,7 @@ class SendEmailLink(AuxView):
         link_path_base = self.request.app.created_email_confirmation_link
         ttl = self.request.app.config.activation_link_ttl
 
-        if APP_MODE == 'dev':
+        if APP_MODE == 'test':
             activation_link = await send_email_activation_link(self.request, data, link_path_base, ttl)
             return web.HTTPNoContent(body=activation_link)
 
@@ -672,7 +672,7 @@ class ResetPassword(AuxView):
         await self.request.app.redis_cli.expire(key, expire)
 
         # send email with reset link
-        if APP_MODE == 'dev':
+        if APP_MODE == 'test':
             reset_link = await send_email_reset_link(self.request, checkcode, email)
             raise web.HTTPOk(reason='Reset link sent', text=reset_link)
 
@@ -744,7 +744,7 @@ class InviteUser(AuxView):
         # invitation_link = f'{self.request.scheme}://{self.request.host}/{path}/'
 
         # send email with invitation link
-        if APP_MODE == 'dev':
+        if APP_MODE == 'test':
             reset_link = await send_email_user_invitation(self.request, inviter, invitation_link, email)
             return web.HTTPOk(reason='Invitation link sent', text=reset_link)
 
@@ -1373,7 +1373,7 @@ class PrincipalActorBase(RootSchema):
         else:
             link_path_base, ttl = await self.process_created_actor(data, request, parent)
 
-        if APP_MODE == 'dev':
+        if APP_MODE == 'test':
             activation_link = await send_email_activation_link(request, data, link_path_base, ttl)
             raise web.HTTPOk(reason='Account creation pending', text=activation_link)
 

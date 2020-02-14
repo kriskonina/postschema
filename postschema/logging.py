@@ -56,18 +56,18 @@ def setup_logging(info_logger_processors: list = DEFAULT_INFO_LOGGER_PROCESSORS,
     if _cached_loggers:
         return _cached_loggers
 
-    APP_MODE = os.environ.get('APP_MODE', 'dev')
-    isdev = APP_MODE == 'dev'
+    APP_MODE = os.environ.get('APP_MODE', 'test')
+    istest = APP_MODE == 'test'
 
     if default_logging_level is None:
-        default_logging_level = logging.DEBUG if isdev else logging.INFO
+        default_logging_level = logging.DEBUG if istest else logging.INFO
 
     info_logger_processors = info_logger_processors or DEFAULT_INFO_LOGGER_PROCESSORS[:]
     error_logger_processors = error_logger_processors or DEFAULT_ERROR_LOGGER_PROCESSORS[:]
     info_logger_wrapper_class = BoundLogger
     error_logger_wrapper_class = BoundLogger
 
-    if isdev:
+    if istest:
         info_logger_processors.append(structlog.dev.ConsoleRenderer())
         error_logger_processors.append(structlog.dev.ConsoleRenderer())
     else:

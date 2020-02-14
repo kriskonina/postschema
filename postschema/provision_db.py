@@ -13,7 +13,7 @@ from sqlalchemy import create_engine
 from .logging import setup_logging
 # from postschema import setup_postschema
 
-APP_MODE = os.environ.get("APP_MODE", 'dev')
+APP_MODE = os.environ.get("APP_MODE", 'test')
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR  # / "postschema"
 FNS_PATTERN = BASE_DIR / "sql" / "functions" / "*.sql"

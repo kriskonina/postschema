@@ -26,7 +26,7 @@ export REDIS_HOST=0.0.0.0
 export REDIS_PORT=6379
 export REDIS_DB=3
 
-export APP_MODE=dev
+export APP_MODE=test
 export ADMIN_PASSWORD="aSAbSSnOMHkpx2gfQPo2TSdwyjQneos7QXEjQ19KQMw"
 export FERNET_KEY="AszPcqphEfONbBEprJGo73fg0R-ApUsq77Rw10L5SWQ=" # CHANGE IT!
 export EMAIL_HOSTNAME=localhost

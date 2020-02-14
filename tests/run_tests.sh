@@ -16,7 +16,7 @@ echo "* Running local stack..."
 pip3 install -r requirements.txt
 
 docker-compose -f docker-compose.yml up --build -d
-export APP_MODE=dev
+export APP_MODE=test
 export ADMIN_PASSWORD="aSAbSSnOMHkpx2gfQPo2TSdwyjQneos7QXEjQ19KQMw"
 export FERNET_KEY="AszPcqphEfONbBEprJGo73fg0R-ApUsq77Rw10L5SWQ="
 export EMAIL_HOSTNAME=localhost
