@@ -202,7 +202,7 @@ class ViewMaker:
                             web.HTTPMethodNotAllowed(method=op, allowed_methods=allowed))
                         )
                 self.router.add_route("*", url, view_cls)
-                yield view_cls
+                yield routename, view_cls
 
     @property
     def omit_me(self):
@@ -365,9 +365,13 @@ def build_app(app, registered_schemas):
             **perm_builder.operation_constraints
         }
         created['Views'] += 1
-        aux_views = tuple(post_view.create_aux_views(cls_view, aux_perm_builder))
-        created['Auxiliary views'] += len(aux_views)
-        spec_builder.add_schema_spec(schema_cls, post_view, cls_view, aux_views)
+        aux_routes = dict(post_view.create_aux_views(cls_view, aux_perm_builder))
+        if aux_routes:
+            schema_cls.__aux_routes__ = aux_routes
+            setattr(registered_schemas, schema_name, schema_cls)
+
+        created['Auxiliary views'] += len(aux_routes)
+        spec_builder.add_schema_spec(schema_cls, post_view, cls_view, aux_routes.values())
 
     app.info_logger.info('System ready', created=dict(created))
     return router, spec_builder.build_spec()

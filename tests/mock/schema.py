@@ -663,11 +663,11 @@ class AlterWorkspace(PostSchema):
 
 
 class OtpShieldedResource(PostSchema):
-    __tablename__ = 'optshield'
+    __tablename__ = 'otpshield'
     id = AutoSessionOwner(unique=True, required=True, primary_key=True)
 
     class Meta:
-        route_base = 'optshield'
+        route_base = 'otpshield'
 
     class Authed:
         class permissions:
@@ -680,11 +680,11 @@ class OtpShieldedResource(PostSchema):
 
 
 class OtpShieldedResourceOneRole(PostSchema):
-    __tablename__ = 'optshield_onerole'
-    id = AutoSessionOwner(unique=True, required=True, primary_key=True)
+    __tablename__ = 'otpshield_onerole'
+    id = AutoSessionOwner(required=True, primary_key=True)
 
     class Meta:
-        route_base = 'optshield_onerole'
+        route_base = 'otpshield_onerole'
 
     class Authed:
         class permissions:
@@ -692,16 +692,17 @@ class OtpShieldedResourceOneRole(PostSchema):
 
     class Shield:
         post = {
+            # 'Doctor': 'sms',
             'Staff': 'otp'
         }
 
 
 class OtpShieldedResourceMutliRoles(PostSchema):
-    __tablename__ = 'optshield_multiroles'
+    __tablename__ = 'otpshield_multiroles'
     id = AutoSessionOwner(unique=True, required=True, primary_key=True)
 
     class Meta:
-        route_base = 'optshield_multiroles'
+        route_base = 'otpshield_multiroles'
 
     class Authed:
         class permissions:
@@ -710,6 +711,24 @@ class OtpShieldedResourceMutliRoles(PostSchema):
     class Shield:
         post = {
             ('Staff', 'Operator'): 'otp'
+        }
+
+
+class AlterShieldedResource(PostSchema):
+    __tablename__ = 'otpshield_alt'
+    id = AutoSessionOwner(required=True, primary_key=True)
+
+    class Meta:
+        route_base = 'otpshield_alt'
+
+    class Authed:
+        class permissions:
+            post = '*'
+
+    class Shield:
+        post = {
+            'Staff': 'otp',
+            'Doctor': 'sms'
         }
 
 

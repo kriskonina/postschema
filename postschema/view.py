@@ -1338,7 +1338,7 @@ class ViewsTemplate:
                         deleted_m2m_refs = res[0]
 
         if hasattr(self.schema, 'after_delete'):
-            await spawn(self.request, self.schema.after_delete(self.request, res))
+            await spawn(self.request, self.schema.after_delete(self.request, cleaned_payload, res))
 
         return json_response({
             'deleted_resource_records': deleted_resource_instances,
