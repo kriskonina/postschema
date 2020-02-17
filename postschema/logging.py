@@ -4,6 +4,7 @@ from functools import lru_cache
 
 import structlog
 
+
 DEFAULT_INFO_LOGGER_PROCESSORS = [
     structlog.stdlib.filter_by_level,
     structlog.stdlib.add_logger_name,
@@ -49,8 +50,8 @@ class BoundLogger(structlog.stdlib.BoundLogger):
         return self.new(**keys, **self._orig_context)
 
 
-def setup_logging(info_logger_processors: list = DEFAULT_INFO_LOGGER_PROCESSORS,
-                  error_logger_processors: list = DEFAULT_ERROR_LOGGER_PROCESSORS,
+def setup_logging(info_logger_processors: list = [],
+                  error_logger_processors: list = [],
                   default_logging_level: int = logging.INFO):
 
     if _cached_loggers:
@@ -62,17 +63,19 @@ def setup_logging(info_logger_processors: list = DEFAULT_INFO_LOGGER_PROCESSORS,
     if default_logging_level is None:
         default_logging_level = logging.DEBUG if istest else logging.INFO
 
-    info_logger_processors = info_logger_processors or DEFAULT_INFO_LOGGER_PROCESSORS[:]
-    error_logger_processors = error_logger_processors or DEFAULT_ERROR_LOGGER_PROCESSORS[:]
+    info_processors = info_logger_processors or DEFAULT_INFO_LOGGER_PROCESSORS[:]
+    error_processors = error_logger_processors or DEFAULT_ERROR_LOGGER_PROCESSORS[:]
     info_logger_wrapper_class = BoundLogger
     error_logger_wrapper_class = BoundLogger
 
     if istest:
-        info_logger_processors.append(structlog.dev.ConsoleRenderer())
-        error_logger_processors.append(structlog.dev.ConsoleRenderer())
+        info_processors.append(structlog.dev.ConsoleRenderer())
+        error_processors.append(structlog.dev.ConsoleRenderer())
     else:
-        info_logger_processors.append(structlog.processors.JSONRenderer())
-        error_logger_processors.append(structlog.processors.JSONRenderer())
+        if not info_logger_processors:
+            info_processors.append(structlog.processors.JSONRenderer())
+        if not error_logger_processors:
+            error_processors.append(structlog.processors.JSONRenderer())
 
     structlog.configure(
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -85,12 +88,12 @@ def setup_logging(info_logger_processors: list = DEFAULT_INFO_LOGGER_PROCESSORS,
 
     info_logger = structlog.wrap_logger(
         infologger,
-        processors=info_logger_processors,
+        processors=info_processors,
         wrapper_class=info_logger_wrapper_class)
 
     error_logger = structlog.wrap_logger(
         errorlogger,
-        processors=error_logger_processors,
+        processors=error_processors,
         wrapper_class=error_logger_wrapper_class
     )
 
