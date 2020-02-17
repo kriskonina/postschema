@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager, suppress
 
 from aiohttp import web
 from cryptography.fernet import InvalidToken
+with suppress(ImportError):
+    from sentry_sdk import configure_scope
 
 from . import ALLOWED_OPERATIONS
 from .auth.context import AuthContext
@@ -20,13 +22,16 @@ def set_init_logging_context(request):
         IP = request.transport.get_extra_info('peername')[0]
     except (IndexError, AttributeError):
         IP = '0.0.0.0'
-    request.app.info_logger = request.app.info_logger.renew(ip=IP)
-    request.app.error_logger = request.app.error_logger.renew(ip=IP)
+    request.app.IP = IP
 
 
 def set_logging_context(app, **context):
-    app.info_logger = app.info_logger.bind(**context)
-    app.error_logger = app.error_logger.bind(**context)
+    context['ip_address'] = app.IP
+    app.info_logger = app.info_logger.renew(**context)
+    app.error_logger = app.error_logger.renew(**context)
+    if 'sentry' in app.installed_plugins:
+        with configure_scope() as scope:
+            scope.user = context
 
 
 @asynccontextmanager
@@ -103,8 +108,13 @@ async def prepare_shielded_response(request, handler):
 
         if shield_context:
             held_roles = set(request.session.roles)
-            shielded_roles, shield_method = shield_context
-            if not shielded_roles & held_roles:
+            for ishielded_roles, ishield_method in shield_context:
+                if ishielded_roles & held_roles:
+                    # the first matching is enough
+                    shield_method = ishield_method
+                    break
+
+            if not shield_method:
                 # The role on this op isn't shield, skip
                 return await handler(request)
 
@@ -167,8 +177,8 @@ async def postschema_middleware(request, handler):
                 raise web.HTTPForbidden(reason='Account inactive')
             request.session = auth_ctxt
             set_logging_context(request.app,
-                                op=auth_ctxt.operation,
-                                actor_id=auth_ctxt['actor_id'],
+                                id=auth_ctxt['actor_id'],
+                                email=auth_ctxt['email'],
                                 workspace=auth_ctxt['workspace'])
             auth_ctxt.authorize_standalone(**handler._perm_options)
 
@@ -199,11 +209,12 @@ async def postschema_middleware(request, handler):
         raise web.HTTPForbidden(reason='Account inactive')
 
     extra_ctxt = {
-        'actor_id': auth_ctxt['actor_id'],
+        'id': auth_ctxt['actor_id'],
+        'email': auth_ctxt['email'],
         'workspace': auth_ctxt['workspace']
     } if auth_ctxt.session_ctxt else {}
 
-    set_logging_context(request.app, op=auth_ctxt.operation, **extra_ctxt)
+    set_logging_context(request.app, **extra_ctxt)
     request.session = auth_ctxt
 
     async with switch_workspace(request):

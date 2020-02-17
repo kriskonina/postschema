@@ -104,6 +104,16 @@ async def pass_reset_checkcode_raw(request):
 
 
 @dataclass
+class PluginConfig:
+    # shield
+    shield_cookie: str = 'postshield'
+    sms_shield_msg: str = 'Your postschema confirmation number: {code}'
+
+    # sentry
+    sentry_dsn: str = ''
+
+
+@dataclass
 class AppConfig:
     # general
     alembic_dest = None
@@ -121,10 +131,6 @@ class AppConfig:
     redirect_reset_password_to: str = ''
     roles: List[str] = field(default_factory=list)
     password_reset_form_link: str = ''
-
-    # shield
-    shield_cookie: str = 'postshield'
-    sms_shield_msg: str = 'Your postschema confirmation number: {code}'
 
     # links
     created_email_confirmation_link: str = '{{scheme}}{url_prefix}/actor/created/activate/email/{{reg_token}}/'
@@ -205,7 +211,7 @@ class ConfigBearer(dict):
 
 
 @dataclass
-class PathsReturner:
+class PathReturner:
     json_spec: dict
     router: UrlDispatcher
     roles: tuple = ()
@@ -286,6 +292,7 @@ async def apispec_metainfo(request):
 
 
 def setup_postschema(app, appname: str, *,
+                     plugin_config={},
                      extra_config={},
                      **app_config):
 
@@ -296,6 +303,8 @@ def setup_postschema(app, appname: str, *,
     app_config = AppConfig(**app_config)
     app_config.initial_logging_context['version'] = app_config.version
     app_config.initial_logging_context['app_mode'] = app_config.app_mode = os.environ.get('APP_MODE')
+
+    plugin_config = PluginConfig(**plugin_config)
 
     url_prefix = app_config.url_prefix
 
@@ -327,16 +336,6 @@ def setup_postschema(app, appname: str, *,
     from .workspace import Workspace  # noqa
 
     ScopeBase._validate_roles(ROLES)
-
-    # parse plugins
-    installed_plugins = {}
-    for plugin in app_config.plugins:
-        assert plugin in ['shield'], f'Plugin `{plugin}` is not recognized'
-        installed_plugins[plugin] = plugin_module = import_module(f'.{plugin}', 'postschema')
-        with suppress(AttributeError, TypeError):
-            plugin_module.parse_schemas(registered_schemas, ROLES)
-
-    app.installed_plugins = installed_plugins.keys()
 
     # setup middlewares
     app.middlewares.append(middlewares.postschema_middleware)
@@ -382,7 +381,7 @@ def setup_postschema(app, appname: str, *,
     app_config.reset_pass_email_html = jinja2.Template(app_config.reset_pass_email_html)
     app_config.verification_email_html = jinja2.Template(app_config.verification_email_html)
 
-    config = ConfigBearer(extra_config)
+    config = ConfigBearer(**extra_config, **plugin_config.__dict__)
 
     # extend with immutable config opts
     app_config._update(ImmutableConfig(scopes=ScopeBase._scopes))
@@ -408,8 +407,19 @@ def setup_postschema(app, appname: str, *,
     app.spec_hash = md5(dumps(openapi_spec).encode()).hexdigest()
 
     # map paths to roles
-    paths_by_roles = PathsReturner(openapi_spec, router)
+    paths_by_roles = PathReturner(openapi_spec, router)
     paths_by_roles.paths_by_roles
+
+    # parse plugins
+    installed_plugins = {}
+    for plugin in app_config.plugins:
+        print(f"* Installing plugin {plugin}...")
+        assert plugin in ['shield', 'sentry'], f'Plugin `{plugin}` is not recognized'
+        installed_plugins[plugin] = plugin_module = import_module(f'.{plugin}', 'postschema')
+        with suppress(AttributeError, TypeError):
+            plugin_module.install(app)
+
+    app.installed_plugins = installed_plugins.keys()
 
     @auth(roles=['Admin'])
     @aiohttp_jinja2.template('redoc.html')

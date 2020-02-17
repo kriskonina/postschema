@@ -22,10 +22,14 @@ def create_app():
             'shield'
         ]
     }
+    plugin_config = {
+        'sentry_dsn': '***'
+    }
     setup_postschema(
         app, 'test_app',
         version='0.5.0',
         description='My New API Server',
+        plugin_config=plugin_config,
         **config)
     return app
 
