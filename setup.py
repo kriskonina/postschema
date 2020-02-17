@@ -2,12 +2,12 @@ from setuptools import setup
 
 setup(
     name='postschema',
-    version='0.11.0',
+    version='0.11.1',
     description='Async python ORM for postgres',
     url='https://github.com/kriskavalieri/postschema',
     author='Kris Kavalieri',
     author_email='kris.kavalieri@gmail.com',
-    license='MIT',
+    license='AGPL-3.0-only',
     packages=['postschema', 'postschema.alembic', 'postschema.auth'],
     zip_safe=False,
     python_requires='>=3.7',
