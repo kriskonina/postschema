@@ -4,10 +4,11 @@ from collections import defaultdict as dd
 def install(app):
     system_roles = app.config.roles
     schemas = app.schemas
+    shields = {}
     for schema_name, schema_inst in schemas.full_iter:
         shield_cls = getattr(schema_inst, 'Shield', None)
-        schema_inst.shields = dd(list)
         if shield_cls:
+            local_shields = dd(list)
             authed_cls = getattr(schema_inst, 'Authed', None)
             private_cls = getattr(schema_inst, 'Private', None)
             present_ops_all = set(getattr(authed_cls, 'permissions', object).__dict__.keys()) | \
@@ -40,5 +41,6 @@ def install(app):
                     if shield_op not in ('otp', 'sms'):
                         raise ValueError(
                             f'{schema_inst.__module__}.{schema_inst.__name__}.Shield.{op} defines an invalid shield method (can be "otp" or "sms")')
-                    schema_inst.shields[op].append([allowed_roles, shield_op])
-            schema_inst.shields = dict(schema_inst.shields)
+                    local_shields[op].append([allowed_roles, shield_op])
+            shields[schema_name] = dict(local_shields)
+    app.shields = shields

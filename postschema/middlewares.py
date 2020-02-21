@@ -90,12 +90,12 @@ async def prepare_shielded_response(request, handler):
                         max_age=180)
         return resp
 
-    shields = {}
-    with suppress(AttributeError, TypeError):
-        if issubclass(handler, AuxViewBase):
-            shields = handler.shields
-        else:
-            shields = handler.schema_cls.shields
+    try:
+        schema_name = handler.schema_cls.__name__
+    except AttributeError:
+        schema_name = handler.__name__
+
+    shields = request.app.shields.get(schema_name) or request.app.shields.get(handler.__name__)
 
     if request.session and request.session.is_authed and shields:
         shieldcode = request.query.get('shieldcode')
@@ -115,7 +115,7 @@ async def prepare_shielded_response(request, handler):
                     break
 
             if not shield_method:
-                # The role on this op isn't shield, skip
+                # The role on this op isn't shielded, skip
                 return await handler(request)
 
             if shield_cookie and shieldcode:

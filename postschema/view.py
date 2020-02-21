@@ -12,7 +12,6 @@ from aiohttp import web
 from aiojobs.aiohttp import spawn
 from cached_property import cached_property
 from marshmallow import Schema, ValidationError, fields, validate, post_load
-from psycopg2 import errors as postgres_errors
 from sqlalchemy.sql.schema import Sequence
 
 from . import exceptions as post_exceptions
@@ -1030,7 +1029,6 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                 values.update({m2m_field: relation_in_payload})
                 wheres.append(m2m_field_translated)
 
-
         for fk_field, (linked_schema, where_stmt) in self.schema._join_to_schema_where_stmt.items():
             if fk_field in self.tables_to_join:
                 joins.append(self.schema._joins[fk_field])
@@ -1038,7 +1036,6 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             fk_in_payload = cleaned_payload.pop(fk_field, None)
             if fk_in_payload:
                 with suppress(AttributeError):
-                    # concerns 
                     # if <schema>.Meta defines a `default_get_critera` function
                     # which in turn returns an expected FK value, we can ignore this
                     for key, val in fk_in_payload.items():

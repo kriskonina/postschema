@@ -189,9 +189,9 @@ class ImmutableConfig:
 def exception_handler(logger):
     def wrapped(scheduler, context):
         exc = context['exception']
-        tb = exc.__traceback__
-        stack = '\n'.join(traceback.format_exception(None, exc, tb))
-        logger.error('Aiojob exception', exception=stack)
+        # tb = exc.__traceback__
+        # stack = '\n'.join(traceback.format_exception(None, exc, tb))
+        logger.error('Aiojob exception', exception=exc)
     return wrapped
 
 
@@ -450,6 +450,3 @@ def setup_postschema(app, appname: str, *,
     router.add_get(f'{url_prefix}/doc/openapi.yaml', apispec_context)
     router.add_get(f'{url_prefix}/doc/spec.json', actor_apispec)
     router.add_get(f'{url_prefix}/doc/meta/', apispec_metainfo)
-
-    # if 'shield' in installed_plugins:
-    #     router.add_get('')

@@ -68,14 +68,12 @@ def setup_logging(info_logger_processors: list = [],
     info_logger_wrapper_class = BoundLogger
     error_logger_wrapper_class = BoundLogger
 
-    if istest:
-        info_processors.append(structlog.dev.ConsoleRenderer())
-        error_processors.append(structlog.dev.ConsoleRenderer())
-    else:
-        if not info_logger_processors:
-            info_processors.append(structlog.processors.JSONRenderer())
-        if not error_logger_processors:
-            error_processors.append(structlog.processors.JSONRenderer())
+    added_processor = istest and structlog.dev.ConsoleRenderer() or structlog.dev.JSONRenderer()
+
+    if not info_logger_processors:
+        info_processors.append(added_processor)
+    if not error_logger_processors:
+        error_processors.append(added_processor)
 
     structlog.configure(
         logger_factory=structlog.stdlib.LoggerFactory(),

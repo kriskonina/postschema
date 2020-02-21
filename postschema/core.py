@@ -227,7 +227,6 @@ class ViewMaker:
         joins = {}
 
         new_schema_methods = {}
-
         self.schema_cls._m2m_where_stmts = relation_where_stmts = {}
         this_table, this_pk = str(
             self.schema_cls._model.__table__.primary_key.columns_autoinc_first[0]).split('.')
@@ -246,6 +245,7 @@ class ViewMaker:
                 linked_table_pk = foreign_target['pk']
                 linked_target = (linked_table_pk, linked_table, fieldname)
                 linked_schema = self.registered_schemas @ linked_table
+                linked_schema.pk_column_name = linked_table_pk
                 linked_schema._deletion_cascade = getattr(linked_schema, '_deletion_cascade', [])
                 linked_schema._m2m_cherrypicks = getattr(linked_schema, '_m2m_cherrypicks', [])
 
