@@ -27,11 +27,13 @@ def set_init_logging_context(request):
 
 def set_logging_context(app, **context):
     context['ip_address'] = app.IP
-    app.info_logger = app.info_logger.renew(**context)
-    app.error_logger = app.error_logger.renew(**context)
     if 'sentry' in app.installed_plugins:
         with configure_scope() as scope:
             scope.user = context
+    if 'id' in context:
+        context['actor_id'] = context.pop('id')
+    app.info_logger = app.info_logger.renew(**context)
+    app.error_logger = app.error_logger.renew(**context)
 
 
 @asynccontextmanager
@@ -155,6 +157,9 @@ async def postschema_middleware(request, handler):
     if '/actor/logout/' in request.path:
         request.middleware_mode = 'public'
         request.operation = request.method.lower()
+        auth_ctxt = AuthContext(request)
+        request.session = auth_ctxt
+        await auth_ctxt.set_session_context()
         return await handler(request)
 
     try:

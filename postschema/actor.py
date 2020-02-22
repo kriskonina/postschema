@@ -356,15 +356,20 @@ class LogoutView(AuxView):
         if not session_cookie:
             raise web.HTTPNoContent(reason='No session found')
 
-        # Also get rid off session context
-        try:
-            actor_id = self.request.session['actor_id']
-            account_key = self.request.app.config.account_details_key.format(actor_id)
-            roles_key = self.request.app.config.roles_key.format(actor_id)
-            await self.request.app.redis_cli.delete(account_key, roles_key)
-        except (AttributeError, KeyError):
-            # session cookie doesn't point to any actor Ids nor session caches
-            actor_id = 'unrecognized'
+        if hasattr(self.request, 'session'):
+            try:
+                actor_id = self.request.session['actor_id']
+                account_key = self.request.app.config.account_details_key.format(actor_id)
+                roles_key = self.request.app.config.roles_key.format(actor_id)
+                await self.request.app.redis_cli.delete(account_key, roles_key)
+            except (AttributeError, KeyError):
+                # session cookie doesn't point to any actor Ids nor session caches
+                actor_id = 'unrecognized'
+        else:
+            try:
+                actor_id = self.request.app.commons.decrypt(session_cookie)
+            except InvalidToken:
+                actor_id = 'unrecognized'
 
         response = web.HTTPOk()
         response.del_cookie('postsession')
