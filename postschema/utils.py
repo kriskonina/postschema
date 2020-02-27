@@ -3,7 +3,6 @@ import string
 import re
 import random
 import secrets
-from functools import partial
 
 import orjson
 from aiohttp import web
@@ -24,16 +23,13 @@ ORJSON_FLAGS = orjson.OPT_OMIT_MICROSECONDS | orjson.OPT_SERIALIZE_UUID | orjson
 def def_dump(val):
     if isinstance(val, (set, frozenset)):
         return list(val)
-    return orjson.dumps(str(val))
+    return json.dumps(str(val))
 
 
 def dumps(val):
     try:
         return orjson.dumps(val, option=ORJSON_FLAGS).decode()
     except orjson.JSONEncodeError:
-        # try for set/frozenset first
-        if isinstance(val, (set, frozenset)):
-            return orjson.dumps(list(val)).decode()
         return json.dumps(val, default=def_dump)
 
 
