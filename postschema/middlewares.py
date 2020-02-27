@@ -158,6 +158,7 @@ async def postschema_middleware(request, handler):
         request.middleware_mode = 'public'
         request.operation = request.method.lower()
         auth_ctxt = AuthContext(request)
+        auth_ctxt.request_type = 'public'
         request.session = auth_ctxt
         await auth_ctxt.set_session_context()
         return await handler(request)
