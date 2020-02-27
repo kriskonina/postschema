@@ -7,6 +7,11 @@ def must_not_be_empty(val):
         raise ValidationError('Data not provided')
 
 
+def must_be_empty(val):
+    if val:
+        raise ValidationError('Unknown field')
+
+
 def adjust_children_field(fieldname):
     def make_children_post_load(self, data, **k):
         if self.partial or self._use is None:

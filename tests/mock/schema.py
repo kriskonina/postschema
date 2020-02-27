@@ -10,7 +10,10 @@ from postschema.fields import (
     ForeignResources, ForeignResource,
     AutoImpliedForeignResource, AutoSessionOwner,
     AutoSessionSelectedWorkspace,
-    AutoSessionForeignResource
+    AutoSessionForeignResource,
+    AutoDateNow,
+    AutoDateTimeNow,
+    AutoTimeNow
 )
 from postschema.utils import json_response
 from postschema.scope import ScopeBase
@@ -730,6 +733,32 @@ class AlterShieldedResource(PostSchema):
             'Staff': 'otp',
             'Doctor': 'sms'
         }
+
+
+class AutoDefaultFields(PostSchema):
+    __tablename__ = 'auto_def_fields'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('auto_def_fields_id_seq'),
+                        read_only=True, primary_key=True)
+
+    autodate_naive = AutoDateNow()
+    autodate_aware = AutoDateNow(is_aware=True)
+
+    autodatetime_naive = AutoDateTimeNow()
+    autodatetime_aware = AutoDateTimeNow(is_aware=True)
+
+    autotime_naive = AutoTimeNow()
+    autotime_aware = AutoTimeNow(is_aware=True)
+
+    class Public:
+        get_by = ['id', 'autodate_naive', 'autodate_aware',
+                  'autodatetime_naive', 'autodatetime_aware',
+                  'autotime_naive', 'autotime_aware']
+
+        class permissions:
+            allow_all = True
+
+    class Meta:
+        route_base = 'auto_def_fields'
 
 
 class Doctor(ScopeBase):

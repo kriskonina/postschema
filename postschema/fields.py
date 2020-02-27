@@ -1,3 +1,7 @@
+import datetime
+from dateutil import tz
+from functools import partial
+
 import sqlalchemy as sql
 from sqlalchemy_utils import DateTimeRangeType
 
@@ -73,6 +77,7 @@ class FRBase(Relationship, fields.List):
     def _deserialize(self, *args, **kwargs):
         return list(map(int, set(super()._deserialize(*args, **kwargs))))
 
+
 class ForeignResources(FRBase):
     pass
 
@@ -144,3 +149,53 @@ class AutoSessionStatus(AutoSessionField, fields.Int):
         })
         super().__init__(**kwargs)
         self.session_key = 'status'
+
+
+def get_date(aware=False):
+    if aware:
+        return datetime.datetime.today().replace(tzinfo=tz.tzlocal())
+    return datetime.datetime.today().date()
+
+
+def get_datetime(aware=False):
+    if aware:
+        return datetime.datetime.now().replace(tzinfo=tz.tzlocal())
+    return datetime.datetime.now()
+
+
+def get_time():
+    return datetime.datetime.today().time()
+
+
+class AutoDateNow(fields.Date):
+    # Take heed of Postgres' force-converting time zone
+    # to UTC when using time zone awareness.
+    def __init__(self, **kwargs):
+        is_aware = kwargs.pop('is_aware', False)
+        kwargs.update({
+            'missing': partial(get_date, aware=is_aware),
+            'validate': validators.must_be_empty,
+            'sqlfield': sql.DateTime(timezone=True) if is_aware else sql.Date()
+        })
+        super().__init__(**kwargs)
+
+
+class AutoDateTimeNow(fields.DateTime):
+    def __init__(self, **kwargs):
+        is_aware = kwargs.pop('is_aware', False)
+        kwargs.update({
+            'missing': partial(get_datetime, aware=is_aware),
+            'validate': validators.must_be_empty,
+            'sqlfield': sql.DateTime(timezone=is_aware)
+        })
+        super().__init__(**kwargs)
+
+
+class AutoTimeNow(fields.Time):
+    def __init__(self, **kwargs):
+        kwargs.update({
+            'missing': partial(get_time),
+            'validate': validators.must_be_empty,
+            'sqlfield': sql.Time()
+        })
+        super().__init__(**kwargs)

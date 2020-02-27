@@ -71,7 +71,7 @@ def create_model(schema_cls, info_logger): # noqa
             if isinstance(field_attrs, postschema_fields.AutoSessionField):
                 perms = getattr(methods.get('Public'), 'permissions', None)
                 if perms and hasattr(perms, 'post') and 'primary_key' in field_attrs.metadata:
-                    # auto-injected primary key is based on the session context, 
+                    # auto-injected primary key is based on the session context,
                     # so we can't allow public posts.
                     raise AttributeError(f"{name} can't include 'post' as a public permission attribute")
 
@@ -90,7 +90,7 @@ def create_model(schema_cls, info_logger): # noqa
             translated = {}
             default_value = field_attrs.default
             if default_value != missing:
-                translated['server_default'] = default_value
+                translated['server_default'] = default_value() if callable(default_value) else default_value
 
             args = []
             if 'fk' in metadata:
@@ -100,7 +100,7 @@ def create_model(schema_cls, info_logger): # noqa
             metadict = metadata.copy()
             metadict.pop('fk', None)
             metadict.pop('read_only', None)
-
+            metadict.pop('is_aware', None)
             model_methods[fieldname] = sql.Column(field_instance, *args, **metadict, **translated)
 
     modelname = name + 'Model'
