@@ -1,10 +1,11 @@
 import inspect
 import os
-import traceback
 
 from contextlib import suppress
 from copy import deepcopy
 from dataclasses import dataclass, field
+from dateutil.tz import gettz
+from datetime import datetime
 from functools import lru_cache
 from glob import glob
 from hashlib import md5
@@ -20,6 +21,12 @@ import jinja2
 from aiojobs.aiohttp import setup as aiojobs_setup
 from aiohttp.web_urldispatcher import UrlDispatcher
 from cryptography.fernet import Fernet
+
+DEFAULT_TZ = os.environ.get("DEFAULT_TZ")
+parsed_tz = gettz(DEFAULT_TZ)
+if DEFAULT_TZ:
+    assert parsed_tz, f'Time zone {DEFAULT_TZ} was not recognized'
+local_tz = (parsed_tz or gettz()).tzname(datetime.now())
 
 from .commons import Commons
 from .core import build_app
@@ -58,9 +65,14 @@ async def cleanup(app):
     app.db_pool.terminate()
 
 
+async def on_connect_postgres(conn):
+    async with conn.cursor() as cur:
+        await cur.execute("SET session TIME ZONE %s", [local_tz])
+
+
 async def init_resources(app):
     dsn = f'dbname={POSTGRES_DB} user={POSTGRES_USER} password={POSTGRES_PASSWORD} host={POSTGRES_HOST} port={POSTGRES_PORT}' # noqa
-    pool = await aiopg.create_pool(dsn, echo=False, pool_recycle=3600)
+    pool = await aiopg.create_pool(dsn, echo=False, pool_recycle=3600, on_connect=on_connect_postgres)
     app.db_pool = pool
     redis_pool = await aioredis.create_pool(
         f"redis://{REDIS_HOST}:{REDIS_PORT}",
