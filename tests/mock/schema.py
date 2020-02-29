@@ -11,6 +11,7 @@ from postschema.fields import (
     AutoImpliedForeignResource, AutoSessionOwner,
     AutoSessionSelectedWorkspace,
     AutoSessionForeignResource,
+    Date,
     AutoDateNow,
     AutoDateTimeNow,
     AutoTimeNow
@@ -35,7 +36,7 @@ class PlainResource(PostSchema):
     strlen = fields.String(sqlfield=sql.String(10), validate=validate.Length(min=5))
     intrange = fields.Integer(sqlfield=sql.Integer, validate=validate.Range(min=5, max=10))
     choice = fields.String(sqlfield=sql.String(1), validate=validate.OneOf(choices=['a', 'b']))
-    date = fields.Date(sqlfield=sql.Date)
+    date = Date()
     list = fields.List(fields.String, sqlfield=JSONB)
 
     class Public:

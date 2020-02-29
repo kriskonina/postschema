@@ -20,7 +20,6 @@ class Commons:
 
         try:
             await cur.execute(query, params)
-
         except postgres_errors.IntegrityError as ierr:
             parsed_err = None
             constraint_key = parse_postgres_constraint_err(ierr)

@@ -1,4 +1,5 @@
 import datetime
+import os
 from dateutil import tz
 from functools import partial
 
@@ -6,14 +7,22 @@ import sqlalchemy as sql
 from sqlalchemy_utils import DateTimeRangeType
 
 from marshmallow import fields, ValidationError
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSTZRANGE
 
 from . import validators
+
+DEFAULT_TZ = os.environ.get("DEFAULT_TZ", "")
+parsed_tz = tz.gettz(DEFAULT_TZ)
+tz_local = parsed_tz or tz.tzlocal()
 
 
 def len_validator(val):
     if len(val) != 3:
         raise ValidationError('Length must be 2.')
+
+
+class DateTimeAwareRange(DateTimeRangeType):
+    impl = TSTZRANGE
 
 
 class RangeField(fields.List):
@@ -22,9 +31,10 @@ class RangeField(fields.List):
 
 class RangeDTField(RangeField):
     def __init__(self, **kwargs):
+        is_aware = kwargs.pop('is_aware', False)
         self.bounds = kwargs.pop('bounds', '(]')
         kwargs.update({
-            'sqlfield': DateTimeRangeType,
+            'sqlfield': DateTimeRangeType if not is_aware else DateTimeAwareRange,
             'validate': len_validator
         })
         super().__init__(fields.DateTime(), **kwargs)
@@ -153,13 +163,13 @@ class AutoSessionStatus(AutoSessionField, fields.Int):
 
 def get_date(aware=False):
     if aware:
-        return datetime.datetime.today().replace(tzinfo=tz.tzlocal())
+        return datetime.datetime.today().replace(tzinfo=tzlocal)
     return datetime.datetime.today().date()
 
 
 def get_datetime(aware=False):
     if aware:
-        return datetime.datetime.now().replace(tzinfo=tz.tzlocal())
+        return datetime.datetime.now().replace(tzinfo=tzlocal)
     return datetime.datetime.now()
 
 
@@ -167,26 +177,48 @@ def get_time():
     return datetime.datetime.today().time()
 
 
-class AutoDateNow(fields.Date):
+class DateMixin:
+    def __init__(self, *args, **kwargs):
+        self.is_aware = is_aware = kwargs.get('is_aware')
+        kwargs['sqlfield'] = sql.DateTime(timezone=is_aware)
+        super().__init__(*args, **kwargs)
+
+
+class Date(DateMixin, fields.Date):
+    def _deserialize(self, *args, **kwargs):
+        val = super()._deserialize(*args, **kwargs)
+        if self.is_aware:
+            val = datetime.datetime.combine(val, datetime.time(0))
+            if not val.tzname():
+                return val.replace(tzinfo=tz_local)
+        return val
+
+
+class DateTime(DateMixin, fields.DateTime):
+    def _deserialize(self, *args, **kwargs):
+        val = super()._deserialize(*args, **kwargs)
+        if self.is_aware and not val.tzname():
+            return val.replace(tzinfo=tz_local)
+        return val
+
+
+class AutoDateNow(Date):
     # Take heed of Postgres' force-converting time zone
     # to UTC when using time zone awareness.
     def __init__(self, **kwargs):
-        is_aware = kwargs.pop('is_aware', False)
         kwargs.update({
-            'missing': partial(get_date, aware=is_aware),
-            'validate': validators.must_be_empty,
-            'sqlfield': sql.DateTime(timezone=True) if is_aware else sql.Date()
+            'missing': partial(get_date, aware=self.is_aware),
+            'validate': validators.must_be_empty
         })
         super().__init__(**kwargs)
 
 
-class AutoDateTimeNow(fields.DateTime):
+class AutoDateTimeNow(DateTime):
     def __init__(self, **kwargs):
-        is_aware = kwargs.pop('is_aware', False)
         kwargs.update({
-            'missing': partial(get_datetime, aware=is_aware),
+            'missing': partial(get_datetime, aware=self.is_aware),
             'validate': validators.must_be_empty,
-            'sqlfield': sql.DateTime(timezone=is_aware)
+            'sqlfield': sql.DateTime(timezone=self.is_aware)
         })
         super().__init__(**kwargs)
 
