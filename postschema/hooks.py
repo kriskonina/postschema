@@ -1,5 +1,5 @@
 from contextlib import suppress
-from psycopg2.extras import DateTimeRange
+from psycopg2.extras import DateTimeRange, DateTimeTZRange
 from .utils import Json
 
 
@@ -40,6 +40,8 @@ def escape_rangeable(fieldnames):
     def wrapped(payload, view_instance, **kwargs):
         for fieldname in fieldnames:
             with suppress(KeyError):
-                payload[fieldname] = DateTimeRange(*payload[fieldname])
+                is_aware = view_instance.schema.declared_fields[fieldname].metadata.get('is_aware', False)
+                range_cls = DateTimeTZRange if is_aware else DateTimeRange
+                payload[fieldname] = range_cls(*payload[fieldname])
         return payload
     return wrapped
