@@ -31,7 +31,7 @@ class RangeField(fields.List):
 
 class RangeDTField(RangeField):
     def __init__(self, **kwargs):
-        is_aware = kwargs.pop('is_aware', False)
+        is_aware = kwargs.get('is_aware', False)
         self.bounds = kwargs.pop('bounds', '(]')
         kwargs.update({
             'sqlfield': DateTimeRangeType if not is_aware else DateTimeAwareRange,
