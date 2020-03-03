@@ -49,6 +49,23 @@ def getattrs(cls):
     return {k: v for k, v in cls.__dict__.items() if not k.startswith('__')}
 
 
+create_id_const_query = '''DROP TRIGGER IF EXISTS identity_constraint_{tablename} ON "{tablename}";
+CREATE TRIGGER identity_constraint_{tablename}
+BEFORE INSERT on "{tablename}"
+FOR EACH ROW 
+EXECUTE PROCEDURE identity_constraint_fn(
+    '{target_table_name}', '{target_table_pk}', 
+    '{self_col}', '{target_col}', '{target_table_local_ref}');'''
+
+
+def add_identity_triggers(metadata, identity_constraint):
+    query = create_id_const_query.format(**identity_constraint)
+    event.listen(
+        metadata,
+        'after_create',
+        DDL(query)
+    )
+
 def create_model(schema_cls, info_logger): # noqa
     name = schema_cls.__name__
     methods = dict(schema_cls.__dict__)
@@ -65,6 +82,8 @@ def create_model(schema_cls, info_logger): # noqa
 
     if hasattr(meta, '__table_args__'):
         model_methods['__table_args__'] = meta.__table_args__
+
+    id_constraints = []
 
     for fieldname, field_attrs in declared_fields.items():
         if isinstance(field_attrs, fields.Field):
@@ -101,16 +120,20 @@ def create_model(schema_cls, info_logger): # noqa
             metadict.pop('fk', None)
             metadict.pop('read_only', None)
             metadict.pop('is_aware', None)
+            identity_constraint = metadict.pop('identity_constraint', {})
             model_methods[fieldname] = sql.Column(field_instance, *args, **metadict, **translated)
+
+            # parse identity_constraint
+            if identity_constraint:
+                identity_constraint['target_table_local_ref'] = fieldname
+                identity_constraint['tablename'] = tablename
+                id_constraints.append(identity_constraint)
 
     modelname = name + 'Model'
     new_model = type(modelname, (Base,), model_methods)
 
-    model_events = methods.get('Events')
-    if model_events is not None:
-        for k, v in model_events.__dict__.items():
-            if not k.startswith('__'):
-                event.listen(new_model.__table__, k, DDL(v))
+    for id_constraint in id_constraints:
+        add_identity_triggers(Base.metadata, id_constraint)
 
     info_logger.debug(f"- created model `{modelname}`")
     return new_model

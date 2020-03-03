@@ -70,6 +70,11 @@ class ForeignResource(Relationship, fields.Integer):
             'fk': sql.ForeignKey(related_schema),
             'index': True
         })
+        if 'identity_constraint' in kwargs:
+            kwargs['identity_constraint'].update({
+                'target_table_name': self.target_table['name'],
+                'target_table_pk': self.target_table['pk'],
+            })
         super().__init__(*args, **kwargs)
 
 
@@ -163,13 +168,13 @@ class AutoSessionStatus(AutoSessionField, fields.Int):
 
 def get_date(aware=False):
     if aware:
-        return datetime.datetime.today().replace(tzinfo=tzlocal)
+        return datetime.datetime.today().replace(tzinfo=tz_local)
     return datetime.datetime.today().date()
 
 
 def get_datetime(aware=False):
     if aware:
-        return datetime.datetime.now().replace(tzinfo=tzlocal)
+        return datetime.datetime.now().replace(tzinfo=tz_local)
     return datetime.datetime.now()
 
 
@@ -179,8 +184,9 @@ def get_time():
 
 class DateMixin:
     def __init__(self, *args, **kwargs):
-        self.is_aware = is_aware = kwargs.get('is_aware')
-        kwargs['sqlfield'] = sql.DateTime(timezone=is_aware)
+        if not hasattr(self, 'is_aware'):
+            self.is_aware = kwargs.get('is_aware')
+        kwargs['sqlfield'] = sql.DateTime(timezone=self.is_aware)
         super().__init__(*args, **kwargs)
 
 
@@ -206,6 +212,7 @@ class AutoDateNow(Date):
     # Take heed of Postgres' force-converting time zone
     # to UTC when using time zone awareness.
     def __init__(self, **kwargs):
+        self.is_aware = kwargs.get('is_aware')
         kwargs.update({
             'missing': partial(get_date, aware=self.is_aware),
             'validate': validators.must_be_empty
@@ -215,6 +222,7 @@ class AutoDateNow(Date):
 
 class AutoDateTimeNow(DateTime):
     def __init__(self, **kwargs):
+        self.is_aware = kwargs.get('is_aware')
         kwargs.update({
             'missing': partial(get_datetime, aware=self.is_aware),
             'validate': validators.must_be_empty,

@@ -762,6 +762,38 @@ class AutoDefaultFields(PostSchema):
         route_base = 'auto_def_fields'
 
 
+class SameIDCommon(PostSchema):
+    __tablename__ = 'sameidcommon'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('sameidcommon_id_seq'),
+                        read_only=True, primary_key=True)
+    actor = ForeignResource('actor.id', required=True)
+
+    class Public:
+        class permissions:
+            allow_all = True
+
+    class Meta:
+        route_base = 'sameidcommon'
+
+
+class SameIDConstr(PostSchema):
+    __tablename__ = 'sameidconstr'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('sameidconstr_id_seq'),
+                        read_only=True, primary_key=True)
+    owner = AutoSessionOwner()
+    common = ForeignResource('sameidcommon.id', required=True, identity_constraint={
+        'self_col': 'owner',
+        'target_col': 'actor'
+    })
+
+    class Public:
+        class permissions:
+            allow_all = True
+
+    class Meta:
+        route_base = 'sameidconstr'
+
+
 class Doctor(ScopeBase):
     spec = fields.String(sqlfield=sql.String(150), required=True)
     ward_id = fields.Int(sqlfield=sql.Integer)
