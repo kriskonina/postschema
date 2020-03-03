@@ -779,8 +779,8 @@ class GrantRole(AuxView):
         roles = payload['roles']
 
         query = ('UPDATE actor set roles=('
-                 'SELECT json_agg(DISTINCT t.jsonb_array_elements) '
-                 '''FROM (SELECT jsonb_array_elements(roles || %s)) t '''
+                 'SELECT json_agg(DISTINCT t.j_els) '
+                 '''FROM (SELECT jsonb_array_elements(roles || %s) AS j_els) t '''
                  ') WHERE id=%s RETURNING roles')
 
         async with self.request.app.db_pool.acquire() as conn:
@@ -805,6 +805,11 @@ class GrantRole(AuxView):
 
     @summary('Grant roles on a user')
     async def post(self):
+        '''
+        Override actor's roles, subject to same workspace membership policy.
+        Only Owners and Admins roles can perform this.
+        If the requested actor already holds Admin/Owner role(s), they will be preserved.
+        '''
         actor_id = self.path_payload['actor_id']
         payload = await self.validate_payload()
         roles = payload['roles']
@@ -818,14 +823,23 @@ class GrantRole(AuxView):
                         SELECT jsonb_agg(t.mems) AS mems FROM (
                             SELECT distinct jsonb_array_elements(members) AS mems
                             FROM workspace
-                            WHERE id = ANY('{workspaces}')
-                        ) t
+                            WHERE id=ANY('{workspaces}')
+                            ) t
+                        )
+                        UPDATE actor set roles=(
+                            SELECT COALESCE(jsonb_agg(y.droles), '[]'::jsonb) FROM (
+                                SELECT distinct t.j_els AS droles FROM (
+                                    SELECT jsonb_array_elements(roles) AS j_els
+                                ) t WHERE t.j_els <@ '["Admin", "Owner"]'::jsonb
+                            ) y
+                        ) || %s
+                        FROM workspace_cte
+                        WHERE actor.id=%s AND '%s' <@ workspace_cte.mems
+                        RETURNING roles''',
+                        [
+                            Json(roles), actor_id, actor_id
+                        ]
                     )
-                    UPDATE actor SET roles = %s
-                    FROM workspace_cte
-                    WHERE actor.id=%s AND '%s' <@ workspace_cte.mems
-                    RETURNING roles''', [Json(roles), actor_id, actor_id])
-
                     ret = await cur.fetchone()
                     if not ret:
                         raise web.HTTPForbidden(reason=("Requested actor ID doesn't exist or you don't "
@@ -833,7 +847,15 @@ class GrantRole(AuxView):
                     new_roles = ret[0]
 
         elif 'Admin' in self.request.session.roles:
-            query = 'UPDATE actor SET roles=%s WHERE id=%s RETURNING roles'
+            query = '''UPDATE actor
+            SET roles=(
+                SELECT COALESCE(jsonb_agg(y.droles), '[]'::jsonb) FROM (
+                    SELECT distinct t.j_els AS droles FROM (
+                        SELECT jsonb_array_elements(roles) AS j_els
+                    ) t WHERE t.j_els <@ '["Admin", "Owner"]'::jsonb
+                ) y
+            ) || %s
+            WHERE id=%s RETURNING roles'''
             async with self.request.app.db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
                     await cur.execute(query, [Json(roles), actor_id])

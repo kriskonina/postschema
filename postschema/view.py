@@ -1193,7 +1193,7 @@ class ViewsTemplate:
         if hasattr(self.schema, 'before_update'):
             cleaned_payload = await self.schema.before_update(weakref.proxy(self), self.request, cleaned_payload, cleaned_select) \
                 or cleaned_payload
-        
+
         query_raw = self.update_query_stmt
         query_with_where, query_values = self._whereize_query(cleaned_select, query_raw)
         updates = []
