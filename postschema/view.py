@@ -1174,9 +1174,9 @@ class ViewsTemplate:
                 res = await cur.fetchone()
                 if res is None:
                     if self.request.session:
-                        # Most likely a cross workspace insert
+                        # Most likely a cross workspace insert or non-existent FK
                         self.request.app.error_logger.warn('Cross workspace insert')
-                        raise web.HTTPConflict(reason='Illegal cross workspace insert')
+                        raise web.HTTPConflict(reason='Illegal cross workspace insert or non-existent FK supplied')
                     self.request.app.error_logger.error("Failed to create a resource",
                                                         query=cur.query.decode())
                     raise post_exceptions.CreateFailed()
