@@ -63,7 +63,7 @@ class Relationship:
         }
 
 
-class ForeignResource(Relationship, fields.Integer):
+class ForeignResource(Relationship, fields.Raw):
     def __init__(self, related_schema, *args, **kwargs):
         self.process_related_schema(related_schema)
         kwargs.update({
@@ -75,7 +75,11 @@ class ForeignResource(Relationship, fields.Integer):
                 'target_table_name': self.target_table['name'],
                 'target_table_pk': self.target_table['pk'],
             })
+        self.target_pk_type = None
         super().__init__(*args, **kwargs)
+
+    def _deserialize(self, *args, **kwargs):
+        return self.target_pk_type._deserialize(*args, **kwargs)
 
 
 class FRBase(Relationship, fields.List):

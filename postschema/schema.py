@@ -36,8 +36,8 @@ class _schemascls:
             if not k.startswith('_'):
                 yield k, v
 
-    def __matmul__(self, other):
-        return self._cont(other)
+    def __getitem__(self, schema_name):
+        return self._cont(schema_name)
 
     def __repr__(self):
         attrs = list(self)

@@ -227,7 +227,7 @@ class TopSchemaPermFactory(SchemaFactoryBase):
         if tablename == 'self':
             tablename = self.schema_cls.__tablename__
 
-        schema_cls = self.registered_schemas @ tablename
+        schema_cls = self.registered_schemas[tablename]
         if schema_cls is None:
             raise NameError(f'Table `{tablename}` defined on `{op_path}` not found!')
         if column not in schema_cls._declared_fields:

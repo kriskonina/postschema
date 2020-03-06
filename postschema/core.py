@@ -1,7 +1,7 @@
-
 import weakref
 from collections import defaultdict as dd
 from contextlib import suppress
+from copy import deepcopy
 from functools import lru_cache
 
 import sqlalchemy as sql
@@ -267,7 +267,7 @@ class ViewMaker:
                 linked_table = foreign_target['name']
                 linked_table_pk = foreign_target['pk']
                 linked_target = (linked_table_pk, linked_table, fieldname)
-                linked_schema = self.registered_schemas @ linked_table
+                linked_schema = self.registered_schemas[linked_table]
                 linked_schema.pk_column_name = linked_table_pk
                 linked_schema._deletion_cascade = getattr(linked_schema, '_deletion_cascade', [])
                 linked_schema._m2m_cherrypicks = getattr(linked_schema, '_m2m_cherrypicks', [])
@@ -311,7 +311,7 @@ class ViewMaker:
         return joins
 
 
-def adjust_fields(schema_cls):
+def adjust_fields(schema_cls, all_schemas):
     declared_fields = dict(schema_cls._declared_fields)
     iterables = []
     rangeables = []
@@ -336,6 +336,16 @@ def adjust_fields(schema_cls):
             # ensure relation fields are not included
             if not isinstance(colv, postschema_fields.Relationship):
                 iterables.append(coln)
+        elif isinstance(colv, postschema_fields.ForeignResource):
+            # establish the type of the linked table's pk and apply the correspoding
+            # marshmallow field type as a base for this field.
+            colv_clone = deepcopy(colv)
+            while type(colv_clone) not in (fields.Integer, fields.String):
+                target_tablename = colv_clone.target_table['name']
+                target_pkname = colv_clone.target_table['pk']
+                target_schema = all_schemas[target_tablename]
+                colv_clone = target_schema._declared_fields[target_pkname]
+            colv.target_pk_type = colv_clone
 
     schema_meta = schema_cls.Meta
     omit_me = not getattr(schema_meta, 'create_views', True)
@@ -360,7 +370,7 @@ def build_app(app, registered_schemas):
         app.info_logger.debug(f'+ processing {tablename}')
 
         schema_cls._post_validation_write_cleaners = []
-        adjust_fields(schema_cls)
+        adjust_fields(schema_cls, registered_schemas)
 
         # create an SQLAlchemy model
         if tablename is not None:
