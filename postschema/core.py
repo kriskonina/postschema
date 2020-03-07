@@ -265,7 +265,7 @@ class ViewMaker:
                 this_target = (fieldname, this_table, this_pk)
                 foreign_target = fieldval.target_table
                 linked_table = foreign_target['name']
-                linked_table_pk = foreign_target['pk']
+                linked_table_pk = foreign_target['target_col']
                 linked_target = (linked_table_pk, linked_table, fieldname)
                 linked_schema = self.registered_schemas[linked_table]
                 linked_schema.pk_column_name = linked_table_pk
@@ -302,8 +302,7 @@ class ViewMaker:
                         # delete instruction should be present on both tables
                         deletion_cascade.append(linked_target)
                         linked_schema._deletion_cascade.append(this_target)  # this is debatable
-
-                    joins[fieldname] = [linked_schema, f'{linked_table}.{{subkey}}=%({{fill}})s']
+                    joins[fieldname] = [linked_schema, f'{linked_table}.{{subkey}}=%({{fill}})s', fieldval.target_table]
 
         new_schema_methods['_deletion_cascade'] = deletion_cascade
         new_schema_methods['_m2m_cherrypicks'] = m2m_cherrypicks
@@ -342,7 +341,7 @@ def adjust_fields(schema_cls, all_schemas):
             colv_clone = deepcopy(colv)
             while type(colv_clone) not in (fields.Integer, fields.String):
                 target_tablename = colv_clone.target_table['name']
-                target_pkname = colv_clone.target_table['pk']
+                target_pkname = colv_clone.target_table['target_col']
                 target_schema = all_schemas[target_tablename]
                 colv_clone = target_schema._declared_fields[target_pkname]
             colv.target_pk_type = colv_clone

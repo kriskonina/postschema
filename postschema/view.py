@@ -351,7 +351,7 @@ class ViewsClassBase(web.View):
         new_methods = {
             fieldname: fields.Nested(
                 linked_schema, validate=must_not_be_empty)
-            for fieldname, (linked_schema, _) in joins.items()
+            for fieldname, (linked_schema, *_) in joins.items()
         }
 
         for fieldname in joins:
@@ -556,10 +556,10 @@ class ViewsClassBase(web.View):
         tablename = schema.__tablename__
         get_joins = {}
         list_joins = {}
-        for fieldname, (linked_schema, _) in joins.items():
+        for fieldname, (linked_schema, _, target_table) in joins.items():
             linked_schema_tablename = linked_schema.__tablename__
-            linked_schema_pk = linked_schema._model.__table__.primary_key.columns_autoinc_first[0].name
-            linked = f'"{linked_schema_tablename}".{linked_schema_pk}'
+            target_col = target_table['target_col']
+            linked = f'"{linked_schema_tablename}".{target_col}'
             join_stmt = f'LEFT JOIN "{linked_schema_tablename}" ON "{tablename}".{fieldname}={linked}'
             if fieldname in get_by:
                 get_joins[fieldname] = join_stmt
@@ -779,7 +779,7 @@ class ViewsClassBase(web.View):
                 extra_colnames.append(k)
                 extra_values.append(f'"{self_col_name}_cte".{v.foreign_column}')
                 from_ctes.add(f'"{self_col_name}_cte"')
-                dest_key = f"{dest_tablename}:{from_column_target_table['pk']}:{self_col_name}"
+                dest_key = f"{dest_tablename}:{from_column_target_table['target_col']}:{self_col_name}"
                 cte_autoimplied[dest_key].append(v.foreign_column)
 
         for dest_key, fk_cols in cte_autoimplied.items():
@@ -957,7 +957,6 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
 
     async def _fetch(self, cleaned_payload, query):
         '''Common logic for `get()` and `list()`'''
-
         query, values = self._whereize_query(cleaned_payload, query)
 
         async with self.request.app.db_pool.acquire() as conn:
@@ -1029,7 +1028,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                 values.update({m2m_field: relation_in_payload})
                 wheres.append(m2m_field_translated)
 
-        for fk_field, (linked_schema, where_stmt) in self.schema._join_to_schema_where_stmt.items():
+        for fk_field, (linked_schema, where_stmt, _) in self.schema._join_to_schema_where_stmt.items():
             if fk_field in self.tables_to_join:
                 joins.append(self.schema._joins[fk_field])
                 usings.append(fk_field)
@@ -1063,7 +1062,6 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             using = f'USING {using}'
         if froms:
             froms = f'FROM "{froms}"'
-
         return query.format(where=wheres_q, joins=joins, using=using, froms=froms), values
 
 

@@ -53,13 +53,13 @@ class Set(fields.List):
 class Relationship:
     def process_related_schema(self, related_schema_arg):
         try:
-            f_table, f_pk = related_schema_arg.split('.')
+            f_table, target_col = related_schema_arg.split('.')
         except (ValueError, AttributeError):
             raise TypeError(
                 '`related_schema` argument should be of format: <foreign_table_name>.<foreign_table_pk>')
         self.target_table = {
             'name': f_table,
-            'pk': f_pk
+            'target_col': target_col
         }
 
 
@@ -73,13 +73,17 @@ class ForeignResource(Relationship, fields.Raw):
         if 'identity_constraint' in kwargs:
             kwargs['identity_constraint'].update({
                 'target_table_name': self.target_table['name'],
-                'target_table_pk': self.target_table['pk'],
+                'target_table_pk': self.target_table['target_col'],
             })
         self.target_pk_type = None
         super().__init__(*args, **kwargs)
 
     def _deserialize(self, *args, **kwargs):
         return self.target_pk_type._deserialize(*args, **kwargs)
+
+
+class AutoReference(ForeignResource):
+    pass
 
 
 class FRBase(Relationship, fields.List):

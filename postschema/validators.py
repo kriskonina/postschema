@@ -25,15 +25,15 @@ def adjust_children_field(fieldname):
             return
         target_table = self.declared_fields[fieldname].target_table
         table_name = target_table['name']
-        pk = target_table['pk']
+        target_col = target_table['target_col']
         ids = ','.join(value)
-        query = f"SELECT COALESCE(json_agg(id::text), '[]'::json) FROM \"{table_name}\" WHERE {pk}=ANY('{{{ids}}}')"
+        query = f"SELECT COALESCE(json_agg(id::text), '[]'::json) FROM \"{table_name}\" WHERE {target_col}=ANY('{{{ids}}}')"
         async with self.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 try:
                     await cur.execute(query)
                 except Exception:
-                    self.app.error_logger.exception('Failed to execute FKs checking query', 
+                    self.app.error_logger.exception('Failed to execute FKs checking query',
                                                     query=cur.query.decode())
                     raise
                 res = (await cur.fetchone())[0]
@@ -50,10 +50,10 @@ def autosession_field_validator(fieldname):
 
         fieldval = self.declared_fields[fieldname]
         tablename = fieldval.target_table['name']
-        pk = fieldval.target_table['pk']
+        target_col = fieldval.target_table['target_col']
         colname = fieldval.target_column
         sessval = self.session[fieldval.session_field]
-        query = f'SELECT 1 FROM "{tablename}" WHERE {colname}=%s AND {pk}=%s'
+        query = f'SELECT 1 FROM "{tablename}" WHERE {colname}=%s AND {target_col}=%s'
 
         async with self.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
