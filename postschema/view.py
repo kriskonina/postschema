@@ -559,8 +559,8 @@ class ViewsClassBase(web.View):
         for fieldname, (linked_schema, _, target_table) in joins.items():
             linked_schema_tablename = linked_schema.__tablename__
             target_col = target_table['target_col']
-            linked = f'"{linked_schema_tablename}".{target_col}'
-            join_stmt = f'LEFT JOIN "{linked_schema_tablename}" ON "{tablename}".{fieldname}={linked}'
+            linked = f'_{fieldname}_j.{target_col}'
+            join_stmt = f'LEFT JOIN "{linked_schema_tablename}" _{fieldname}_j ON "{tablename}".{fieldname}={linked}'
             if fieldname in get_by:
                 get_joins[fieldname] = join_stmt
             if fieldname in list_by:
@@ -585,18 +585,14 @@ class ViewsClassBase(web.View):
 
         metacls_name = request_type.title()
 
-        field_to_table = {
-            field: li[0]._model.__table__.name
-            for field, li in cls.schema_cls._join_to_schema_where_stmt.items()
-        }
-
         def _join_selects(select_dict, tablename):
             return ','.join(
                 f"'{k}', \"{tablename}\".{v}"
                 if not isinstance(v, dict)
-                else f"'{k}', json_build_object({_join_selects(v, field_to_table[k])})"
+                else f"'{k}', json_build_object({_join_selects(v, '_' + k + '_j')})"
                 for k, v in select_dict.items()
             )
+
         tablename = cls.schema_cls.__tablename__
         tablename_cte = f'{tablename}_cte'
         joined_fields = dd(dict)
@@ -662,16 +658,11 @@ class ViewsClassBase(web.View):
 
         metacls_name = request_type.title()
 
-        field_to_table = {
-            field: li[0]._model.__table__.name
-            for field, li in cls.schema_cls._join_to_schema_where_stmt.items()
-        }
-
         def _join_selects(select_dict, tablename):
             return ','.join(
                 f"'{k}', \"{tablename}\".{v}"
                 if not isinstance(v, dict)
-                else f"'{k}', json_build_object({_join_selects(v, field_to_table[k])})"
+                else f"'{k}', json_build_object({_join_selects(v, '_' + k + '_j')})"
                 for k, v in select_dict.items()
             )
 
@@ -1008,7 +999,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
         tablename = self.schema.__tablename__
         joins = []
         usings = []
-        froms = [] # for updates only
+        froms = []  # for updates only
         wheres = deque()
         values = {}
 
@@ -1050,7 +1041,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                     wheres.appendleft(f'"{linked_tb_name}".{pk}="{tablename}".{fk_field}')
 
         for key in cleaned_payload.copy():
-            wheres.append(f'"{tablename}".{key}=%(w_{key})s')
+            wheres.append(f'{tablename}.{key}=%(w_{key})s')
 
         values.update({f'w_{k}': v for k, v in cleaned_payload.items()})
 
