@@ -306,7 +306,7 @@ class ViewMaker:
                     joins[fieldname] = {
                         'linked_schema': linked_schema,
                         'aliased_comp_query': f'_{fieldname}_j.{{subkey}}=%({{fill}})s',
-                        'unaliased_comp_query': f'{linked_table}.{{subkey}}=%({{fill}})s',
+                        'unaliased_comp_query': f'"{linked_table}".{{subkey}}=%({{fill}})s',
                         'target_table': fieldval.target_table
                     }
 

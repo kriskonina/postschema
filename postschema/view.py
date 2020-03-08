@@ -1045,7 +1045,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                     wheres.appendleft(f'"{linked_tb_name}".{pk}="{tablename}".{fk_field}')
 
         for key in cleaned_payload.copy():
-            wheres.append(f'{tablename}.{key}=%(w_{key})s')
+            wheres.append(f'"{tablename}".{key}=%(w_{key})s')
 
         values.update({f'w_{k}': v for k, v in cleaned_payload.items()})
 
@@ -1057,7 +1057,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             using = f'USING {using}'
         if froms:
             froms = f'FROM "{froms}"'
-        
+
         return query.format(where=wheres_q, joins=joins, using=using, froms=froms), values
 
 
