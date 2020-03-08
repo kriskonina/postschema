@@ -34,8 +34,9 @@ from .view import AuxViewBase, ViewsBase, ViewsTemplate
 Base = declarative_base()
 
 METH_ALL = [meth.lower() for meth in METH_ALL]
-ITERABLE_FIELDS = (
+JSON_ESCAPABLE_FIELDS = (
     fields.List,
+    fields.Mapping,
     postschema_fields.Set
 )
 
@@ -336,7 +337,7 @@ def adjust_fields(schema_cls, all_schemas):
                     colv.validators.append(validator)
         elif isinstance(colv, postschema_fields.RangeField):
             rangeables.append(coln)
-        elif isinstance(colv, ITERABLE_FIELDS):
+        elif isinstance(colv, JSON_ESCAPABLE_FIELDS):
             # ensure relation fields are not included
             if not isinstance(colv, postschema_fields.Relationship):
                 iterables.append(coln)
