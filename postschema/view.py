@@ -350,8 +350,8 @@ class ViewsClassBase(web.View):
         schema = cls.schema_cls
         new_methods = {
             fieldname: fields.Nested(
-                linked_schema, validate=must_not_be_empty)
-            for fieldname, (linked_schema, *_) in joins.items()
+                join_obj['linked_schema'], validate=must_not_be_empty)
+            for fieldname, join_obj in joins.items()
         }
 
         for fieldname in joins:
@@ -556,7 +556,9 @@ class ViewsClassBase(web.View):
         tablename = schema.__tablename__
         get_joins = {}
         list_joins = {}
-        for fieldname, (linked_schema, _, target_table) in joins.items():
+        for fieldname, join_obj in joins.items():
+            linked_schema = join_obj['linked_schema']
+            target_table = join_obj['target_table']
             linked_schema_tablename = linked_schema.__tablename__
             target_col = target_table['target_col']
             linked = f'_{fieldname}_j.{target_col}'
@@ -603,7 +605,7 @@ class ViewsClassBase(web.View):
 
         for getter_field in list_by.copy():
             if getter_field in joins_to_schemas:
-                linked_schema = joins_to_schemas[getter_field][0]
+                linked_schema = joins_to_schemas[getter_field]['linked_schema']
                 popped_field = list_by.pop(getter_field, None)
                 if not popped_field:
                     continue
@@ -673,7 +675,7 @@ class ViewsClassBase(web.View):
 
         for getter_field in get_by.copy():
             if getter_field in joins_to_schemas:
-                linked_schema = joins_to_schemas[getter_field][0]
+                linked_schema = joins_to_schemas[getter_field]['linked_schema']
                 popped_field = get_by.pop(getter_field, None)
                 if not popped_field:
                     continue
@@ -1018,13 +1020,15 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             if relation_in_payload:
                 values.update({m2m_field: relation_in_payload})
                 wheres.append(m2m_field_translated)
-
-        for fk_field, (linked_schema, where_stmt, _) in self.schema._join_to_schema_where_stmt.items():
+        
+        for fk_field, join_obj in self.schema._join_to_schema_where_stmt.items():
+            linked_schema = join_obj['linked_schema']
             if fk_field in self.tables_to_join:
                 joins.append(self.schema._joins[fk_field])
                 usings.append(fk_field)
             fk_in_payload = cleaned_payload.pop(fk_field, None)
             if fk_in_payload:
+                where_stmt = join_obj['unaliased_comp_query'] if in_update or in_delete else join_obj['aliased_comp_query']
                 with suppress(AttributeError):
                     # if <schema>.Meta defines a `default_get_critera` function
                     # which in turn returns an expected FK value, we can ignore this
@@ -1053,6 +1057,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             using = f'USING {using}'
         if froms:
             froms = f'FROM "{froms}"'
+        
         return query.format(where=wheres_q, joins=joins, using=using, froms=froms), values
 
 

@@ -302,7 +302,12 @@ class ViewMaker:
                         # delete instruction should be present on both tables
                         deletion_cascade.append(linked_target)
                         linked_schema._deletion_cascade.append(this_target)  # this is debatable
-                    joins[fieldname] = [linked_schema, f'_{fieldname}_j.{{subkey}}=%({{fill}})s', fieldval.target_table]
+                    joins[fieldname] = {
+                        'linked_schema': linked_schema,
+                        'aliased_comp_query': f'_{fieldname}_j.{{subkey}}=%({{fill}})s',
+                        'unaliased_comp_query': f'{linked_table}.{{subkey}}=%({{fill}})s',
+                        'target_table': fieldval.target_table
+                    }
 
         new_schema_methods['_deletion_cascade'] = deletion_cascade
         new_schema_methods['_m2m_cherrypicks'] = m2m_cherrypicks
