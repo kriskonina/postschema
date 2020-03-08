@@ -90,6 +90,7 @@ async def send_email_user_invitation(request, by, link, to):
         username=os.environ.get('EMAIL_USERNAME'),
         password=os.environ.get('EMAIL_PASSWORD')
     )
+    request.app.info_logger.info("Invitation email sent", invited=to)
 
 
 async def send_email_reset_link(request, checkcode, to):
@@ -134,6 +135,7 @@ async def send_email_reset_link(request, checkcode, to):
         username=os.environ.get('EMAIL_USERNAME'),
         password=os.environ.get('EMAIL_PASSWORD')
     )
+    request.app.info_logger.info("Sent password reset link", email=to)
 
 
 async def send_email_verification_link(request, to):
@@ -175,6 +177,7 @@ async def send_email_verification_link(request, to):
         username=os.environ.get('EMAIL_USERNAME'),
         password=os.environ.get('EMAIL_PASSWORD')
     )
+    request.app.info_logger.info("Sent email verification link", email=to)
 
 
 async def send_email_activation_link(request, data, link_path_base, ttl_seconds):
@@ -219,6 +222,7 @@ async def send_email_activation_link(request, data, link_path_base, ttl_seconds)
         username=os.environ.get('EMAIL_USERNAME'),
         password=os.environ.get('EMAIL_PASSWORD')
     )
+    request.app.info_logger.info("Activation email sent", email=data['email'], username=data['username'])
 
 
 async def send_phone_verification_code(request, phone_num, actor_id):

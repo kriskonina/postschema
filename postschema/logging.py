@@ -68,7 +68,7 @@ def setup_logging(info_logger_processors: list = [],
     info_logger_wrapper_class = BoundLogger
     error_logger_wrapper_class = BoundLogger
 
-    added_processor = istest and structlog.dev.ConsoleRenderer() or structlog.dev.JSONRenderer()
+    added_processor = APP_MODE in ['dev', 'test'] and structlog.dev.ConsoleRenderer() or structlog.processors.JSONRenderer()
 
     if not info_logger_processors:
         info_processors.append(added_processor)
