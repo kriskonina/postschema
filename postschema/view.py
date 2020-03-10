@@ -142,7 +142,7 @@ class CommonViewMixin:
                 return
         else:
             auth_logging_conf = getattr(logging_cls, 'authed', None)
-            if not auth_logging_conf or req.op not in auth_logging_conf:
+            if not auth_logging_conf or req.operation not in auth_logging_conf:
                 return
 
         status = resp.status
