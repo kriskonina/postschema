@@ -23,7 +23,7 @@ POSTGRES_USER = os.environ.get('POSTGRES_USER')
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
 
-info_logger, error_logger = setup_logging()
+info_logger, error_logger, _ = setup_logging()
 
 
 def get_url():

@@ -128,6 +128,47 @@ def make_select_fields_schema(schema_cls):
 
 
 class CommonViewMixin:
+
+    @classmethod
+    async def log_request(cls, req, resp):
+        logging_cls = getattr(cls.schema_cls, 'AccessLogging', None)
+        if not logging_cls:
+            return
+
+        is_authed = req.session.needs_session
+        if not is_authed:
+            pub_logging_conf = getattr(logging_cls, 'public', None)
+            if not pub_logging_conf or req.operation not in pub_logging_conf:
+                return
+        else:
+            auth_logging_conf = getattr(logging_cls, 'authed', None)
+            if not auth_logging_conf or req.op not in auth_logging_conf:
+                return
+
+        status = resp.status
+        if status >= 400:
+            method = 'error'
+            txt_resp = str(resp.reason)
+        else:
+            txt_resp = str(resp.text)
+            method = 'info'
+
+        txt_resp = str(resp.reason)
+        try:
+            payload = await req.json()
+        except Exception:
+            payload = {}
+        msg = dict(
+            resp=txt_resp[:5000] + '...' if resp.body_length >= 5000 else txt_resp,
+            payload=payload,
+            **req.app.access_logger._context.pop('msg_context', {})
+        )
+        await getattr(req.app.access_logger, method)(
+            msg,
+            status=status,
+            path=req.path,
+            op=req.operation)
+
     async def _validate_singular_payload(self, payload=None, schema=None, envelope_key=None,
                                          raise_orig=False):
         ref_schema = schema if schema is not None else self.schema
@@ -157,7 +198,7 @@ class CommonViewMixin:
             raise post_exceptions.ValidationError(err_msg if not envelope_key else {envelope_key: err_msg})
 
         with suppress(AttributeError):
-            # ignore validating \w Schemas not inheriting from PostSchema
+            # ignore validating \w schemas not inheriting from PostSchema
             err_msg = await ref_schema.run_async_validators(payload_used) or err_msg
 
         if err_msg:
@@ -1169,10 +1210,11 @@ class ViewsTemplate:
                 if res is None:
                     if self.request.session:
                         # Most likely a cross workspace insert or non-existent FK
-                        self.request.app.error_logger.warn('Cross workspace insert')
                         raise web.HTTPConflict(reason='Illegal cross workspace insert or non-existent FK supplied')
-                    self.request.app.error_logger.error("Failed to create a resource",
-                                                        query=cur.query.decode())
+
+                    self.request.app.access_logger = self.request.app.access_logger.bind(msg_context={
+                        'query': cur.query.decode()
+                    })
                     raise post_exceptions.CreateFailed()
 
         if hasattr(self.schema, 'after_post'):
@@ -1203,8 +1245,9 @@ class ViewsTemplate:
                 await self.request.app.commons.execute(cur, query, query_values, envelope='payload')
                 res = await cur.fetchone()
                 if not res or not res[0]:
-                    self.request.app.error_logger.error("Failed to update a resource",
-                                                        query=cur.query.decode())
+                    self.request.app.access_logger = self.request.app.access_logger.bind(msg_context={
+                        'query': cur.query.decode()
+                    })
                     raise post_exceptions.UpdateFailed()
 
         if hasattr(self.schema, 'after_put'):
@@ -1242,8 +1285,9 @@ class ViewsTemplate:
                 await self.request.app.commons.execute(cur, query, query_values, envelope='payload')
                 res = await cur.fetchone()
                 if not res or not res[0]:
-                    self.request.app.error_logger.error('Failed to update a resource',
-                                                        query=cur.query.decode())
+                    self.request.app.access_logger = self.request.app.access_logger.bind(msg_context={
+                        'query': cur.query.decode()
+                    })
                     raise post_exceptions.UpdateFailed()
 
         if hasattr(self.schema, 'after_patch'):
@@ -1299,8 +1343,9 @@ class ViewsTemplate:
                     # fetch the query result under the same transaction, before commiting
                     res = await cur.fetchone()
                     if not res or not res[0]:
-                        self.request.app.error_logger.error('Failed to delete a resource',
-                                                            query=cur.query.decode())
+                        self.request.app.access_logger = self.request.app.access_logger.bind(msg_context={
+                            'query': cur.query.decode()
+                        })
                         raise post_exceptions.DeleteFailed()
                     deleted_ids = res[0]
 

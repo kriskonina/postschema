@@ -336,9 +336,10 @@ def setup_postschema(app, appname: str, *,
     }
 
     # create loggers
-    info_logger, error_logger = setup_logging(app_config.info_logger_processors,
-                                              app_config.error_logger_processors,
-                                              app_config.default_logging_level)
+    info_logger, error_logger, access_logger = setup_logging(
+        app_config.info_logger_processors,
+        app_config.error_logger_processors,
+        app_config.default_logging_level)
 
     from . import middlewares
     from .actor import PrincipalActor
@@ -354,6 +355,7 @@ def setup_postschema(app, appname: str, *,
 
     app.info_logger = info_logger.new(**app_config.initial_logging_context)
     app.error_logger = error_logger.new(**app_config.initial_logging_context)
+    app.access_logger = access_logger.new(**app_config.initial_logging_context)
 
     aiojobs_setup(app, exception_handler=exception_handler(app.error_logger))
 

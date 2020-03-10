@@ -89,7 +89,6 @@ class AuthContext(AccessBase, StandaloneAuthedView):
                     break
 
         if selected_role is None:
-            self.error_logger.error('Illegal cross role request attempted')
             raise web.HTTPForbidden(reason=ILLEGAL_XROLE)
 
         auth_condition = self.level_permissions[selected_role].copy()
@@ -110,7 +109,6 @@ class AuthContext(AccessBase, StandaloneAuthedView):
                 self.check_verification_status()
                 if '*' in self.level_permissions:
                     return {}
-                self.error_logger.error('Illegal cross role request attempted')
                 raise web.HTTPForbidden(reason=ILLEGAL_XROLE)
         except (KeyError, TypeError):
             # private request_type
@@ -172,18 +170,15 @@ class AuthContext(AccessBase, StandaloneAuthedView):
             pipe.smembers(workspaces_key)
             pipe.smembers(roles_key)
             session_ctxt, workspaces, roles = await pipe.execute()
-
             if not session_ctxt:
                 # session cookie is valid, but not pointing to any active account
                 raise web.HTTPUnauthorized(reason='Unknown actor')
 
             if session_ctxt['workspace'] == '-1' and 'Admin' not in roles:
-                self.error_logger.error('Request by unassigned actor', actor_id=actor_id)
                 raise web.HTTPUnauthorized(reason='Actor not assigned to any workspace')
 
             if not session_ctxt:
                 # most likely session invalidated by removing session context from cache
-                self.error_logger.error('Session shut down')
                 raise web.HTTPUnauthorized(reason='Session has been shut down')
 
             session_ctxt['phone_confirmed'] = int(session_ctxt['phone_confirmed'])

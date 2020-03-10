@@ -26,30 +26,36 @@ class Commons:
             if constraint_key:
                 parsed_err = self.app.config.constraint_to_error_map.get(constraint_key)
             parsed_err = parsed_err or parse_postgres_err(ierr)
-            payload = {
+            errors = {
                 envelope: parsed_err
             } if envelope else parsed_err
-            self.app.error_logger.error({
-                'payload': payload,
-                'query': cur.query.decode()
-            })
-            raise post_exceptions.ValidationError(payload)
+
+            self.app.access_logger = self.app.access_logger.bind(
+                msg_context=dict(
+                    errors=errors,
+                    query=cur.query.decode()
+                )
+            )
+            raise post_exceptions.ValidationError(errors)
 
         except postgres_errors.DataException as derr:
             if 'range lower bound must be less than or equal' in str(derr):
-                payload = {
+                errors = {
                     'error': 'One of the Range fields\' lower bound is lower than its upper bound value'
                 }
             else:
                 base = {'error': derr.args[0].split('\n', 1)[0].capitalize()}
-                payload = {
+                errors = {
                     envelope: base
                 } if envelope else base
-            self.app.error_logger.error({
-                'payload': payload,
-                'query': cur.query.decode()
-            })
-            raise post_exceptions.ValidationError(payload)
+
+            self.app.access_logger = self.app.access_logger.bind(
+                msg_context=dict(
+                    errors=errors,
+                    query=cur.query.decode()
+                )
+            )
+            raise post_exceptions.ValidationError(errors)
 
         except Exception:
             self.app.error_logger.exception('Failed to execute query',

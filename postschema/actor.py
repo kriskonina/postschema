@@ -1189,6 +1189,7 @@ class PrincipalActorBase(RootSchema):
         if 'phone' in payload:
             payload['phone'] = clean_phone_number(payload['phone'])
         if 'details' in payload:
+            payload['details'] = payload['details'].adapted
             scope = request.session.scope
             scope_inst = request.app.config.scopes[scope]
             details = await parent._validate_singular_payload(
@@ -1393,6 +1394,8 @@ class PrincipalActorBase(RootSchema):
         return request.app.created_email_confirmation_link, request.app.config.activation_link_ttl
 
     async def before_post(self, parent, request, data):
+        if 'details' in data:
+            data['details'] = data['details'].adapted
         data['otp_secret'] = pyotp.random_base32(24)
         query = request.query
         invitation_token = query.get('inv')
@@ -1413,6 +1416,9 @@ class PrincipalActorBase(RootSchema):
 
         await spawn(request, send_email_activation_link(request, data, link_path_base, ttl))
         raise web.HTTPNoContent(reason='Account creation pending')
+
+    class AccessLogging:
+        authed = '*'
 
     class Public:
         disallow_authed = ['post']

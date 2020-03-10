@@ -82,6 +82,7 @@ def setup_logging(info_logger_processors: list = [],
     )
 
     infologger = LevelLogger('postschema.log', default_logging_level)
+    accesslogger = LevelLogger('postschema.access', default_logging_level)
     errorlogger = LevelLogger('postschema.error', logging.ERROR)
 
     info_logger = structlog.wrap_logger(
@@ -95,7 +96,13 @@ def setup_logging(info_logger_processors: list = [],
         wrapper_class=error_logger_wrapper_class
     )
 
-    if not _cached_loggers:
-        _cached_loggers.extend([info_logger, error_logger])
+    access_logger = structlog.wrap_logger(
+        accesslogger,
+        processors=info_processors,
+        wrapper_class=info_logger_wrapper_class
+    )
 
-    return info_logger, error_logger
+    if not _cached_loggers:
+        _cached_loggers.extend([info_logger, error_logger, access_logger])
+
+    return info_logger, error_logger, access_logger

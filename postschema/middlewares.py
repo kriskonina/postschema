@@ -4,7 +4,9 @@ import pyotp
 from contextlib import asynccontextmanager, suppress
 
 from aiohttp import web
+from aiojobs.aiohttp import spawn
 from cryptography.fernet import InvalidToken
+
 with suppress(ImportError):
     from sentry_sdk import configure_scope
 
@@ -34,6 +36,7 @@ def set_logging_context(app, **context):
         context['actor_id'] = context.pop('id')
     app.info_logger = app.info_logger.renew(**context)
     app.error_logger = app.error_logger.renew(**context)
+    app.access_logger = app.access_logger.renew(**context)
 
 
 @asynccontextmanager
@@ -146,7 +149,6 @@ async def prepare_shielded_response(request, handler):
                 raise await make_shielded_response('Shield token invalid', shield_method)
 
             raise await make_shielded_response('Shield token not supplied or invalid', shield_method)
-
     return await handler(request)
 
 
@@ -190,6 +192,8 @@ async def postschema_middleware(request, handler):
 
             async with switch_workspace(request):
                 resp = await prepare_shielded_response(request, handler)
+                with suppress(AttributeError):
+                    await spawn(request, handler.log_request(request, resp))
 
             resp.headers['ETag'] = request.app.spec_hash
             return resp
@@ -209,10 +213,18 @@ async def postschema_middleware(request, handler):
     request.operation = op.lower()
 
     auth_ctxt.set_level_permissions()
-    await auth_ctxt.set_session_context()
+    try:
+        await auth_ctxt.set_session_context()
+    except web.HTTPException as err_resp:
+        resp = err_resp
+        with suppress(AttributeError):
+            await spawn(request, handler.log_request(request, resp))
+        raise resp
 
     if auth_ctxt and str(auth_ctxt.status) != '1':
-        raise web.HTTPForbidden(reason='Account inactive')
+        resp = web.HTTPForbidden(reason='Account inactive')
+        await spawn(request, handler.log_request(request, resp))
+        raise resp
 
     extra_ctxt = {
         'id': auth_ctxt['actor_id'],
@@ -225,7 +237,14 @@ async def postschema_middleware(request, handler):
 
     async with switch_workspace(request):
         request.auth_conditions = auth_ctxt.authorize()
-        resp = await prepare_shielded_response(request, handler)
+        resp = None
+        try:
+            resp = await prepare_shielded_response(request, handler)
+        except web.HTTPException as err_resp:
+            resp = err_resp
+        with suppress(AttributeError):
+            if request.path not in ['/actor/logout/', '/actor/login/']:
+                await spawn(request, handler.log_request(request, resp))
 
     resp.headers['ETag'] = request.app.spec_hash
     if request.session.delete_session_cookie:

@@ -81,6 +81,9 @@ class Workspace(PostSchema):
         def default_get_critera(request):
             return {'owner': request.session.actor_id}
 
+    class AccessLogging:
+        authed = '*'
+
     class Authed:
         # get_by = ['id']
         class permissions:

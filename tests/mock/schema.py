@@ -80,6 +80,9 @@ class Description(PostSchema):
     class Meta:
         route_base = 'desc'
 
+    class AccessLogging:
+        public = '*'
+
     class Public:
         get_by = ['id', 'text']
 
@@ -317,6 +320,9 @@ class CustomOpsResource(PostSchema):
         async with request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, values)
+
+    class AccessLogging:
+        public = ['*']
 
     class Meta:
         route_base = 'customop'

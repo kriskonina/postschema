@@ -1,7 +1,10 @@
 import asyncio
+import itertools
 
 from marshmallow.schema import ValidationError, BaseSchema as MarshmallowBaseSchema, SchemaMeta
 from sqlalchemy.ext.declarative import declarative_base
+
+from .auth.perms import COMPOSITE_OPS, PublicPrivatePerms
 
 Base = declarative_base()
 
@@ -116,6 +119,7 @@ class PostSchemaMeta(SchemaMeta):
             if '__tablename__' not in methods and '__tablename__' not in second_base.__dict__:
                 raise AttributeError(f'PostSchema `{name}` needs to define a `__tablename__` attribute')
             cls._conflate_meta_classes(kls)
+            cls._parse_access_logging_class(kls)
             setattr(_schemas, name, kls)
             return kls
         return kls
@@ -145,6 +149,33 @@ class PostSchemaMeta(SchemaMeta):
 
         for k, v in new_attrs.items():
             setattr(kls, k, v)
+
+    def _parse_access_logging_class(kls):
+        log_cls = getattr(kls, 'AccessLogging', None)
+        all_ops = set(PublicPrivatePerms.__annotations__)
+        if log_cls is not None:
+            public_log_conf = getattr(log_cls, 'public', [])
+            authed_log_conf = getattr(log_cls, 'authed', [])
+            assert any([authed_log_conf, public_log_conf]),\
+                f'{kls.__module__}.{kls.__name__}.AccessLogging needs to define at least one attribute named `public` or `authed`'
+            if public_log_conf:
+                if public_log_conf in ['*', ['*']]:
+                    log_cls.public = list(all_ops)
+                else:
+                    common_ops = set(public_log_conf) & all_ops
+                    assert common_ops, f'{kls.__module__}.{kls.__name__}.AccessLogging.public does not include any valid operation names'
+                    redacted_op_names = itertools.chain.from_iterable([COMPOSITE_OPS.get(op, [op]) for op in common_ops])
+                    log_cls.public = list(redacted_op_names)
+            if authed_log_conf:
+                if authed_log_conf in ['*', ['*']]:
+                    log_cls.authed = list(all_ops)
+                else:
+                    common_ops = set(authed_log_conf) & all_ops
+                    assert common_ops, f'{kls.__module__}.{kls.__name__}.AccessLogging.authed does not include any valid operation names'
+                    redacted_op_names = itertools.chain.from_iterable([COMPOSITE_OPS.get(op, [op]) for op in common_ops])
+                    log_cls.authed = list(redacted_op_names)
+
+
 
 
 class PostSchema(PostSchemaBase, metaclass=PostSchemaMeta):
