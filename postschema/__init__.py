@@ -187,7 +187,7 @@ class AppConfig:
 
     def _update(self, cls):
         for k, v in cls.__dict__.items():
-            setattr(self, k, v)§
+            setattr(self, k, v)
 
 
 @dataclass(frozen=True)
