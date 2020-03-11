@@ -235,14 +235,13 @@ class PathReturner:
     @lru_cache()
     def paths_by_roles(self):
         spec = deepcopy(self.json_spec)
-
         for path, pathobj in self.json_spec['paths'].items():
             for op, op_obj in pathobj.copy().items():
                 with suppress(KeyError, TypeError):
                     authed = set(op_obj['security'][0]['authed'])
                     if '*' in authed or 'Admin' in self.roles:
                         continue
-                    if not authed & self.roles:
+                    if not (authed & self.roles):
                         del spec['paths'][path][op]
 
         out = {}
@@ -422,7 +421,6 @@ def setup_postschema(app, appname: str, *,
 
     # map paths to roles
     paths_by_roles = PathReturner(openapi_spec, router)
-    paths_by_roles.paths_by_roles
 
     # parse plugins
     installed_plugins = {}

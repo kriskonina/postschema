@@ -226,7 +226,7 @@ class APISpecBuilder(AuxSpecBuilder):
             for auxview in aux_views:
                 cls_view_name = auxview.__name__
                 aux_route = auxview_to_route[cls_view_name]
-                auxurl_root = os.path.join(self.root_url, aux_route[1:])
+                auxurl_root = os.path.join(self.root_url, aux_route)
                 self._build_aux_spec(auxview, auxurl_root)
 
     def add_schema_spec(self, schema_cls, *args):
