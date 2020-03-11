@@ -187,7 +187,7 @@ class AppConfig:
 
     def _update(self, cls):
         for k, v in cls.__dict__.items():
-            setattr(self, k, v)
+            setattr(self, k, v)§
 
 
 @dataclass(frozen=True)
@@ -201,9 +201,9 @@ class ImmutableConfig:
 def exception_handler(logger):
     def wrapped(scheduler, context):
         exc = context['exception']
-        # tb = exc.__traceback__
-        # stack = '\n'.join(traceback.format_exception(None, exc, tb))
-        logger.error('Aiojob exception', exception=exc)
+        job = context['job']
+        coroname = job._coro.__name__
+        logger.error(f'Aiojob exception in {coroname}', exception=exc)
     return wrapped
 
 
