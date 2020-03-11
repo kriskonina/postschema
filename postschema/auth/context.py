@@ -172,7 +172,9 @@ class AuthContext(AccessBase, StandaloneAuthedView):
             session_ctxt, workspaces, roles = await pipe.execute()
             if not session_ctxt:
                 # session cookie is valid, but not pointing to any active account
-                raise web.HTTPUnauthorized(reason='Unknown actor')
+                resp = web.HTTPUnauthorized(reason='Unknown actor')
+                resp.actor_id = actor_id
+                raise resp
 
             if session_ctxt['workspace'] == '-1' and 'Admin' not in roles:
                 raise web.HTTPUnauthorized(reason='Actor not assigned to any workspace')

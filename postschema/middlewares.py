@@ -162,7 +162,12 @@ async def postschema_middleware(request, handler):
         auth_ctxt = AuthContext(request)
         auth_ctxt.request_type = 'public'
         request.session = auth_ctxt
-        await auth_ctxt.set_session_context()
+        try:
+            await auth_ctxt.set_session_context()
+        except web.HTTPUnauthorized as unauth_exc:
+            actor_id = getattr(unauth_exc, 'actor_id', 'Unrecognized')
+            request.session = {}
+            request.session['actor_id'] = getattr(unauth_exc, 'actor_id', 'Unrecognized')
         return await handler(request)
 
     try:
