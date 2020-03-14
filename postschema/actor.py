@@ -13,7 +13,7 @@ import sqlalchemy as sql
 from aiojobs.aiohttp import spawn
 from aiohttp import web
 from cryptography.fernet import InvalidToken
-from marshmallow import fields, validate
+from marshmallow import fields, validate, validates, ValidationError
 from psycopg2 import errors as postgres_errors
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -768,13 +768,18 @@ class InviteUser(AuxView):
 class GrantRole(AuxView):
     actor_id = fields.Int(location='path')  # grantee
     roles = postschema_field.Set(
-        fields.String(
-            validate=[validate.OneOf(ROLES)]
-        ),
+        fields.String(),
         location='body',
         sqlfield=JSONB,
         required=True
     )
+
+    @validates('roles')
+    def roles_validator(self, val):
+        delta = set(val) - self.app.allowed_roles
+        if delta:
+            bad_roles = ', '.join(delta)
+            raise ValidationError(f'Invalid roles: {bad_roles}')
 
     @summary('Update user\'s roles')
     async def patch(self):
@@ -1175,15 +1180,20 @@ class PrincipalActorBase(RootSchema):
     email_confirmed = fields.Boolean(sqlfield=sql.Boolean, read_only=True)
     password = fields.String(sqlfield=sql.String(555), required=True, validate=validate.Length(min=6))
     roles = fields.List(
-        fields.String(
-            validate=[validate.OneOf(ROLES)]
-        ),
+        fields.String(),
         validate=[validators.must_not_be_empty],
         sqlfield=JSONB
     )
     scope = fields.String(sqlfield=sql.String(255))
     otp_secret = fields.String(sqlfield=sql.String(24))
     details = fields.Dict(sqlfield=JSONB)
+
+    @validates('roles')
+    def roles_validator(self, val):
+        delta = set(val) - self.app.allowed_roles
+        if delta:
+            bad_roles = ', '.join(delta)
+            raise ValidationError(f'Invalid roles: {bad_roles}')
 
     async def before_update(self, parent, request, payload, selector):
         if 'phone' in payload:

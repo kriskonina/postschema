@@ -297,7 +297,7 @@ async def apispec_metainfo(request):
         return json_response(base_ctxt)
     return json_response({
         'scopes': request.app.scopes,
-        'roles': request.app.roles,
+        'roles': request.app.allowed_roles,
         **base_ctxt
     })
 
@@ -401,7 +401,7 @@ def setup_postschema(app, appname: str, *,
     config.update(app_config.__dict__)
     app.config = config
     app.scopes = frozenset(ScopeBase._scopes)
-    app.roles = frozenset(roles)
+    app.allowed_roles = frozenset([role for role in ROLES if role not in ['Admin', '*', 'Owner']])
 
     app.principal_actor_schema = PrincipalActor
     app.schemas = registered_schemas
