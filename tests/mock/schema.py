@@ -612,6 +612,16 @@ class VerifiedResource(PostSchema):
             post = '*'
 
 
+class CustomPK(PostSchema):
+    __tablename__ = 'custompk'
+    code = fields.String(sqlfield=sql.String(200), unique=True, primary_key=True, index=True, required=True)
+    text = fields.String(sqlfield=sql.Text)
+
+    class Public:
+        class permissions:
+            allow_all = True
+
+
 class AutoPKResource(PostSchema):
     __tablename__ = 'autopk'
     actor = AutoSessionOwner(unique=True, required=True, primary_key=True)

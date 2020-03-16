@@ -777,7 +777,7 @@ class ViewsClassBase(web.View):
             # if PK isn't set to auto-increment, and it's of AutoSession type,
             # don't include it in a pre-rendered query
             if not is_autopk:
-                values.append(f'%({cls.pk_column_name})')
+                values.append(f'%({cls.pk_column_name})s')
             else:
                 cls.has_autopk = True
 
@@ -1023,8 +1023,11 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             return query_maker(select_with, compile_selects=False, request_type=self.request_type)
 
     def _render_insert_query(self, payload, on_conflict=''):
-        vals = ','.join(f"%({colname})s" for colname in payload)
-        cols = ','.join(payload)
+        vals = ','.join(f"%({colname})s" for colname in payload
+                        if (colname != self.pk_column_name) or self.has_autopk)
+        cols = ','.join(colname for colname in payload
+                        if (colname != self.pk_column_name) or self.has_autopk)
+
         if vals and not self.has_autopk:
             vals = ',' + vals
             cols = ',' + cols
