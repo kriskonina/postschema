@@ -1,18 +1,10 @@
 from collections import defaultdict as dd
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Iterable
 
+from .clauses import PermClauseBase, ClauseBus
+
 ALL_BASIC_OPERATIONS = ['post', 'get', 'list', 'put', 'patch', 'delete']
-
-
-@dataclass
-class SessionContext:
-    actor_id: int = field(metadata={'format': "{}"})
-    workspace: int = field(metadata={'format': "{}"})
-    phone: str = field(metadata={'format': "'{}'"})
-    email: str = field(metadata={'format': "'{}'"})
-    status: int = field(metadata={'format': "{}"})
-    workspaces: list = field(default_factory=list)
 
 
 class PublicPrivatePerms:
@@ -164,7 +156,7 @@ class SchemaFactoryBase:
 class TopSchemaPermFactory(SchemaFactoryBase):
     def compile_private_perms(self):
         perms = dd(dict)
-        for op_path, operation, role, statement in self.compile_perm_type(PublicPrivatePerms, 'Private'):
+        for op_path, operation, role, clause in self.compile_perm_type(PublicPrivatePerms, 'Private'):
             operations = COMPOSITE_OPS.get(operation, [operation])
             op2_path = op_path + '.' + str(role)
 
@@ -174,85 +166,18 @@ class TopSchemaPermFactory(SchemaFactoryBase):
             if invalid_roles:
                 raise NameError(f'`{op_path}` contains invalid role(s) ({invalid_roles})')
 
-            initial_split = statement.split('=')
-            if len(initial_split) != 2:
-                initial_split = statement.split('->')
-                if len(initial_split) != 2:
-                    raise TypeError(f'`{op2_path}` contains invalid operator (has to be `=` or `->`)')
-                operator = '->'
-            else:
-                operator = '='
-            stmt = self.parse_perm_operation(op2_path, role, initial_split, operator)
+            if not isinstance(clause, (PermClauseBase, ClauseBus)):
+                raise TypeError(f'`{op_path}` must be of {PermClauseBase} or {ClauseBus} type')
+
+            stmt = clause.digest(op2_path, self.registered_schemas, self.schema_cls.__tablename__)
+
             for oper in operations:
                 perms[oper][role] = {
                     'type': type(role),
-                    **stmt
+                    'stmt': stmt,
+                    'has_open_clauses': clause.has_open_clauses
                 }
         return perms
-
-    def parse_perm_operation(self, op_path, role, initial_split, operator):  # noqa
-        def _parse_side(side):
-            idx, side = side
-            side_name = ['left', 'right'][idx]
-            side_format = ['<table_name>.<col_name>', 'session.<fieldname>'][idx]
-            if not side:
-                raise TypeError(f"`{op_path}`'s {side_name}-hand part is empty")
-            invalid_format = f"`{op_path}`'s {side_name}-hand path should be of {side_format} format"
-            try:
-                table, column = [i.strip() for i in side.split('.')]
-            except ValueError:
-                raise TypeError(invalid_format)
-
-            if not table or not column:
-                raise TypeError(invalid_format)
-            return table, column
-
-        big = map(_parse_side, enumerate([i.strip() for i in initial_split]))
-        tablename, column, authname, authfield_name = [small for item in big for small in item]
-        auth_fields = SessionContext.__annotations__
-
-        if authname != 'session':
-            raise TypeError(f"`{op_path}`'s right-hand part should start with `session.`")
-        if authfield_name not in auth_fields:
-            raise TypeError(
-                f"`{op_path}`'s right-hand fieldname component should be one of: {list(auth_fields)}")
-
-        auth_field_type = auth_fields[authfield_name]
-
-        orig_tablename = tablename
-
-        if tablename != 'self':
-            raise ValueError('No foreign tables can be used at this time')
-
-        if tablename == 'self':
-            tablename = self.schema_cls.__tablename__
-
-        schema_cls = self.registered_schemas[tablename]
-        if schema_cls is None:
-            raise NameError(f'Table `{tablename}` defined on `{op_path}` not found!')
-        if column not in schema_cls._declared_fields:
-            raise NameError(f'Column `{tablename}.{column}` defined on `{op_path}` not found!')
-
-        if operator == '->':
-            if not issubclass(auth_field_type, Iterable):
-                raise TypeError(
-                    f'Auth field `{op_path}->{orig_tablename}.{authfield_name}` is not of iterable type')
-            af = f'{{session.{authfield_name}}}'
-            precursor = {
-                'stmt': f'''"{tablename}".{column}::text::jsonb <@ '{af}'::jsonb'''
-            }
-        elif operator == '=':
-            if issubclass(auth_field_type, Iterable):
-                raise TypeError(f'Auth field `{authfield_name}` is not supposed to be of iterable type')
-
-            authfield_format = SessionContext.__dataclass_fields__[authfield_name].metadata['format']
-            af = f'{{session.{authfield_name}}}'
-            formatted_authfield = authfield_format.format(af)
-            precursor = {
-                'stmt': f'''"{tablename}".{column}={formatted_authfield}'''
-            }
-
-        return precursor  # column, authname, authfield_name
 
 
 class AuxSchemaPermFactory(SchemaFactoryBase):

@@ -5,6 +5,7 @@ import sqlalchemy as sql
 from aiohttp import web
 from marshmallow import fields, validate, validates, ValidationError
 from postschema import PostSchema, validators
+from postschema.auth.clauses import OpenPermClause, CheckedPermClause
 from postschema.decorators import summary
 from postschema.fields import (
     ForeignResources, ForeignResource,
@@ -488,13 +489,13 @@ class Clinic(PostSchema):
 
         class permissions:
             get = {
-                '*': 'self.owner = session.actor_id'
+                '*': CheckedPermClause('self.owner = session.actor_id')
             }
             list = {
-                '*': 'self.workspace = session.workspace'
+                '*': CheckedPermClause('self.workspace = session.workspace')
             }
             update = {
-                'Owner': 'self.owner = session.actor_id'
+                'Owner': CheckedPermClause('self.owner = session.actor_id')
             }
 
     class Meta:
@@ -529,7 +530,7 @@ class ExpendableResource(PostSchema):
     class Private:
         class permissions:
             delete = {
-                'Owner': 'self.owner = session.actor_id'
+                'Owner': CheckedPermClause('self.owner = session.actor_id')
             }
 
     class Public:
@@ -569,7 +570,7 @@ class WorkspaceyResource(PostSchema):
     class Private:
         class permissions:
             get = {
-                ('Owner', 'Staff'): 'self.workspace = session.workspace'
+                ('Owner', 'Staff'): CheckedPermClause('self.workspace = session.workspace')
             }
 
 
@@ -592,7 +593,7 @@ class WorkspaceBelongResource(PostSchema):
     class Private:
         class permissions:
             get = {
-                ('Owner', 'Staff'): 'self.workspace -> session.workspaces'
+                ('Owner', 'Staff'): CheckedPermClause('self.workspace -> session.workspaces')
             }
 
 
@@ -678,7 +679,7 @@ class AlterWorkspace(PostSchema):
     class Private:
         class permissions:
             list = {
-                'Owner': 'self.workspace = session.workspace'
+                'Owner': CheckedPermClause('self.workspace = session.workspace')
             }
 
 
@@ -808,6 +809,41 @@ class SameIDConstr(PostSchema):
 
     class Meta:
         route_base = 'sameidconstr'
+
+
+class PermClauseTester(PostSchema):
+    __tablename__ = 'permclausetester'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('permclause_id_seq'),
+                        read_only=True, primary_key=True)
+    owner = AutoSessionOwner()
+    int1 = fields.Integer(sqlfield=sql.Integer, required=True)
+    int2 = fields.Integer(sqlfield=sql.Integer)
+    flag = fields.String(sqlfield=sql.String(30))
+
+    class Authed:
+        class permissions:
+            post = ["*"]
+
+    class Private:
+
+        list_by = ['int1', 'int2', 'owner', 'id', 'flag']
+        get_by = ['int1', 'int2', 'owner', 'id', 'flag']
+
+        class permissions:
+            patch = {
+                'Owner': CheckedPermClause('self.owner = session.actor_id') & OpenPermClause('permclausetester.int1 >= 10') | OpenPermClause('permclausetester.int2 < 20')
+            }
+            read = {
+                'Owner': OpenPermClause('permclausetester.owner = {session.actor_id}')
+                        & OpenPermClause('permclausetester.int1 >= %(int1)s')
+                        | OpenPermClause('permclausetester.int2 < 10'),
+            }
+            list = {
+                'Staff': OpenPermClause('permclausetester.int1 >= %(int1)s') | OpenPermClause('permclausetester.flag is NULL')
+            }
+
+    class AccessLogging:
+        authed = '*'
 
 
 class Doctor(ScopeBase):

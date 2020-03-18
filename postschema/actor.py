@@ -4,8 +4,6 @@ import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-# from datetime import datetime
-
 import aiosmtplib
 import bcrypt
 import pyotp
@@ -22,6 +20,7 @@ from . import (
     exceptions as post_exceptions,
     validators
 )
+from .auth.clauses import CheckedPermClause
 from .contrib import Pagination, ListMembersFilter
 from .decorators import summary
 from .schema import RootSchema
@@ -1440,18 +1439,18 @@ class PrincipalActorBase(RootSchema):
         get_by = ['id', 'phone', 'username', 'status', 'email', 'scope', 'roles', 'details',
                   'phone_confirmed', 'email_confirmed']
         list_by = ['id', 'phone', 'username', 'status', 'email', 'scope', 'roles', 'details',
-                  'phone_confirmed', 'email_confirmed']
+                   'phone_confirmed', 'email_confirmed']
         order_by = ['id', 'username', 'email']
 
         class permissions:
             get = {
-                '*': 'self.id = session.actor_id'
+                '*': CheckedPermClause('self.id = session.actor_id')
             }
             list = {
-                'Admin': 'self.status = session.status'
+                'Admin': CheckedPermClause('self.status = session.status')
             }
             update = {
-                '*': 'self.id = session.actor_id'
+                '*': CheckedPermClause('self.id = session.actor_id')
             }
 
     class Meta:

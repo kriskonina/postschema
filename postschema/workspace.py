@@ -3,6 +3,7 @@ from aiohttp import web
 from marshmallow import fields
 
 from .auth.context import BracketedFrozenset
+from .auth.clauses import CheckedPermClause
 from .decorators import summary
 from .fields import ForeignResources, AutoSessionOwner
 from .schema import PostSchema
@@ -95,14 +96,14 @@ class Workspace(PostSchema):
 
         class permissions:
             get = {
-                'Owner': 'self.id = session.workspace'
+                'Owner': CheckedPermClause('self.id = session.workspace')
             }
             list = {
-                'Owner': 'self.owner = session.actor_id'
+                'Owner': CheckedPermClause('self.owner = session.actor_id')
             }
             update = {
-                'Owner': 'self.owner = session.actor_id'
+                'Owner': CheckedPermClause('self.owner = session.actor_id')
             }
             delete = {
-                'Owner': 'self.id = session.workspace'
+                'Owner': CheckedPermClause('self.id = session.workspace')
             }
