@@ -1084,8 +1084,8 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                         if in_delete:
                             wheres.append(f'"{tablename}".{fk_field}={fk_field}.{key}')
                 if in_update:
-                    froms.append(fk_field)
                     linked_tb_name = linked_schema.__tablename__
+                    froms.append(linked_tb_name)
                     pk = linked_schema.pk_column_name
                     wheres.appendleft(f'"{linked_tb_name}".{pk}="{tablename}".{fk_field}')
 
