@@ -50,12 +50,12 @@ def getattrs(cls):
     return {k: v for k, v in cls.__dict__.items() if not k.startswith('__')}
 
 
-create_id_const_query = '''DROP TRIGGER IF EXISTS identity_constraint_{tablename} ON "{tablename}";
-CREATE TRIGGER identity_constraint_{tablename}
-BEFORE INSERT on "{tablename}"
-FOR EACH ROW 
-EXECUTE PROCEDURE identity_constraint_fn(
-    '{target_table_name}', '{target_table_pk}', 
+create_id_const_query = '''DROP TRIGGER IF EXISTS id_constr_{tablename}_{self_col} ON "{tablename}";
+CREATE TRIGGER id_constr_{tablename}_{self_col}
+BEFORE INSERT OR UPDATE on "{tablename}"
+FOR EACH ROW
+EXECUTE PROCEDURE identity_constraint_fn (
+    '{target_table_name}', '{target_table_pk}',
     '{self_col}', '{target_col}', '{target_table_local_ref}');'''
 
 
@@ -132,7 +132,6 @@ def create_model(schema_cls, info_logger): # noqa
 
     modelname = name + 'Model'
     new_model = type(modelname, (Base,), model_methods)
-
     for id_constraint in id_constraints:
         add_identity_triggers(Base.metadata, id_constraint)
 

@@ -14,7 +14,7 @@ BEGIN
 	IF out <> local_comp_col THEN
 		RAISE EXCEPTION
         USING ERRCODE='check_violation',
-        DETAIL=format('Key (%%s)=(%%s) violates same identity constraint between tables %%s and %%s', TG_ARGV[2], local_comp_col, target_table_name, TG_TABLE_NAME);
+        DETAIL=format('Key (%%s)=(%%s) violates same identity constraint between tables %%s and %%s', target_table_local_ref, target_fk_val, target_table_name, TG_TABLE_NAME);
 	END IF;
 	RETURN NEW;
 END;
