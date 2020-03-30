@@ -18,15 +18,14 @@ import aiohttp_jinja2
 import aiopg
 import aioredis
 import jinja2
+import pytz
+
 from aiojobs.aiohttp import setup as aiojobs_setup
 from aiohttp.web_urldispatcher import UrlDispatcher
 from cryptography.fernet import Fernet
 
 DEFAULT_TZ = os.environ.get("DEFAULT_TZ")
-parsed_tz = gettz(DEFAULT_TZ)
-if DEFAULT_TZ:
-    assert parsed_tz, f'Time zone {DEFAULT_TZ} was not recognized'
-local_tz = (parsed_tz or gettz()).tzname(datetime.now())
+local_tz = pytz.timezone(DEFAULT_TZ)
 
 from .commons import Commons
 from .core import build_app
@@ -67,7 +66,7 @@ async def cleanup(app):
 
 async def on_connect_postgres(conn):
     async with conn.cursor() as cur:
-        await cur.execute("SET session TIME ZONE %s", [local_tz])
+        await cur.execute("SET session TIME ZONE %s", [local_tz.zone])
 
 
 async def init_resources(app):
