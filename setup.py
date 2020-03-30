@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='postschema',
-    version='0.15.2',
+    version='0.15.3',
     description='Async python ORM for postgres',
     url='https://github.com/kriskavalieri/postschema',
     author='Kris Kavalieri',
@@ -33,7 +33,7 @@ setup(
         'cached-property>=1.5.1',
         'pyotp>=2.3.0',
         'orjson>=2.2.0',
-        'sqlalchemy_utils==0.36.1'
+        'sqlalchemy_utils>=0.36.1'
     ],
     extras_required={
         'sentry': ['sentry==0.14.1']
