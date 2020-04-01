@@ -846,6 +846,47 @@ class PermClauseTester(PostSchema):
         authed = '*'
 
 
+class ExtraSearchFields(PostSchema):
+    __tablename__ = 'extrasearch'
+    id = fields.Integer(sqlfield=sql.Integer, autoincrement=sql.Sequence('extrasearch_id_seq'),
+                        read_only=True, primary_key=True)
+    str1 = fields.String(sqlfield=sql.String(250), index=True, gist_index=True)
+    number = fields.Integer(sqlfield=sql.Integer)
+    date = Date()
+    autodatenow = AutoDateNow()
+    autodatetimenow = AutoDateTimeNow()
+    time = AutoTimeNow()
+    owner = AutoSessionOwner()
+
+    class Public:
+        get_by = ['id', 'str1', 'number', 'date', 'autodatenow', 'autodatetimenow', 'time']
+        list_by = ['id', 'str1', 'number', 'date', 'autodatenow', 'autodatetimenow', 'time']
+
+        class permissions:
+            read = {}
+            patch = {}
+
+    class Authed:
+        get_by = ['id', 'str1', 'number', 'date', 'time']
+        delete_by = ['id', 'str1', 'number', 'date', 'time']
+
+        class permissions:
+            post = ['*']
+            delete = ['*']
+
+    class Private:
+
+        class permissions:
+            put = {
+                '*': CheckedPermClause('self.owner = session.actor_id')
+            }
+
+    class Meta:
+        order_by = ['id', 'str1', 'number', 'date', 'time']
+        enable_extended_search = True
+        route_base = 'extrasearch'
+
+
 class Doctor(ScopeBase):
     spec = fields.String(sqlfield=sql.String(150), required=True)
     ward_id = fields.Int(sqlfield=sql.Integer)

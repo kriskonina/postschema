@@ -10,6 +10,7 @@ Base = declarative_base()
 
 
 class DefaultMetaBase:
+    enable_extended_search = False
     create_views = True
     excluded_ops = []
     exclude_from_updates = []
@@ -62,19 +63,15 @@ class PostSchemaBase(MarshmallowBaseSchema):
     Base = Base
 
     def __init__(self, use=None, joins=None, autosession_fields={}, *a, **kwargs):
+        self._use = use
         super().__init__(*a, **kwargs)
         only = set(kwargs.get('only', []) or [])
-        self._use = use
         self._joins = joins
         self._autosession_fields = autosession_fields
         self._joinable_fields = joinable = set(joins or [])
         self._default_joinable_tables = only & joinable
         self._deferred_async_validators = []
         self.parent = self.__class__.__base__
-
-    @property
-    def is_read_schema(self):
-        return self._use == 'read'
 
     def _call_and_store(self, getter_func, data, *, field_name, error_store, index=None):
         if asyncio.iscoroutinefunction(getter_func):
@@ -107,6 +104,10 @@ class PostSchemaBase(MarshmallowBaseSchema):
                 error_store = hooks['error_store']
                 error_store.store_error(inner_emsgs, fieldname, index=index)
                 return error_store.errors
+
+    @property
+    def is_read_schema(self):
+        return self._use == 'read'
 
 
 class PostSchemaMeta(SchemaMeta):
@@ -174,8 +175,6 @@ class PostSchemaMeta(SchemaMeta):
                     assert common_ops, f'{kls.__module__}.{kls.__name__}.AccessLogging.authed does not include any valid operation names'
                     redacted_op_names = itertools.chain.from_iterable([COMPOSITE_OPS.get(op, [op]) for op in common_ops])
                     log_cls.authed = list(redacted_op_names)
-
-
 
 
 class PostSchema(PostSchemaBase, metaclass=PostSchemaMeta):

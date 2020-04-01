@@ -1,7 +1,29 @@
+from dataclasses import dataclass
+from marshmallow import fields
 from psycopg2 import errors as postgres_errors
 
 from . import exceptions as post_exceptions
+from .exceptions import WrongType
 from .utils import parse_postgres_err, parse_postgres_constraint_err
+
+
+@dataclass(frozen=True)
+class MANDATORY_PAGINATION_FIELDS:
+    page: fields.Integer
+    limit: fields.Integer
+    order_by: fields.List
+    order_dir: fields.String
+
+    def __iter__(self):
+        for i in self.__dict__.items():
+            yield i
+
+    def __post_init__(self):
+        annotations = self.__annotations__
+        for k, v in self:
+            expected_type = annotations[k]
+            if not isinstance(v, expected_type):
+                raise WrongType(f"Pagination class {self._cls_name}'s `{k}` is not of {expected_type} type")
 
 
 class Commons:

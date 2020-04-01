@@ -27,11 +27,11 @@ Options object for both _marshmallow.Schema_ and _postschema.PostSchema_
 Example usage:
 
     class Meta:
-        get_by = ["id", "name"]
-        list_by = ["city"]
-        fields = ("id", "email", "date_created")
-        exclude = ("password", "secret_attribute")
+        create_views = True
+        excluded_ops = ['get', 'post']
+        exclude_from_updates = ['read_only_field']
         route_base = "myview"
+        enable_extended_search = True
 
         def default_get_critera(request):
             return {'owner': request.session.actor_id}
@@ -40,7 +40,7 @@ Refer to [marshmallow documentation](https://marshmallow.readthedocs.io/en/3.0/a
 
 Postschema allows for the following attributes to be defined on top of it:
 - `route_base`: URL base for the resource
-- `create_views`: Boolean to indicate whether to create views from the schema definition.
+- `create_views`: Boolean indicating whether to create views from the schema definition.
 - `order_by`: List of fields by which to order the results, unless otherwise specified (i.e. by pagination query object)
 - `exclude_from_updates`: List of fields disallowed in update payload (`PUT`/`PATCH`)
 - `excluded_ops`: List of 'operations' not available for the view wizard. These 'operations' include:
@@ -50,6 +50,7 @@ Postschema allows for the following attributes to be defined on top of it:
     - patch
     - put
     - delete
+- `enable_extended_search`: Boolean to flag the current schema as subject to extended search. This allows the preprocessor to prepare query parts for later injection as needed.
 - `pagination_schema`: **`marshmallow.Schema`**-inheriting class used to deserialize the query pagination payload. Needs to define the following fields:
     * page (must be of `fields.Integer` type)
     * limit (must be of `fields.Integer` type)

@@ -29,7 +29,8 @@ from .auth.perms import TopSchemaPermFactory, AuxSchemaPermFactory
 from .schema import DefaultMetaBase
 from .spec import APISpecBuilder
 from .utils import retype_schema
-from .view import AuxViewBase, ViewsBase, ViewsTemplate
+from .view import ViewsTemplate
+from .view_bases import AuxViewBase, ViewsBase
 
 Base = declarative_base()
 
@@ -59,6 +60,14 @@ EXECUTE PROCEDURE identity_constraint_fn (
     '{self_col}', '{target_col}', '{target_table_local_ref}');'''
 
 
+def add_index(metadata, index_name, tablename, col, index_type):
+    event.listen(
+        metadata,
+        'after_create',
+        DDL(f'CREATE INDEX IF NOT EXISTS {index_name} ON {tablename} USING {index_type.upper()}({col})')
+    )
+
+
 def add_identity_triggers(metadata, identity_constraint):
     query = create_id_const_query.format(**identity_constraint)
     event.listen(
@@ -66,6 +75,7 @@ def add_identity_triggers(metadata, identity_constraint):
         'after_create',
         DDL(query)
     )
+
 
 def create_model(schema_cls, info_logger): # noqa
     name = schema_cls.__name__
@@ -85,6 +95,7 @@ def create_model(schema_cls, info_logger): # noqa
         model_methods['__table_args__'] = meta.__table_args__
 
     id_constraints = []
+    indexes = {}
 
     for fieldname, field_attrs in declared_fields.items():
         if isinstance(field_attrs, fields.Field):
@@ -121,6 +132,10 @@ def create_model(schema_cls, info_logger): # noqa
             metadict.pop('fk', None)
             metadict.pop('read_only', None)
             metadict.pop('is_aware', None)
+            if metadict.pop('gist_index', False):
+                indexes[f'{fieldname}_gist_idx'] = [tablename, fieldname, 'gist']
+            if metadict.pop('gin_index', False):
+                indexes[f'{fieldname}_gin_idx'] = [tablename, fieldname, 'gin']
             identity_constraint = metadict.pop('identity_constraint', {})
             model_methods[fieldname] = sql.Column(field_instance, *args, **metadict, **translated)
 
@@ -132,6 +147,11 @@ def create_model(schema_cls, info_logger): # noqa
 
     modelname = name + 'Model'
     new_model = type(modelname, (Base,), model_methods)
+
+    for index_name, index_items in indexes.items():
+        tablename, fieldname, index_type = index_items
+        add_index(Base.metadata, index_name, tablename, fieldname, index_type)
+
     for id_constraint in id_constraints:
         add_identity_triggers(Base.metadata, id_constraint)
 
@@ -363,6 +383,125 @@ def adjust_fields(schema_cls, all_schemas):
     return schema_cls
 
 
+FIELD_EXTENSIONS = {
+    fields.String: {
+        'contains': [
+            fields.String(), '{colname} LIKE %({{fieldname}})s', '%{val}%'
+        ],
+        'icontains': [
+            fields.String(), '{colname} ILIKE %({{fieldname}})s', '%{val}%'
+        ],
+        'beginswith': [
+            fields.String(), '{colname} LIKE %({{fieldname}})s', '{val}%'
+        ],
+        'endswith': [
+            fields.String(), '{colname} LIKE %({{fieldname}})s', '%{val}'
+        ],
+        'ibeginswith': [
+            fields.String(), '{colname} ILIKE %({{fieldname}})s', '{val}%'
+        ],
+        'iendswith': [
+            fields.String(), '{colname} ILIKE %({{fieldname}})s', '%{val}'
+        ]
+    },
+    fields.Integer: {
+        'lt': [
+            fields.Integer(), '{colname}<%({{fieldname}})s', '{val}'
+        ],
+        'lte': [
+            fields.Integer(), '{colname}<=%({{fieldname}})s', '{val}'
+        ],
+        'gt': [
+            fields.Integer(), '{colname}>%({{fieldname}})s', '{val}'
+        ],
+        'gte': [
+            fields.Integer(), '{colname}>=%({{fieldname}})s', '{val}'
+        ],
+        'between': [
+            fields.List(fields.Integer(), validate=validate.Length(equal=2)),
+            '{colname} BETWEEN %({{fieldname}}_lower)s AND %({{fieldname}}_upper)s',
+            '{val}'
+        ]
+    }
+}
+FIELD_EXTENSIONS[fields.Date] = {
+    operation: [
+        fields.List(fields.Date(), validate=validate.Length(equal=2)) if operation == 'between' else fields.Date(),
+        *arr[1:]
+    ] for operation, arr in FIELD_EXTENSIONS[fields.Integer].items()
+}
+FIELD_EXTENSIONS[fields.DateTime] = {
+    operation: [
+        fields.List(fields.DateTime(), validate=validate.Length(equal=2)) if operation == 'between' else fields.DateTime(),
+        *arr[1:]
+    ] for operation, arr in FIELD_EXTENSIONS[fields.Integer].items()
+}
+FIELD_EXTENSIONS[fields.Time] = {
+    operation: [
+        fields.List(fields.Time(), validate=validate.Length(equal=2)) if operation == 'between' else fields.Time(),
+        *arr[1:]
+    ] for operation, arr in FIELD_EXTENSIONS[fields.Integer].items()
+}
+
+
+def extend_schema_for_extra_search(schema_cls):
+    extended_fields_values = {}
+    for coln, colv in dict(schema_cls._declared_fields).items():
+        colname = colv.attribute or coln
+        field_ext = {}
+        for base in colv.__class__.__mro__:
+            field_ext = FIELD_EXTENSIONS.get(base, {})
+            if field_ext:
+                break
+        for op, arr in field_ext.items():
+            new_colname = f'{colname}__{op}'
+            new_fieldname = f'{coln}__{op}'
+            new_field_inst = arr[0]
+            formatted_value_template = arr[1].format(colname=colname)
+            if len(arr) == 3:
+                extended_fields_values[new_fieldname] = [colname, formatted_value_template, arr[2]]
+            else:
+                extended_fields_values[new_fieldname] = [colname, formatted_value_template]
+            yield new_colname, new_field_inst
+
+    schema_cls._extended_fields_values = extended_fields_values
+
+
+def extend_selectors(schema_cls):
+    # append newly created extended fields to their get_by and list_by lists,
+    # wherever applicable
+    public_cls = getattr(schema_cls, 'Public', None)
+    authed_cls = getattr(schema_cls, 'Authed', None)
+    private_cls = getattr(schema_cls, 'Private', None)
+
+    for new_fieldname, arr in schema_cls._extended_fields_values.items():
+        fieldname, _ = new_fieldname.split('__')
+        if public_cls:
+            if fieldname in getattr(public_cls, 'get_by', []):
+                schema_cls.Public.get_by.append(new_fieldname)
+            if fieldname in getattr(public_cls, 'list_by', []):
+                schema_cls.Public.list_by.append(new_fieldname)
+            if fieldname in getattr(public_cls, 'delete_by', []):
+                schema_cls.Public.delete_by.append(new_fieldname)
+
+        if authed_cls:
+            if fieldname in getattr(authed_cls, 'get_by', []):
+                schema_cls.Authed.get_by.append(new_fieldname)
+            if fieldname in getattr(authed_cls, 'list_by', []):
+                schema_cls.Authed.list_by.append(new_fieldname)
+            if fieldname in getattr(authed_cls, 'delete_by', []):
+                schema_cls.Authed.delete_by.append(new_fieldname)
+
+        if private_cls:
+            if fieldname in getattr(private_cls, 'get_by', []):
+                schema_cls.Private.get_by.append(new_fieldname)
+            if fieldname in getattr(private_cls, 'list_by', []):
+                schema_cls.Private.list_by.append(new_fieldname)
+            if fieldname in getattr(private_cls, 'delete_by', []):
+                schema_cls.Private.delete_by.append(new_fieldname)
+
+
+
 def build_app(app, registered_schemas):
     app.info_logger.debug("* Building views...")
     router = app.router
@@ -387,6 +526,12 @@ def build_app(app, registered_schemas):
     spec_builder = APISpecBuilder(app, router)
 
     for schema_name, schema_cls in registered_schemas:
+        # extend the schema with extra search criteria fields, if requested
+        if getattr(schema_cls.Meta, 'enable_extended_search', False):
+            new_fields = dict(extend_schema_for_extra_search(schema_cls))
+            schema_cls = retype_schema(schema_cls, new_fields)
+            extend_selectors(schema_cls)
+
         post_view = ViewMaker(schema_cls, router, registered_schemas, app.url_prefix)
         # invoke the relationship processing
         joins = post_view.process_relationships()

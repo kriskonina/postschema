@@ -14,7 +14,7 @@ from . import ALLOWED_OPERATIONS
 from .auth.context import AuthContext
 from .exceptions import HTTPShieldedResource
 from .utils import generate_num_sequence
-from .view import AuxViewBase
+from .view_bases import AuxViewBase
 
 APP_MODE = os.environ.get('APP_MODE', 'test')
 

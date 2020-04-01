@@ -24,7 +24,7 @@ from aiojobs.aiohttp import setup as aiojobs_setup
 from aiohttp.web_urldispatcher import UrlDispatcher
 from cryptography.fernet import Fernet
 
-DEFAULT_TZ = os.environ.get("DEFAULT_TZ")
+DEFAULT_TZ = os.environ.get("DEFAULT_TZ", 'UTC')
 local_tz = pytz.timezone(DEFAULT_TZ)
 
 from .commons import Commons

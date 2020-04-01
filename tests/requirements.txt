@@ -28,3 +28,4 @@ pyotp==2.3.0
 orjson==2.2.0
 sqlalchemy_utils==0.36.1
 sentry==0.14.1
+faker

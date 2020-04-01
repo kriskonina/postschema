@@ -84,3 +84,7 @@ class HandledInternalError(web.HTTPInternalServerError):
     def __init__(self, *args, **kwargs):
         kwargs['reason'] = 'A known error occured and it\'s being handled'
         super().__init__(*args, **kwargs)
+
+
+class WrongType(Exception):
+    pass

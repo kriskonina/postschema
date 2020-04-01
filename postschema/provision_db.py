@@ -8,7 +8,8 @@ from time import sleep
 import bcrypt
 from alembic.config import Config
 from alembic import command
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.schema import DDL
 
 from .logging import setup_logging
 # from postschema import setup_postschema
@@ -28,6 +29,25 @@ info_logger, error_logger, _ = setup_logging()
 
 def get_url():
     return "postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}".format(**os.environ)
+
+
+def before_create(event, metadata):
+    for fn_sql in glob(str(FNS_PATTERN)):
+        event.listen(
+            metadata,
+            'before_create',
+            DDL(open(fn_sql).read())
+        )
+    stmts = [
+        "CREATE EXTENSION IF NOT EXISTS btree_gist",
+        "CREATE EXTENSION IF NOT EXISTS pg_trgm"
+    ]
+    for stmt in stmts:
+        event.listen(
+            metadata,
+            'before_create',
+            DDL(stmt)
+        )
 
 
 def make_alembic_dir():
@@ -92,19 +112,8 @@ def setup_db(Base):
     uri += POSTGRES_DB
     engine = create_engine(uri, pool_recycle=3600)
     conn = engine.connect()
-    conn.execute("CREATE EXTENSION IF NOT EXISTS btree_gist;")
-    conn.execute("COMMIT")
 
-    from sqlalchemy import event
-    from sqlalchemy.schema import DDL
-
-    for fn_sql in glob(str(FNS_PATTERN)):
-        event.listen(
-            Base.metadata,
-            'before_create',
-            DDL(open(fn_sql).read())
-        )
-
+    before_create(event, Base.metadata)
     Base.metadata.create_all(engine)
     if not os.environ.get('TRAVIS', False):
         alembic_dist = os.path.join(postschema_instance_path, 'alembic')

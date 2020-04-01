@@ -71,6 +71,9 @@ def parse_postgres_constraint_err(perr):
 
 
 def retype_schema(cls, new_methods):
+    '''Extend schema class `cls` with `new_methods` dict,
+    containing new attributes/methods.'''
+
     methods = dict(cls.__dict__)
     for k, v in methods.pop('_declared_fields', {}).items():
         methods[k] = v
