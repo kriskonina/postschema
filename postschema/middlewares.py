@@ -59,12 +59,16 @@ async def switch_workspace(request):
                 request.is_overwritten = True
                 request.session._session_ctxt['workspace'] = overwrite_to
 
+        for before_handler in request.app.config.before_request_hooks:
+            await before_handler(request)
         yield request
 
     finally:
         if calling_workspace:
             # session exists AND Overwrite header has been used
             request.session._session_ctxt['workspace'] = calling_workspace
+        for after_handler in request.app.config.after_request_hooks:
+            await after_handler(request)
 
 
 async def prepare_shielded_response(request, handler):
@@ -165,7 +169,6 @@ async def postschema_middleware(request, handler):
         try:
             await auth_ctxt.set_session_context()
         except web.HTTPUnauthorized as unauth_exc:
-            actor_id = getattr(unauth_exc, 'actor_id', 'Unrecognized')
             request.session = {}
             request.session['actor_id'] = getattr(unauth_exc, 'actor_id', 'Unrecognized')
         return await handler(request)

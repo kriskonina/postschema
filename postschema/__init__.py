@@ -4,8 +4,6 @@ import os
 from contextlib import suppress
 from copy import deepcopy
 from dataclasses import dataclass, field
-from dateutil.tz import gettz
-from datetime import datetime
 from functools import lru_cache
 from glob import glob
 from hashlib import md5
@@ -183,6 +181,9 @@ class AppConfig:
     verification_email_html: str = ''
 
     plugins: List[str] = field(default_factory=list)
+    before_request_hooks: List[Callable] = field(default_factory=list)
+    after_request_hooks: List[Callable] = field(default_factory=list)
+    metainfo_extender: Callable = None
 
     def _update(self, cls):
         for k, v in cls.__dict__.items():
@@ -288,12 +289,19 @@ class PathReturner:
 async def apispec_metainfo(request):
     '''Return current hashsum for the OpenAPI spec + authentication status'''
     is_authed = request.session.is_authed
+
     base_ctxt = {
         'spec_hashsum': request.app.spec_hash,
         'authed': is_authed
     }
+
     if not is_authed:
         return json_response(base_ctxt)
+
+    with suppress(AttributeError, ValueError, TypeError):
+        ext = await request.app.config.metainfo_extender(request) or {}
+        base_ctxt.update(ext)
+
     return json_response({
         'scopes': request.app.scopes,
         'roles': request.app.allowed_roles,
