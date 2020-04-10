@@ -24,7 +24,7 @@ def set_init_logging_context(request):
         IP = request.transport.get_extra_info('peername')[0]
     except (IndexError, AttributeError):
         IP = '0.0.0.0'
-    request.app.IP = IP
+    request.IP = IP
 
 
 def set_logging_context(app, **context):
