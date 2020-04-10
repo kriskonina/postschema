@@ -28,7 +28,6 @@ def set_init_logging_context(request):
 
 
 def set_logging_context(app, **context):
-    context['ip_address'] = app.IP
     if 'sentry' in app.installed_plugins:
         with configure_scope() as scope:
             scope.user = context
@@ -165,6 +164,7 @@ async def postschema_middleware(request, handler):
         request.operation = request.method.lower()
         auth_ctxt = AuthContext(request)
         auth_ctxt.request_type = 'public'
+        auth_ctxt.ip_address = request.IP
         request.session = auth_ctxt
         try:
             await auth_ctxt.set_session_context()
@@ -180,6 +180,7 @@ async def postschema_middleware(request, handler):
         request.operation = request.method.lower()
         auth_ctxt = AuthContext(request)
         auth_ctxt.request_type = 'public'
+        auth_ctxt.ip_address = request.IP
         request.session = auth_ctxt
         await auth_ctxt.set_session_context()
         return await handler(request)
@@ -188,6 +189,7 @@ async def postschema_middleware(request, handler):
             request.operation = request.method.lower()
             auth_ctxt = AuthContext(request)
             auth_ctxt.request_type = 'authed'
+            auth_ctxt.ip_address = request.IP
             await auth_ctxt.set_session_context()
             if str(auth_ctxt.status) != '1':
                 raise web.HTTPForbidden(reason='Account inactive')
@@ -221,6 +223,7 @@ async def postschema_middleware(request, handler):
     request.operation = op.lower()
 
     auth_ctxt.set_level_permissions()
+    auth_ctxt.ip_address = request.IP
     try:
         await auth_ctxt.set_session_context()
     except web.HTTPException as err_resp:
