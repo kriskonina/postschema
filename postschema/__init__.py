@@ -263,7 +263,6 @@ class PathReturner:
             viewname = resource._routes[0].handler.__name__.replace('View', '')
             viewname = viewname[0].lower() + viewname[1:]
 
-            # with suppress(KeyError):
             view_spec = spec['paths'].get(url)
             if not view_spec:
                 continue

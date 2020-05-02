@@ -13,7 +13,7 @@ from .auth.perms import ALL_BASIC_OPERATIONS
 from .scope import SCOPES
 
 ALL_OPS = ALL_BASIC_OPERATIONS[:]
-ALL_OPS.append("update")
+ALL_OPS.extend(["update", "read"])
 LOCATIONS = ['body', 'header', 'query', 'form', 'path']
 
 BODY_LOCATIONS = ['body', 'form']
@@ -125,6 +125,10 @@ class AuxSpecBuilder:
         if 'update' in ops:
             ops.remove('update')
             ops.extend(['put', 'patch'])
+
+        if 'read' in ops:
+            ops.remove('read')
+            ops.extend(['list', 'get'])
 
         permissions = perms if authed else None
 
@@ -262,13 +266,16 @@ class APISpecBuilder(AuxSpecBuilder):
 
         listed_ops = [op for op in ALL_OPS if op in perms and op not in excluded_ops]
 
+        if 'read' in listed_ops:
+            listed_ops.remove('read')
+            listed_ops.extend(['list', 'get'])
+
         if 'update' in listed_ops:
             listed_ops.remove('update')
             listed_ops.extend(['put', 'patch'])
 
         if 'list' in listed_ops:
             listed_ops.remove('list')
-
             list_swagger_op = self.build_list_route(name, declared_fields, perm_cls, authed=authed)
             if list_swagger_op:
                 self.spec.path(
