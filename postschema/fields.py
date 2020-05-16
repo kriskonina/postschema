@@ -29,6 +29,22 @@ class RangeField(fields.List):
     pass
 
 
+def timerange_validator(val):
+    if len(val) != 2:
+        raise ValidationError('Length must be 2.')
+    if val[1] <= val[0]:
+        raise ValidationError('Lower end must be lesser than the upper one.')
+
+
+class TimeRange(RangeField):
+    def __init__(self, **kwargs):
+        kwargs.update({
+            'sqlfield': JSONB,
+            'validate': [timerange_validator]
+        })
+        super().__init__(fields.Time(), **kwargs)
+
+
 class RangeDTField(RangeField):
     def __init__(self, **kwargs):
         is_aware = kwargs.get('is_aware', False)

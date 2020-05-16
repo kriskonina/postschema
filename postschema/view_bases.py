@@ -18,7 +18,7 @@ from .commons import MANDATORY_PAGINATION_FIELDS
 from .fields import (
     Set, Relationship, AutoImpliedForeignResource,
     AutoSessionField, AutoSessionForeignResource,
-    RangeDTField
+    RangeDTField, TimeRange
 )
 from .exceptions import WrongType
 from .hooks import translate_naive_nested, translate_naive_nested_to_dict
@@ -28,6 +28,7 @@ from .validators import must_not_be_empty, adjust_children_field
 
 NESTABLE_FIELDS = (fields.Dict, fields.Nested, Set)
 ITERABLE_FIELDS = (Set, fields.List)
+NON_ITERABLE_FIELDS = (Relationship, TimeRange, RangeDTField)
 
 
 class FormatDict(dict):
@@ -415,7 +416,7 @@ class ViewsClassBase(web.View):
         cls.iterable_fields = [field for field, fieldval in declared_fields
                                if isinstance(fieldval, fields.Dict) or (isinstance(fieldval, ITERABLE_FIELDS)
                                                                         and not isinstance(fieldval,
-                                                                                           Relationship)
+                                                                                           NON_ITERABLE_FIELDS)
                                                                         )]
 
         autosession_fields = {field: fieldval.session_key for field, fieldval in declared_fields

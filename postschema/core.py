@@ -354,7 +354,7 @@ def adjust_fields(schema_cls, all_schemas):
                     # sqlalchemy field in use could be inheriting from `String` class
                     validator = validate.Length(max=sqlfield.length)
                     colv.validators.append(validator)
-        elif isinstance(colv, postschema_fields.RangeField):
+        elif isinstance(colv, postschema_fields.RangeDTField):
             rangeables.append(coln)
         elif isinstance(colv, JSON_ESCAPABLE_FIELDS):
             # ensure relation fields are not included
