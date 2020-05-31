@@ -82,7 +82,7 @@ class ViewsTemplate:
         limit = pagination_data['limit']
         page = pagination_data['page'] - 1
         offset = page * limit
-        orderby = ','.join(f'{self.tablename}.{field}' for field in pagination_data['order_by'])
+        orderby = ','.join(f'"{self.tablename}".{field}' for field in pagination_data['order_by'])
         orderhow = pagination_data['order_dir'].upper()
 
         if hasattr(self.schema, 'before_list'):
