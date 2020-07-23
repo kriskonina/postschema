@@ -3,7 +3,8 @@ import os
 from dateutil import tz
 from functools import partial
 
-import sqlalchemy as sql, types
+import sqlalchemy as sql
+from sqlalchemy import types
 from sqlalchemy.dialects.postgresql import JSONB, TSTZRANGE
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy_utils import DateTimeRangeType
