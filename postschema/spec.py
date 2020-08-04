@@ -1,5 +1,5 @@
 import os
-from collections import defaultdict as dd
+from collections import Iterable, defaultdict as dd
 from contextlib import suppress
 
 from apispec import APISpec
@@ -28,6 +28,12 @@ def schema_name_resolver(schema):
     schema_cls = resolve_schema_cls(schema)
     return schema_cls.__name__
 
+def flatten(iterable):
+    for el in iterable:
+        if isinstance(el, Iterable) and not isinstance(el, str): 
+            yield from flatten(el)
+        else:
+            yield el
 
 converter = OpenAPIConverter('3.0.2', schema_name_resolver, {})
 
@@ -283,7 +289,6 @@ class APISpecBuilder(AuxSpecBuilder):
                         'options': list_swagger_op
                     }
                 )
-
         swagger_ops_raw = {op: getattr(self, f'build_{op}_route')
                            (name, declared_fields, perm_cls, authed=authed)
                            for op in listed_ops}
@@ -303,7 +308,7 @@ class APISpecBuilder(AuxSpecBuilder):
         perm_ops = getattr(perm_cls.permissions, op, None)
         if authed and perm_ops:
             try:
-                roles = list(perm_ops.keys())[0]
+                roles = list(flatten(perm_ops.keys()))
             except AttributeError:
                 roles = perm_ops
             if isinstance(roles, str):
@@ -337,7 +342,6 @@ class APISpecBuilder(AuxSpecBuilder):
         except AttributeError:
             get_by = [self.pk_column_name]
         schema_name = f'{name}Get'
-
         schema = type(schema_name, (Schema, ), {k: v for k, v in declared_fields.items() if k in get_by})
         return self.build_common_route(name, schema_name, schema, f'Return {name}', perm_cls, 'get', authed)
 
