@@ -1341,7 +1341,15 @@ class PrincipalActorBase(RootSchema):
         async with request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
                 async with cur.begin():
-                    await cur.execute(insert_query, data)
+                    try:
+                        await cur.execute(insert_query, data)
+                    except postgres_errors.IntegrityError as ierr:
+                        raise post_exceptions.ValidationError(parse_postgres_err(ierr))
+                    except Exception:
+                        request.app.error_logger.exception(
+                            'Failed creating new invited actor',
+                            query=cur.query.decode())
+                        raise
                     actor_id = (await cur.fetchone())[0]
 
                     workspaces_query = (
@@ -1359,7 +1367,15 @@ class PrincipalActorBase(RootSchema):
                                     query=cur.query.decode())
                                 raise post_exceptions.WorkspaceAdditionFailed()
 
-        raise web.HTTPOk(body=dumps({'actor_id': actor_id}), content_type='application/json')
+        raise web.HTTPOk(
+            body=dumps(
+                {
+                    'actor_id': actor_id,
+                    'needs_phone_ver': not(data['status'])
+                }
+            ),
+            content_type='application/json'
+        )
 
     async def process_created_actor(self, data, request, parent):
         try:
