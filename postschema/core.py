@@ -78,6 +78,7 @@ def add_identity_triggers(metadata, identity_constraint):
 
 
 def create_model(schema_cls, info_logger): # noqa
+    ALLOWED_HOOKS = {'before_create', 'after_create'}
     name = schema_cls.__name__
     methods = dict(schema_cls.__dict__)
     try:
@@ -89,10 +90,15 @@ def create_model(schema_cls, info_logger): # noqa
         raise AttributeError(f'{name} needs to define `__tablename__`')
 
     meta = methods.get('Meta')
+    hooks = methods.get('Hooks')
     declared_fields = methods['_declared_fields']
 
     if hasattr(meta, '__table_args__'):
         model_methods['__table_args__'] = meta.__table_args__
+    
+    if hooks:
+        hook_methods = {attr for attr in dir(hooks) if not attr.startswith('__') and callable(getattr(hooks, attr))}
+        hooks = {attr: getattr(hooks, attr) for attr in hook_methods & ALLOWED_HOOKS}
 
     id_constraints = []
     indexes = {}
@@ -147,6 +153,9 @@ def create_model(schema_cls, info_logger): # noqa
 
     modelname = name + 'Model'
     new_model = type(modelname, (Base,), model_methods)
+    if hooks:
+        for method, method_fn in hooks.items():
+            event.listens_for(Base.metadata.tables[tablename], method)(method_fn)
 
     for index_name, index_items in indexes.items():
         tablename, fieldname, index_type = index_items

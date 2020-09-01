@@ -4,10 +4,11 @@ from dateutil import tz
 from functools import partial
 
 import sqlalchemy as sql
-from sqlalchemy_utils import DateTimeRangeType
-
-from marshmallow import fields, ValidationError
+from sqlalchemy import types
 from sqlalchemy.dialects.postgresql import JSONB, TSTZRANGE
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy_utils import DateTimeRangeType
+from marshmallow import fields, ValidationError
 
 from . import validators
 
@@ -262,4 +263,18 @@ class AutoTimeNow(fields.Time):
             'validate': validators.must_be_empty,
             'sqlfield': sql.Time()
         })
+        super().__init__(**kwargs)
+
+
+class TSVType(types.TypeDecorator):
+    impl = types.UnicodeText
+
+@compiles(TSVType, 'postgresql')
+def compile_tsvector(element, compiler, **kw):
+    return 'tsvector'
+
+
+class TSVField(fields.String):
+    def __init__(self, **kwargs):
+        kwargs['sqlfield'] = TSVType
         super().__init__(**kwargs)
