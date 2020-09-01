@@ -311,6 +311,7 @@ async def apispec_metainfo(request):
 def setup_postschema(app, appname: str, *,
                      plugin_config={},
                      extra_config={},
+                     after_create=[],
                      **app_config):
 
     roles = app_config.get('roles', [])
@@ -458,7 +459,7 @@ def setup_postschema(app, appname: str, *,
 
     try:
         app.info_logger.debug("Provisioning DB...")
-        setup_db(Base)
+        setup_db(Base, after_create)
         app.info_logger.debug("DB provisioning done")
     except Exception:
         app.error_logger.exception("Provisioning failed", exc_info=True)

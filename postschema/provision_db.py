@@ -80,7 +80,7 @@ def create_admin_actor(conn):
     conn.execute(query)
 
 
-def setup_db(Base):
+def setup_db(Base, after_create):
     alembic_ini_destination, postschema_instance_path = make_alembic_dir()
     uri = f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/'
     engine = create_engine(uri + "postgres")
@@ -123,6 +123,7 @@ def setup_db(Base):
         command.stamp(alembic_cfg, "head")
 
     create_admin_actor(conn)
-
+    for callback in after_create:
+        callback(conn)
     conn.close()
     return engine
