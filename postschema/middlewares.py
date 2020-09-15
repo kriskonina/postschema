@@ -94,6 +94,8 @@ async def prepare_shielded_response(request, handler):
         resp = HTTPShieldedResource(context)
         resp.set_cookie(request.app.config.shield_cookie,
                         shield_token,
+                        samesite='None',
+                        secure=True,
                         httponly=True,
                         max_age=180)
         return resp

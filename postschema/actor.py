@@ -327,6 +327,8 @@ async def login(request, payload, is_trusted=False):
     response.set_cookie(session_cookie,
                         session_token,
                         httponly=True,
+                        samesite='None',
+                        secure=True,
                         max_age=request.app.config.session_ttl)
     request.app.info_logger.info("User logged in", actor_id=actor_id)
     return response
