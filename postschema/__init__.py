@@ -9,7 +9,7 @@ from glob import glob
 from hashlib import md5
 from importlib import import_module
 from pathlib import Path
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Coroutine
 
 import aiohttp
 import aiohttp_jinja2
@@ -183,6 +183,7 @@ class AppConfig:
     plugins: List[str] = field(default_factory=list)
     before_request_hooks: List[Callable] = field(default_factory=list)
     after_request_hooks: List[Callable] = field(default_factory=list)
+    on_response_done: Coroutine = None
     metainfo_extender: Callable = None
 
     def _update(self, cls):
@@ -427,7 +428,7 @@ def setup_postschema(app, appname: str, *,
     app.spec_hash = md5(dumps(openapi_spec).encode()).hexdigest()
 
     # map paths to roles
-    paths_by_roles = PathReturner(openapi_spec, router)
+    app.paths_by_roles = PathReturner(openapi_spec, router)
 
     # parse plugins
     installed_plugins = {}
@@ -454,8 +455,8 @@ def setup_postschema(app, appname: str, *,
         '''OpenAPI JSON spec filtered to include only the public
         and requester-specific routes.
         '''
-        paths_by_roles.roles = set(request.session.roles)
-        return json_response(paths_by_roles.paths_by_roles)
+        request.app.paths_by_roles.roles = set(request.session.roles)
+        return json_response(request.app.paths_by_roles.paths_by_roles)
 
     try:
         app.info_logger.debug("Provisioning DB...")
