@@ -278,3 +278,17 @@ class TSVField(fields.String):
     def __init__(self, **kwargs):
         kwargs['sqlfield'] = TSVType
         super().__init__(**kwargs)
+
+
+class BytesField(fields.Field):
+    def __init__(self, **kwargs):
+        # storing the upload's URL
+        kwargs['sqlfield'] = sql.Text()
+        super().__init__(**kwargs)
+
+    def _validate(self, value):
+        if not isinstance(value, bytes):
+            raise ValidationError('Invalid input type.')
+
+        if value is None or value == b'':
+            raise ValidationError('Invalid value')
