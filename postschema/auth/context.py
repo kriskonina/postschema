@@ -104,12 +104,13 @@ class AuthContext(AccessBase, StandaloneAuthedView):
             return {}
 
         try:
-            if not self.level_permissions & self.session_ctxt['roles']:
+            if not self.level_permissions & set(self.session_ctxt['roles']):
                 # already certain it's an Authed type request
                 self.check_verification_status()
                 if '*' in self.level_permissions:
                     return {}
                 raise web.HTTPForbidden(reason=ILLEGAL_XROLE)
+            return {}
         except (KeyError, TypeError):
             # private request_type
             self.check_verification_status()
