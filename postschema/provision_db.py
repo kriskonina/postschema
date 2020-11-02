@@ -20,7 +20,10 @@ BASE_DIR = THIS_DIR  # / "postschema"
 FNS_PATTERN = BASE_DIR / "sql" / "functions" / "*.sql"
 POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
 POSTGRES_DB = os.environ.get('POSTGRES_DB')
+
 POSTGRES_USER = os.environ.get('POSTGRES_USER')
+POSTGRES_ADMIN_USER = os.environ.get('POSTGRES_ADMIN_USER', POSTGRES_USER)
+POSTGRES_ADMIN_PASS = os.environ.get('POSTGRES_ADMIN_PASSWORD', POSTGRES_PASSWORD)
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
 
@@ -28,7 +31,7 @@ info_logger, error_logger, _ = setup_logging()
 
 
 def get_url():
-    return "postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}".format(**os.environ)
+    return "postgres://{POSTGRES_ADMIN_USER}:{POSTGRES_ADMIN_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}".format(**os.environ)
 
 
 def before_create(event, metadata):
@@ -82,7 +85,7 @@ def create_admin_actor(conn):
 
 def setup_db(Base, after_create):
     alembic_ini_destination, postschema_instance_path = make_alembic_dir()
-    uri = f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/'
+    uri = f'postgresql://{POSTGRES_ADMIN_USER}:{POSTGRES_ADMIN_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/'
     engine = create_engine(uri + "postgres")
     time_wait = 1
     retries = 10
