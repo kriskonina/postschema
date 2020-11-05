@@ -39,6 +39,7 @@ Q_PATTERN = BASE_DIR / "sql" / "queries" / "*.sql"
 REDIS_HOST = os.environ.get('REDIS_HOST')
 REDIS_PORT = os.environ.get('REDIS_PORT')
 REDIS_DB = int(os.environ.get('REDIS_DB', '3'))
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', None)
 POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
 POSTGRES_DB = os.environ.get('POSTGRES_DB')
 POSTGRES_USER = os.environ.get('POSTGRES_USER')
@@ -71,10 +72,17 @@ async def init_resources(app):
     dsn = f'dbname={POSTGRES_DB} user={POSTGRES_USER} password={POSTGRES_PASSWORD} host={POSTGRES_HOST} port={POSTGRES_PORT}' # noqa
     pool = await aiopg.create_pool(dsn, echo=False, pool_recycle=3600, on_connect=on_connect_postgres)
     app.db_pool = pool
-    redis_pool = await aioredis.create_pool(
-        f"redis://{REDIS_HOST}:{REDIS_PORT}",
-        db=REDIS_DB,
-        encoding="utf8")
+    if REDIS_PASSWORD:
+        redis_pool = await aioredis.create_pool(
+            f"redis://{REDIS_HOST}:{REDIS_PORT}",
+            password=REDIS_PASSWORD,
+            db=REDIS_DB,
+            encoding="utf8")
+    else:
+        redis_pool = await aioredis.create_pool(
+            f"redis://{REDIS_HOST}:{REDIS_PORT}",
+            db=REDIS_DB,
+            encoding="utf8")
     app.redis_cli = aioredis.Redis(redis_pool)
     app.info_logger.debug("Resources set up OK")
 
