@@ -564,5 +564,4 @@ def build_app(app, registered_schemas):
         created['Auxiliary views'] += len(aux_routes)
         spec_builder.add_schema_spec(schema_cls, post_view, cls_view, aux_routes.values())
 
-    app.info_logger.info('System ready', created=dict(created))
     return router, spec_builder.build_spec()
