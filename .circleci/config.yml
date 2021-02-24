@@ -11,7 +11,7 @@ jobs:
             sudo pip install setuptools wheel twine
       - run: 
           command: |
-            sudo pip install -r requirements
+            sudo pip install -r requirements.txt
       - run:
           command: |
             echo -e "[pypi]" >> ~/.pypirc
