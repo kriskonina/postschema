@@ -1186,7 +1186,7 @@ class PrincipalActorBase(RootSchema):
         sqlfield=JSONB
     )
     scope = fields.String(sqlfield=sql.String(255))
-    otp_secret = fields.String(sqlfield=sql.String(24))
+    otp_secret = fields.String(sqlfield=sql.Text)
     details = fields.Dict(sqlfield=JSONB)
 
     @validates('roles')
