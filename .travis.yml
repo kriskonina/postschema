@@ -1,4 +1,4 @@
-language: generic
+language: python
 # dist: bionic
 # cache: pip
 # env:
