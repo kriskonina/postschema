@@ -3,7 +3,7 @@ aiojobs==0.2.2
 aiopg==1.0.0
 aioredis==1.3.0
 alembic==1.2.1
-apispec==3.3.2
+apispec==3.1.0
 argon2-cffi==19.1.0
 cached-property==1.5.1
 ciso8601==2.1.1
@@ -24,7 +24,6 @@ aiohttp_jinja2==1.1.1
 cryptography==3.3.2
 colorama==0.4.1
 structlog==19.2.0
-apispec==3.1.0
 pyotp==2.3.0
 orjson==2.2.0
 sqlalchemy_utils>=0.36.1
