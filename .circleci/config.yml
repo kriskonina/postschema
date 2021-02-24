@@ -1,8 +1,27 @@
-orbs:
-  pypi: pennlabs/pypi-tools@0.0.4
-version: 2.1
-workflows:
-  build-and-publish:
-    jobs:
-      - pypi/publish:
-          context: pypi-publish
+version: 2
+jobs:
+  build:
+    working_directory: ~/postschema
+    docker:
+      - image: circleci/python:3.9.1
+    steps:
+      - checkout
+      - run:
+          command: |
+            sudo pip install setuptools wheel twine
+      - run: 
+          command: |
+            sudo pip install -r requirements
+      - run:
+          command: |
+            echo -e "[pypi]" >> ~/.pypirc
+            echo -e "username = $PYPI_USERNAME" >> ~/.pypirc
+            echo -e "password = $PYPI_PASSWORD" >> ~/.pypirc
+      - run:
+          command: |
+            python3 setup.py sdist bdist_wheel
+      - run:
+          command: |
+            twine upload dist/*
+
+
