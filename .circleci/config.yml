@@ -1,0 +1,13 @@
+version: 2.1
+orbs:
+  pypi-tools: pennlabs/pypi-tools@0.0.4
+workflows:
+  build-and-publish:
+    jobs:
+      - pypi/publish:
+          context: pypi-publish
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: '/[0-9]+(\.[0-9]+)*/'
