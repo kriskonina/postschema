@@ -444,7 +444,7 @@ class ViewsClassBase(web.View):
             selects_nested_map = cls.schema_cls._nested_select_stmts
         except AttributeError:
             selects_nested_map = {}
-
+        
         common_order_by = getattr(meta_cls, 'order_by', None) or [cls.pk_column_name]
 
         public_get_by = getattr(public_meta, 'get_by', None) or [cls.pk_column_name]
@@ -1006,7 +1006,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             extended_fields = self.schema._extended_fields_values
         except AttributeError:
             extended_fields = {}
-
+        
         query, values = self._whereize_query(cleaned_payload, query, extended_fields)
         async with self.request.app.db_pool.acquire() as conn:
             async with conn.cursor() as cur:
@@ -1081,6 +1081,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                 values.update({m2m_field: relation_in_payload})
                 wheres.append(m2m_field_translated)
 
+        
         for fk_field, join_obj in self.schema._join_to_schema_where_stmt.items():
             linked_schema = join_obj['linked_schema']
             if fk_field in self.tables_to_join:
@@ -1103,7 +1104,7 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
                     froms.append(linked_tb_name)
                     pk = linked_schema.pk_column_name
                     wheres.appendleft(f'"{linked_tb_name}".{pk}="{tablename}".{fk_field}')
-
+        
         if not self.request.auth_conditions.get('has_open_clauses', False):
             for key in cleaned_payload.copy():
                 if key in extended_fields:
@@ -1132,4 +1133,14 @@ class ViewsBase(ViewsClassBase, CommonViewMixin):
             froms = f'FROM "{froms}"'
 
         wheres_q = ' AND '.join(wheres) or ' 1=1 '
+        
+        def cyclic_context_check(vals):
+            try:
+                return wheres_q % vals
+            except KeyError as kerr:
+                missing_key = kerr.args[0]
+                vals[missing_key] = None
+                return cyclic_context_check(vals)
+
+        cyclic_context_check(values)
         return query.format(where=wheres_q, joins=joins, using=using, froms=froms), values

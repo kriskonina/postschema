@@ -18,7 +18,10 @@ def auth(roles: list, phone_verified=False, email_verified=True):
     actor is a holder of certain roles.
     """
     global DEFINED_ROLES_CACHE
-    DEFINED_ROLES = DEFINED_ROLES_CACHE or set(orjson.loads(os.environ.get('ROLES')))
+    try:
+        DEFINED_ROLES = DEFINED_ROLES_CACHE or set(orjson.loads(os.environ.get('ROLES')))
+    except orjson.JSONDecodeError:
+        DEFINED_ROLES = DEFINED_ROLES_CACHE = ['Admin']
     if not DEFINED_ROLES_CACHE:
         DEFINED_ROLES_CACHE = DEFINED_ROLES
 

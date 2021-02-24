@@ -482,6 +482,7 @@ def extend_selectors(schema_cls):
     public_cls = getattr(schema_cls, 'Public', None)
     authed_cls = getattr(schema_cls, 'Authed', None)
     private_cls = getattr(schema_cls, 'Private', None)
+    attrs = ['get_by', 'list_by', 'delete_by']
 
     for new_fieldname, arr in schema_cls._extended_fields_values.items():
         fieldname, _ = new_fieldname.split('__')
