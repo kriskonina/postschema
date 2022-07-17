@@ -94,8 +94,8 @@ async def prepare_shielded_response(request, handler):
         resp = HTTPShieldedResource(context)
         resp.set_cookie(request.app.config.shield_cookie,
                         shield_token,
-                        samesite='None',
-                        secure=True,
+                        samesite='Lax',
+                        secure=APP_MODE not in ['dev', 'test', 'demo'],
                         httponly=True,
                         max_age=180)
         return resp
@@ -207,7 +207,8 @@ async def postschema_middleware(request, handler):
                 resp = await prepare_shielded_response(request, handler)
                 with suppress(AttributeError):
                     await spawn(request, handler.log_request(request, resp))
-                    await spawn(request, request.app.config.on_response_done(request, resp))
+                    if request.app.config.on_response_done:
+                        await spawn(request, request.app.config.on_response_done(request, resp))
 
             resp.headers['ETag'] = request.app.spec_hash
             return resp
@@ -234,14 +235,16 @@ async def postschema_middleware(request, handler):
         resp = err_resp
         with suppress(AttributeError):
             await spawn(request, handler.log_request(request, resp))
-            await spawn(request, request.app.config.on_response_done(request, resp))
+            if request.app.config.on_response_done:
+                await spawn(request, request.app.config.on_response_done(request, resp))
         raise resp
 
     if auth_ctxt and str(auth_ctxt.status) != '1':
         resp = web.HTTPForbidden(reason='Account inactive')
         await spawn(request, handler.log_request(request, resp))
         with suppress(AttributeError):
-            await spawn(request, request.app.config.on_response_done(request, resp))
+            if request.app.config.on_response_done:
+                await spawn(request, request.app.config.on_response_done(request, resp))
         raise resp
 
     extra_ctxt = {
@@ -263,7 +266,8 @@ async def postschema_middleware(request, handler):
         with suppress(AttributeError):
             if request.path not in ['/actor/logout/', '/actor/login/']:
                 await spawn(request, handler.log_request(request, resp))
-                await spawn(request, request.app.config.on_response_done(request, resp))       
+                if request.app.config.on_response_done:
+                    await spawn(request, request.app.config.on_response_done(request, resp))       
 
     resp.headers['ETag'] = request.app.spec_hash
     if request.session.delete_session_cookie:

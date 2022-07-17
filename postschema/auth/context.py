@@ -172,9 +172,12 @@ class AuthContext(AccessBase, StandaloneAuthedView):
             pipe.smembers(roles_key)
             session_ctxt, workspaces, roles = await pipe.execute()
             if not session_ctxt:
-                # session cookie is valid, but not pointing to any active account
+                # session cookie is valid, but not pointing to any active account.
+                # In edge some cases this could be caused by retrying the request
+                # with the same postsession cookie after (promptly) restarting the server.
                 resp = web.HTTPUnauthorized(reason='Unknown actor')
                 resp.actor_id = actor_id
+                resp.del_cookie('postsession')
                 raise resp
 
             if session_ctxt['workspace'] == '-1' and 'Admin' not in roles:

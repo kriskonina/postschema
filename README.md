@@ -130,6 +130,7 @@ Class describe private access rules to private resources, i.e. the ones with a c
 
 
 ## TODO:
+- !!move workspace membership into actor table
 - adopt/refine security measures
 - request rate throttling as a default middleware + filtering
 - configurable request rate throttling per endpoint
