@@ -139,7 +139,7 @@ class CommonViewMixin:
     @classmethod
     async def log_request(cls, req, resp):
         logging_cls = getattr(cls.schema_cls, 'AccessLogging', None)
-        if not logging_cls:
+        if not logging_cls or not req.session:
             return
 
         is_authed = req.session.needs_session
