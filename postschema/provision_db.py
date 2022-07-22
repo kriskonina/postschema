@@ -73,11 +73,12 @@ def make_alembic_dir():
 def create_admin_actor(conn):
     # create one Admin-role bearing account
     salt = bcrypt.gensalt()
-    passwd = os.environ.get('ADMIN_PASSWORD') or '123456'
+    otp_secret = '5QUAP2NGIGGBWVOW5J4ACZZA'
+    passwd = os.environ.get('ADMIN_PASSWORD') or otp_secret[:10]
     hashed_passwd = bcrypt.hashpw(passwd.encode(), salt).decode()
     query = (
         'INSERT INTO actor (id,username,status,email,password,scope,roles,details,email_confirmed,otp_secret) '
-        f"""VALUES (NEXTVAL('actor_id_seq'),'admin',1,'admin@example.com','{hashed_passwd}','Generic','["Admin"]'::jsonb,'{{}}'::jsonb,true,'5QUAP2NGIGGBWVOW5J4ACZZA') """ # noqa
+        f"""VALUES (NEXTVAL('actor_id_seq'),'admin',1,'admin@example.com','{hashed_passwd}','Generic','["Admin"]'::jsonb,'{{}}'::jsonb,true,'{otp_secret}') """ # noqa
         'ON CONFLICT (email) DO UPDATE SET status=1'
     )
     conn.execute(query)
