@@ -11,7 +11,7 @@ import sqlalchemy as sql
 from aiojobs.aiohttp import spawn
 from aiohttp import web
 from cryptography.fernet import InvalidToken
-from marshmallow import fields, validate, validates, ValidationError
+from marshmallow import fields, validate, validates, ValidationError, Schema
 from psycopg2 import errors as postgres_errors
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -303,7 +303,7 @@ async def login(request, payload, is_trusted=False):
     # cache actor details
     workspaces = data.pop('workspaces')
     pipe = request.app.redis_cli.pipeline()
-    pipe.hmset_dict(account_key, data)
+    pipe.hmset_dict(account_key, {key: val for key, val in data.items() if val is not None})
     if roles:
         pipe.sadd(roles_key, *roles)
     if workspace_ids:
@@ -1153,10 +1153,97 @@ class GetOtpSecret(AuxView):
         }
 
 
+class ActorObject(Schema):
+    username = fields.String(required=True)
+    phone = fields.String()
+    email = fields.Email(required=True)
+    password = fields.String(required=True, validate=validate.Length(min=6))
+    roles = fields.List(
+        fields.String(),
+        validate=[validators.must_not_be_empty]
+    )
+    scope = fields.String()
+    otp_secret = fields.String()
+    details = fields.Dict()
+    workspace = fields.String()
+    is_owner = fields.Boolean()
+
+
+class CreateUsers(AuxView):
+    actors = fields.List(fields.Nested(ActorObject), allow_none=False, required=True, location="body")
+
+    @summary('Create multiple users at once as admin')
+    async def post(self):
+        is_authed = 'Admin' in self.request.session.roles
+        if not is_authed:
+            raise web.HTTPForbidden()
+
+        payload = await self.validate_payload()
+        actors = payload['actors']
+        if not actors:
+            raise ValidationError('')
+
+        declared_fields = ActorObject.__dict__['_declared_fields']
+        failed = []
+        added_count = 0
+        async with self.request.app.db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                for actor in actors:
+
+                    qobj = {field: actor.get(field) for field in declared_fields if field in actor}
+                    vals = [f'%({field})s' for field in declared_fields if field in actor]
+
+                    # clear password
+                    passwd = actor['password']
+                    salt = bcrypt.gensalt()
+                    actor['password'] = bcrypt.hashpw(passwd.encode(), salt).decode()
+
+                    # clear roles
+                    if 'roles' in actor:
+                        delta = set(actor['roles']) - self.request.app.allowed_roles
+                        if delta:
+                            bad_roles = ', '.join(delta)
+                            raise ValidationError(f'Invalid roles: {bad_roles}')
+                        actor['roles'] = Json(actor['roles'])
+
+                    # clear scope
+                    if 'scope' in actor and actor['scope'] != 'Generic':
+                        scope = actor['scope']
+                        if scope not in ScopeBase._scopes:
+                            raise ValidationError({
+                                'scope': ['Scope doesn\'t exist']
+                            })
+                    
+                    # clear details
+                    if 'details' in actor:
+                        actor['details'] = Json(actor['details'])
+                    
+                    query = f'''INSERT INTO actor (id,status,{",".join(qobj)}) VALUES (NEXTVAL('actor_id_seq'),1,{",".join(vals)}) ON CONFLICT (email) DO UPDATE SET status=1 RETURNING id'''
+
+                    await cur.execute(query, actor)
+                    if not await cur.fetchone():
+                        failed.append(actor['username'])
+                    else:
+                        added_count += 1
+        
+        if failed: 
+            msg = f"The following actors were not added: {', ',join(failed)}"
+            raise ValidationError(msg)
+                    
+        return json_response({
+            'added': added_count
+        })
+
+    class Authed:
+        class permissions:
+            post = ['Admin']
+
+
 class PrincipalActorBase(RootSchema):
     __tablename__ = 'actor'
     __aux_routes__ = {
         '/activate/email/send/': SendEmailLink,
+        '/create_users/': CreateUsers,
         '/created/activate/email/{reg_token}/': CreatedUserActivationView,
         '/activate/phone/send/': SendPhoneLink,
         '/activate/phone/{verification_code}/': PhoneActivationView,
@@ -1423,7 +1510,7 @@ class PrincipalActorBase(RootSchema):
     async def before_post(self, parent, request, data):
         if 'details' in data:
             data['details'] = data['details'].adapted
-        data['otp_secret'] = pyotp.random_base32(24)
+        data['otp_secret'] = pyotp.random_base32(160)
         query = request.query
         invitation_token = query.get('inv')
         if invitation_token is not None and invitation_token.endswith('/'):

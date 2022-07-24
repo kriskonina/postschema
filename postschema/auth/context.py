@@ -176,7 +176,6 @@ class AuthContext(AccessBase, StandaloneAuthedView):
                 # In edge some cases this could be caused by retrying the request
                 # with the same postsession cookie after (promptly) restarting the server.
                 resp = web.HTTPUnauthorized(reason='Unknown actor')
-                resp.actor_id = actor_id
                 resp.del_cookie('postsession')
                 raise resp
 

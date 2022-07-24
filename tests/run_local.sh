@@ -5,7 +5,7 @@ function cleanup {
     docker ps -aq | xargs docker rm -f
 }
 
-if [ ! -f /env/bin/activate ]; then
+if [ ! -f /e nv/bin/activate ]; then
     python3 -m venv env
 fi
 
@@ -13,12 +13,14 @@ fi
 . env/bin/activate
 trap cleanup EXIT
 echo "* Running local stack..."
-pip3 install -r ../requirements.txt
+# pip3 install -r ../requirements.txt
 
-docker-compose -f docker-compose.yml up --build -d
+docker compose up -d
 export POSTSCHEMA_PORT=9999
 export POSTGRES_PASSWORD=1234
 export POSTGRES_DB=postschemadb
+export POSTGRES_ADMIN_USER=postschema
+export POSTGRES_ADMIN_PASSWORD=1234
 export POSTGRES_USER=postschema
 export POSTGRES_HOST=0.0.0.0
 export POSTGRES_PORT=5432

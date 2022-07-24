@@ -314,8 +314,9 @@ class APISpecBuilder(AuxSpecBuilder):
             if isinstance(roles, str):
                 roles = [roles]
             extras['security'] = [{'authed': roles}]
-
-        self.spec.components.schema(schema_name, schema=schema)
+        
+        with suppress(DuplicateComponentNameError):
+            self.spec.components.schema(schema_name, schema=schema)
 
         return {
             **extras,

@@ -1,0 +1,16 @@
+services:
+    redis:
+        container_name: redis
+        image: redis
+        ports:
+            - "6379:6379"
+    postgres:
+        container_name: postgres
+        image: postgres:10.12
+        ports:
+            - "5432:5432"
+        environment:
+            - POSTGRES_PASSWORD=1234
+            - POSTGRES_DB=postschemadb
+            - POSTGRES_USER=postschema
+            - ALLOW_IP_RANGE=0.0.0.0/0
