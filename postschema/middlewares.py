@@ -268,7 +268,6 @@ async def postschema_middleware(request, handler):
                 await spawn(request, handler.log_request(request, resp))
                 if request.app.config.on_response_done:
                     await spawn(request, request.app.config.on_response_done(request, resp))       
-
     resp.headers['ETag'] = request.app.spec_hash
     if request.session.delete_session_cookie:
         request.app.info_logger.info('Deleting session cookie')
