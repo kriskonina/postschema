@@ -12,26 +12,27 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.schema import DDL
 
 from .logging import setup_logging
+from .utils import interpolate_env_var
 # from postschema import setup_postschema
 
 APP_MODE = os.environ.get("APP_MODE", 'test')
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR  # / "postschema"
 FNS_PATTERN = BASE_DIR / "sql" / "functions" / "*.sql"
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
-POSTGRES_DB = os.environ.get('POSTGRES_DB')
+POSTGRES_PASSWORD = interpolate_env_var('POSTGRES_PASSWORD')
+POSTGRES_DB = interpolate_env_var('POSTGRES_DB')
 
-POSTGRES_USER = os.environ.get('POSTGRES_USER')
-POSTGRES_ADMIN_USER = os.environ.get('POSTGRES_ADMIN_USER', POSTGRES_USER)
-POSTGRES_ADMIN_PASSWORD = os.environ.get('POSTGRES_ADMIN_PASSWORD', POSTGRES_PASSWORD)
-POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
-POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
+POSTGRES_USER = interpolate_env_var('POSTGRES_USER')
+POSTGRES_ADMIN_USER = interpolate_env_var('POSTGRES_ADMIN_USER', POSTGRES_USER)
+POSTGRES_ADMIN_PASSWORD = interpolate_env_var('POSTGRES_ADMIN_PASSWORD', POSTGRES_PASSWORD)
+POSTGRES_HOST = interpolate_env_var('POSTGRES_HOST')
+POSTGRES_PORT = interpolate_env_var('POSTGRES_PORT')
 
 info_logger, error_logger, _ = setup_logging()
 
 
 def get_url():
-    return "postgres://{POSTGRES_ADMIN_USER}:{POSTGRES_ADMIN_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}".format(**os.environ)
+    return f"postgres://{POSTGRES_ADMIN_USER}:{POSTGRES_ADMIN_PASSWORD}@{POSTGRES_HOST}/{POSTGRES_DB}"
 
 
 def before_create(event, metadata):

@@ -31,7 +31,8 @@ from .utils import (
     parse_postgres_err,
     seconds_to_human,
     Json,
-    dumps
+    dumps,
+    interpolate_env_var
 )
 from .scope import ScopeBase
 from .view import AuxView
@@ -84,10 +85,10 @@ async def send_email_user_invitation(request, by, link, to):
 
     await aiosmtplib.send(
         message,
-        hostname=os.environ.get('EMAIL_HOSTNAME'),
+        hostname=interpolate_env_var('EMAIL_HOSTNAME'),
         use_tls=True,
-        username=os.environ.get('EMAIL_USERNAME'),
-        password=os.environ.get('EMAIL_PASSWORD')
+        username=interpolate_env_var('EMAIL_USERNAME'),
+        password=interpolate_env_var('EMAIL_PASSWORD')
     )
     request.app.info_logger.info("Invitation email sent", invited=to)
 
@@ -129,10 +130,10 @@ async def send_email_reset_link(request, checkcode, to):
 
     await aiosmtplib.send(
         message,
-        hostname=os.environ.get('EMAIL_HOSTNAME'),
+        hostname=interpolate_env_var('EMAIL_HOSTNAME'),
         use_tls=True,
-        username=os.environ.get('EMAIL_USERNAME'),
-        password=os.environ.get('EMAIL_PASSWORD')
+        username=interpolate_env_var('EMAIL_USERNAME'),
+        password=interpolate_env_var('EMAIL_PASSWORD')
     )
     request.app.info_logger.info("Sent password reset link", email=to)
 
@@ -171,10 +172,10 @@ async def send_email_verification_link(request, to):
 
     await aiosmtplib.send(
         message,
-        hostname=os.environ.get('EMAIL_HOSTNAME'),
+        hostname=interpolate_env_var('EMAIL_HOSTNAME'),
         use_tls=True,
-        username=os.environ.get('EMAIL_USERNAME'),
-        password=os.environ.get('EMAIL_PASSWORD')
+        username=interpolate_env_var('EMAIL_USERNAME'),
+        password=interpolate_env_var('EMAIL_PASSWORD')
     )
     request.app.info_logger.info("Sent email verification link", email=to)
 
@@ -216,10 +217,10 @@ async def send_email_activation_link(request, data, link_path_base, ttl_seconds)
 
     await aiosmtplib.send(
         message,
-        hostname=os.environ.get('EMAIL_HOSTNAME'),
+        hostname=interpolate_env_var('EMAIL_HOSTNAME'),
         use_tls=True,
-        username=os.environ.get('EMAIL_USERNAME'),
-        password=os.environ.get('EMAIL_PASSWORD')
+        username=interpolate_env_var('EMAIL_USERNAME'),
+        password=interpolate_env_var('EMAIL_PASSWORD')
     )
     request.app.info_logger.info("Activation email sent", email=data['email'], username=data['username'])
 

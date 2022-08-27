@@ -30,21 +30,21 @@ from .core import build_app
 from .decorators import auth
 from .logging import setup_logging
 from .schema import PostSchema, _schemas as registered_schemas # noqa
-from .utils import generate_random_word, json_response, dumps
+from .utils import generate_random_word, json_response, dumps, interpolate_env_var
 
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR  # / "postschema"
 Q_PATTERN = BASE_DIR / "sql" / "queries" / "*.sql"
 
-REDIS_HOST = os.environ.get('REDIS_HOST')
-REDIS_PORT = os.environ.get('REDIS_PORT')
-REDIS_DB = int(os.environ.get('REDIS_DB', '3'))
-REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', None)
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
-POSTGRES_DB = os.environ.get('POSTGRES_DB')
-POSTGRES_USER = os.environ.get('POSTGRES_USER')
-POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
-POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
+REDIS_HOST = interpolate_env_var('REDIS_HOST')
+REDIS_PORT = interpolate_env_var('REDIS_PORT')
+REDIS_DB = int(interpolate_env_var('REDIS_DB', '3'))
+REDIS_PASSWORD = interpolate_env_var('REDIS_PASSWORD', None)
+POSTGRES_PASSWORD = interpolate_env_var('POSTGRES_PASSWORD')
+POSTGRES_DB = interpolate_env_var('POSTGRES_DB')
+POSTGRES_USER = interpolate_env_var('POSTGRES_USER')
+POSTGRES_HOST = interpolate_env_var('POSTGRES_HOST')
+POSTGRES_PORT = interpolate_env_var('POSTGRES_PORT')
 DEFAULT_ROLES = {'*', 'Admin', 'Owner', 'Manager', 'Staff'}
 THIS_DIR = Path(__file__).parent
 AUTH_TEMPLATES_DIR = THIS_DIR / 'auth' / 'templates'
@@ -144,7 +144,7 @@ class AppConfig:
 
     # auth
     activate_invited_user_with_sms: bool = False
-    fernet: Fernet = Fernet(os.environ.get('FERNET_KEY').encode())
+    fernet: Fernet = Fernet(interpolate_env_var('FERNET_KEY').encode())
     redirect_reset_password_to: str = ''
     roles: List[str] = field(default_factory=list)
     password_reset_form_link: str = ''
@@ -170,7 +170,7 @@ class AppConfig:
 
     # sms
     send_sms: Optional[Callable] = None
-    sms_sender: str = os.environ.get('DEFAULT_SMS_SENDER')
+    sms_sender: str = interpolate_env_var('DEFAULT_SMS_SENDER')
     sms_verification_cta: str = 'Enter code to confirm number: {verification_code}'
 
     # email templating
