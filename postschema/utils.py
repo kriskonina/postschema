@@ -92,7 +92,7 @@ def seconds_to_human(ttl_seconds):
         return f'{ttl_minutes} minute(s)'
 
 
-def interpolate_env_var(envvar, default_value, *, template=re.compile(r'(<<(.*?)>>)')):
+def interpolate_env_var(envvar, default_value="", template=re.compile(r'(<<(.*?)>>)')):
     main_val = os.environ.get(envvar, default_value)
     inter_hit = set(re.findall(template, main_val))
     inter_dict = {templ_key: os.environ.get(key, '') for (templ_key, key) in inter_hit}
