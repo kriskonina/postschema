@@ -20,7 +20,7 @@ uvloop==0.13.0
 aiosmtplib==1.1.0
 bcrypt==3.1.7
 aiohttp_jinja2==1.1.1
-cryptography==3.3.2
+cryptography==39.0.1
 colorama==0.4.1
 structlog==19.2.0
 apispec==3.1.0
